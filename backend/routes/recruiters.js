@@ -3,9 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 
-router.get('/', verifyToken, async (req, res) => {
+// GET /api/v1/recruiters  — admin only
+router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     if (!db) return res.json({ recruiters: [], total: 0 });
     const snap = await db.collection('recruiters').get();
@@ -16,7 +17,8 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-router.post('/', verifyToken, async (req, res) => {
+// POST /api/v1/recruiters  — recruiter registers their own profile; admin can also create
+router.post('/', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
     const payload = {
       ...req.body,
@@ -32,7 +34,8 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-router.put('/:id', verifyToken, async (req, res) => {
+// PUT /api/v1/recruiters/:id  — admin or the recruiter who owns the profile
+router.put('/:id', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
     const payload = { ...req.body, updatedAt: new Date().toISOString() };
     if (db) await db.collection('recruiters').doc(req.params.id).update(payload);
@@ -42,10 +45,17 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-router.put('/:id/verify', verifyToken, async (req, res) => {
+// PUT /api/v1/recruiters/:id/verify  — admin only
+router.put('/:id/verify', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const { verified } = req.body;
-    if (db) await db.collection('recruiters').doc(req.params.id).update({ verified, verifiedAt: new Date().toISOString(), verifiedBy: req.user.uid });
+    if (db) {
+      await db.collection('recruiters').doc(req.params.id).update({
+        verified,
+        verifiedAt: new Date().toISOString(),
+        verifiedBy: req.user.uid,
+      });
+    }
     res.json({ id: req.params.id, verified });
   } catch (err) {
     res.status(500).json({ error: err.message });

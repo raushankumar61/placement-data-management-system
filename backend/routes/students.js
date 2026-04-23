@@ -5,12 +5,12 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-// GET /api/v1/students
-router.get('/', verifyToken, async (req, res) => {
+// GET /api/v1/students  — admin, faculty, recruiter can list students
+router.get('/', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async (req, res) => {
   try {
     if (!db) return res.json({ students: [], total: 0 });
 
@@ -30,8 +30,8 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/v1/students/:id
-router.get('/:id', verifyToken, async (req, res) => {
+// GET /api/v1/students/:id  — admin, faculty, recruiter can view a student
+router.get('/:id', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async (req, res) => {
   try {
     if (!db) return res.status(404).json({ error: 'Not found' });
     const snap = await db.collection('students').doc(req.params.id).get();
@@ -42,8 +42,8 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/v1/students
-router.post('/', verifyToken, async (req, res) => {
+// POST /api/v1/students  — admin only
+router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     if (!db) return res.json({ id: uuidv4(), ...req.body });
     const ref = await db.collection('students').add({
@@ -57,8 +57,8 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/v1/students/:id
-router.put('/:id', verifyToken, async (req, res) => {
+// PUT /api/v1/students/:id  — admin only
+router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     if (!db) return res.json({ id: req.params.id, ...req.body });
     await db.collection('students').doc(req.params.id).update({
@@ -72,8 +72,8 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/v1/students/:id
-router.delete('/:id', verifyToken, async (req, res) => {
+// DELETE /api/v1/students/:id  — admin only
+router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     if (db) await db.collection('students').doc(req.params.id).delete();
     res.json({ success: true, id: req.params.id });
@@ -82,8 +82,8 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/v1/students/bulk-import
-router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res) => {
+// POST /api/v1/students/bulk-import  — admin only
+router.post('/bulk-import', verifyToken, requireRole('admin'), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 

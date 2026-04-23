@@ -3,9 +3,9 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 
-// GET /api/v1/jobs
+// GET /api/v1/jobs  — all authenticated users can browse jobs
 router.get('/', verifyToken, async (req, res) => {
   try {
     if (!db) {
@@ -38,7 +38,7 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/v1/jobs/:id
+// GET /api/v1/jobs/:id  — all authenticated users
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     if (!db) return res.status(404).json({ error: 'Not found' });
@@ -50,8 +50,8 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/v1/jobs
-router.post('/', verifyToken, async (req, res) => {
+// POST /api/v1/jobs  — admin or recruiter can post jobs
+router.post('/', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
     const payload = {
       ...req.body,
@@ -70,8 +70,8 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/v1/jobs/:id
-router.put('/:id', verifyToken, async (req, res) => {
+// PUT /api/v1/jobs/:id  — admin or the recruiter who posted it
+router.put('/:id', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
     const payload = { ...req.body, updatedAt: new Date().toISOString(), updatedBy: req.user.uid };
     if (db) await db.collection('jobs').doc(req.params.id).update(payload);
@@ -81,8 +81,8 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/v1/jobs/:id
-router.delete('/:id', verifyToken, async (req, res) => {
+// DELETE /api/v1/jobs/:id  — admin only
+router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     if (db) await db.collection('jobs').doc(req.params.id).delete();
     res.json({ success: true, id: req.params.id });

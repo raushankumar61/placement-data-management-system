@@ -3,9 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 
-// GET /api/v1/applications
+// GET /api/v1/applications  — all authenticated users (scoped by role in query)
+// Students only see their own; admin/recruiter/faculty can filter freely
 router.get('/', verifyToken, async (req, res) => {
   try {
     if (!db) return res.json({ applications: [], total: 0 });
@@ -30,8 +31,8 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/v1/applications
-router.post('/', verifyToken, async (req, res) => {
+// POST /api/v1/applications  — students only can apply
+router.post('/', verifyToken, requireRole('student'), async (req, res) => {
   try {
     const { jobId } = req.body;
     const studentId = req.user.uid;
@@ -70,13 +71,13 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/v1/applications/:id/status
-router.put('/:id/status', verifyToken, async (req, res) => {
+// PUT /api/v1/applications/:id/status  — admin or recruiter can update status
+router.put('/:id/status', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ['Applied', 'Shortlisted', 'Selected', 'Rejected', 'In Process'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
     const payload = { status, updatedAt: new Date().toISOString(), updatedBy: req.user.uid };

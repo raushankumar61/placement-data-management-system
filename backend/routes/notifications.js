@@ -3,9 +3,9 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 
-// GET /api/v1/notifications
+// GET /api/v1/notifications  — all authenticated users can read notifications
 router.get('/', verifyToken, async (req, res) => {
   try {
     if (!db) return res.json({ notifications: [], total: 0 });
@@ -20,8 +20,8 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/v1/notifications/send
-router.post('/send', verifyToken, async (req, res) => {
+// POST /api/v1/notifications/send  — admin only can broadcast notifications
+router.post('/send', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const { message, targetRole, type = 'in-app' } = req.body;
 
@@ -45,7 +45,7 @@ router.post('/send', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/v1/notifications/:id/read
+// PUT /api/v1/notifications/:id/read  — any authenticated user can mark as read
 router.put('/:id/read', verifyToken, async (req, res) => {
   try {
     if (db) {

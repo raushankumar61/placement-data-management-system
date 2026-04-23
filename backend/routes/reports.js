@@ -2,10 +2,10 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../config/firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 
-// GET /api/v1/reports/placement
-router.get('/placement', verifyToken, async (req, res) => {
+// GET /api/v1/reports/placement  — admin and faculty only
+router.get('/placement', verifyToken, requireRole('admin', 'faculty'), async (req, res) => {
   try {
     if (!db) {
       return res.json({
@@ -31,6 +31,8 @@ router.get('/placement', verifyToken, async (req, res) => {
     const students = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     const placed = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
+    const placedCount = students.filter((s) => s.placementStatus === 'placed').length;
+
     // Branch-wise aggregation
     const byBranch = {};
     students.forEach((s) => {
@@ -42,8 +44,11 @@ router.get('/placement', verifyToken, async (req, res) => {
     res.json({
       summary: {
         total: students.length,
-        placed: students.filter((s) => s.placementStatus === 'placed').length,
-        placementRate: parseFloat(((students.filter((s) => s.placementStatus === 'placed').length / students.length) * 100).toFixed(1)),
+        placed: placedCount,
+        // Guard against division by zero
+        placementRate: students.length > 0
+          ? parseFloat(((placedCount / students.length) * 100).toFixed(1))
+          : 0,
       },
       byBranch: Object.values(byBranch),
       totalApplications: placed.length,

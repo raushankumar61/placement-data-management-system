@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
+import { syncClaims } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -53,6 +54,16 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const result = await signInWithEmailAndPassword(auth, email, password);
     const profile = await fetchUserProfile(result.user.uid);
+
+    // Sync role to custom claims and refresh the token so the role
+    // is available immediately in all subsequent API requests.
+    try {
+      await syncClaims();
+      await result.user.getIdToken(/* forceRefresh= */ true);
+    } catch (e) {
+      console.warn('syncClaims after login failed:', e.message);
+    }
+
     return { user: result.user, profile };
   };
 
@@ -71,6 +82,15 @@ export function AuthProvider({ children }) {
       });
     }
     const profile = await fetchUserProfile(uid);
+
+    // Sync role to custom claims then refresh token
+    try {
+      await syncClaims();
+      await result.user.getIdToken(/* forceRefresh= */ true);
+    } catch (e) {
+      console.warn('syncClaims after Google login failed:', e.message);
+    }
+
     return { user: result.user, profile };
   };
 
@@ -109,6 +129,16 @@ export function AuthProvider({ children }) {
     }
 
     const profile = await fetchUserProfile(result.user.uid);
+
+    // Sync role to custom claims then refresh token so the next API
+    // call carries the role in the Bearer token's payload.
+    try {
+      await syncClaims();
+      await result.user.getIdToken(/* forceRefresh= */ true);
+    } catch (e) {
+      console.warn('syncClaims after register failed:', e.message);
+    }
+
     return { user: result.user, profile };
   };
 

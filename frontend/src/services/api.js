@@ -68,4 +68,12 @@ export const markNotificationRead = (id) => api.put(`/notifications/${id}/read`)
 // ─── Auth ────────────────────────────────────────────────────
 export const verifyToken = () => api.post('/auth/verify-token');
 
+/**
+ * Calls the backend to read the current user's role from Firestore
+ * and write it into their Firebase custom claims. The ID token must
+ * be refreshed afterward for the role to appear in subsequent tokens.
+ * Call this once after registration or first login.
+ */
+export const syncClaims = () => api.post('/auth/sync-claims');
+
 export default api;

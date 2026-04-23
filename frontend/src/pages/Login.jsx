@@ -160,20 +160,22 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Demo accounts hint */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-4 glass-card p-4 border border-gold/20"
-        >
-          <p className="text-gold text-xs font-semibold mb-2 font-body">Demo Accounts</p>
-          <div className="grid grid-cols-2 gap-2 text-xs font-mono text-white/40">
-            <span>admin@demo.com</span><span>student@demo.com</span>
-            <span>recruiter@demo.com</span><span>faculty@demo.com</span>
-            <span className="col-span-2 text-white/30">password: demo1234</span>
-          </div>
-        </motion.div>
+        {/* Demo accounts hint — only visible in development mode */}
+        {import.meta.env.DEV && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="mt-4 glass-card p-4 border border-gold/20"
+          >
+            <p className="text-gold text-xs font-semibold mb-2 font-body">Demo Accounts (dev only)</p>
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono text-white/40">
+              <span>admin@demo.com</span><span>student@demo.com</span>
+              <span>recruiter@demo.com</span><span>faculty@demo.com</span>
+              <span className="col-span-2 text-white/30">password: demo1234</span>
+            </div>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
