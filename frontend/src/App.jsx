@@ -134,25 +134,24 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-      <BrowserRouter>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: '#0D1425',
-              color: '#E8EDF5',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              fontFamily: 'DM Sans, sans-serif',
-            },
-            success: { iconTheme: { primary: '#00A3FF', secondary: '#050811' } },
-            error: { iconTheme: { primary: '#FF4D4F', secondary: '#050811' } },
-          }}
-        />
-        <AppRoutes />
-      </BrowserRouter>
-          </AuthProvider>
-        </ErrorBoundary>
-    </AuthProvider>
+        <BrowserRouter>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: '#0D1425',
+                color: '#E8EDF5',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                fontFamily: 'DM Sans, sans-serif',
+              },
+              success: { iconTheme: { primary: '#00A3FF', secondary: '#050811' } },
+              error: { iconTheme: { primary: '#FF4D4F', secondary: '#050811' } },
+            }}
+          />
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
