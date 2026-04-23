@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
+import DashboardLayout from './components/common/DashboardLayout';
+
 // Pages
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -23,14 +25,18 @@ import StudentDashboard from './pages/student/Dashboard';
 import StudentProfile from './pages/student/Profile';
 import StudentJobBoard from './pages/student/JobBoard';
 import StudentApplications from './pages/student/Applications';
+import StudentInterviews from './pages/student/Interviews';
 
 // Recruiter
 import RecruiterDashboard from './pages/recruiter/Dashboard';
 import RecruiterPostJob from './pages/recruiter/PostJob';
 import RecruiterCandidates from './pages/recruiter/Candidates';
+import RecruiterInterviewScheduler from './pages/recruiter/InterviewScheduler';
 
 // Faculty
 import FacultyDashboard from './pages/faculty/Dashboard';
+import FacultyRecommendations from './pages/faculty/Recommendations';
+import FacultyDataVerification from './pages/faculty/DataVerification';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, role, loading } = useAuth();
@@ -73,6 +79,15 @@ function RoleRedirect() {
   return <Navigate to={map[role] || '/login'} replace />;
 }
 
+// Wrap student interviews in DashboardLayout
+function StudentInterviewsWrapper() {
+  return (
+    <DashboardLayout title="My Interviews & Feedback">
+      <StudentInterviews />
+    </DashboardLayout>
+  );
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -96,14 +111,18 @@ function AppRoutes() {
       <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['student']}><StudentProfile /></ProtectedRoute>} />
       <Route path="/student/jobs" element={<ProtectedRoute allowedRoles={['student']}><StudentJobBoard /></ProtectedRoute>} />
       <Route path="/student/applications" element={<ProtectedRoute allowedRoles={['student']}><StudentApplications /></ProtectedRoute>} />
+      <Route path="/student/interviews" element={<ProtectedRoute allowedRoles={['student']}><StudentInterviewsWrapper /></ProtectedRoute>} />
 
       {/* Recruiter */}
       <Route path="/recruiter/dashboard" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterDashboard /></ProtectedRoute>} />
       <Route path="/recruiter/post-job" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterPostJob /></ProtectedRoute>} />
       <Route path="/recruiter/candidates" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterCandidates /></ProtectedRoute>} />
+      <Route path="/recruiter/interviews" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterInterviewScheduler /></ProtectedRoute>} />
 
       {/* Faculty */}
       <Route path="/faculty/dashboard" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDashboard /></ProtectedRoute>} />
+      <Route path="/faculty/recommendations" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyRecommendations /></ProtectedRoute>} />
+      <Route path="/faculty/verification" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDataVerification /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

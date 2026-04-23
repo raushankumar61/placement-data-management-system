@@ -26,14 +26,18 @@ const NAV_CONFIG = {
     { label: 'My Profile', icon: UserCircle, path: '/student/profile' },
     { label: 'Job Board', icon: Search, path: '/student/jobs' },
     { label: 'Applications', icon: FileText, path: '/student/applications' },
+    { label: 'Interviews & Feedback', icon: Calendar, path: '/student/interviews' },
   ],
   recruiter: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/recruiter/dashboard' },
     { label: 'Post Job', icon: Briefcase, path: '/recruiter/post-job' },
     { label: 'Candidates', icon: Users, path: '/recruiter/candidates' },
+    { label: 'Interview Scheduler', icon: Calendar, path: '/recruiter/interviews' },
   ],
   faculty: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/faculty/dashboard' },
+    { label: 'Recommendations', icon: BookOpen, path: '/faculty/recommendations' },
+    { label: 'Data Verification', icon: Shield, path: '/faculty/verification' },
   ],
 };
 
