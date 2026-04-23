@@ -39,11 +39,11 @@ const packageDist = [
 ];
 
 const recentActivity = [
-  { type: 'placement', text: 'Priya Sharma placed at Google — 24 LPA', time: '2m ago', color: 'text-green-400' },
+  { type: 'placement', text: 'A student placed at Google — 24 LPA', time: '2m ago', color: 'text-green-400' },
   { type: 'drive', text: 'Microsoft drive posted — 45 eligible students', time: '18m ago', color: 'text-blue-electric' },
   { type: 'application', text: '12 students applied to Amazon SDE', time: '1h ago', color: 'text-gold' },
   { type: 'recruiter', text: 'Infosys recruiter account approved', time: '2h ago', color: 'text-purple-400' },
-  { type: 'placement', text: 'Rahul Kumar placed at Meta — 32 LPA', time: '3h ago', color: 'text-green-400' },
+  { type: 'placement', text: 'A student placed at Meta — 32 LPA', time: '3h ago', color: 'text-green-400' },
 ];
 
 function StatCard({ icon: Icon, label, value, sub, color, delay }) {

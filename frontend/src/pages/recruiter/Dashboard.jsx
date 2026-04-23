@@ -1,19 +1,52 @@
 // src/pages/recruiter/Dashboard.jsx
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Briefcase, Users, CheckCircle, ArrowRight, Star } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-
-const recentCandidates = [
-  { name: 'Priya Sharma', branch: 'CS', cgpa: 9.1, skills: ['React', 'Node.js'], status: 'Shortlisted' },
-  { name: 'Rahul Kumar', branch: 'CS', cgpa: 8.7, skills: ['Python', 'ML'], status: 'Under Review' },
-  { name: 'Anjali Singh', branch: 'ECE', cgpa: 8.3, skills: ['Java', 'Spring'], status: 'Shortlisted' },
-];
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 export default function RecruiterDashboard() {
   const { userProfile } = useAuth();
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'students'));
+        const data = snap.docs.map((d) => {
+          const v = d.data();
+          const skills = Array.isArray(v.skills)
+            ? v.skills
+            : String(v.skills || '').split(',').map((s) => s.trim()).filter(Boolean);
+          return {
+            id: d.id,
+            name: v.name || 'Student',
+            branch: v.branch || 'Unknown',
+            cgpa: Number(v.cgpa || 0),
+            skills,
+            placementStatus: (v.placementStatus || 'unplaced').toLowerCase(),
+          };
+        });
+        setStudents(data);
+      } catch {
+        setStudents([]);
+      }
+    };
+
+    load();
+  }, []);
+
+  const recentCandidates = useMemo(
+    () => [...students]
+      .filter((s) => s.placementStatus !== 'placed')
+      .sort((a, b) => b.cgpa - a.cgpa)
+      .slice(0, 5)
+      .map((s) => ({ ...s, status: 'Under Review' })),
+    [students]
+  );
 
   return (
     <DashboardLayout title="Recruiter Dashboard">
@@ -83,6 +116,9 @@ export default function RecruiterDashboard() {
                 <span className={c.status === 'Shortlisted' ? 'badge-blue' : 'badge-gray'}>{c.status}</span>
               </motion.div>
             ))}
+            {recentCandidates.length === 0 && (
+              <p className="text-white/40 text-sm font-body">No candidate activity yet.</p>
+            )}
           </div>
         </div>
       </div>

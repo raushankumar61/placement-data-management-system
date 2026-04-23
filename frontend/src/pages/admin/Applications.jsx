@@ -1,25 +1,54 @@
 // src/pages/admin/Applications.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
-
-const DEMO_APPS = [
-  { id: 1, student: 'Priya Sharma', rollNo: '2021CS001', company: 'Google', role: 'SDE', branch: 'CS', status: 'Selected', appliedAt: '2025-01-15', cgpa: 9.1 },
-  { id: 2, student: 'Rahul Kumar', rollNo: '2021CS042', company: 'Amazon', role: 'SDE-2', branch: 'CS', status: 'Shortlisted', appliedAt: '2025-01-18', cgpa: 8.7 },
-  { id: 3, student: 'Anjali Singh', rollNo: '2021EC015', company: 'Microsoft', role: 'Data Scientist', branch: 'ECE', status: 'Applied', appliedAt: '2025-01-20', cgpa: 8.3 },
-  { id: 4, student: 'Amit Patel', rollNo: '2021IT008', company: 'Flipkart', role: 'Frontend Dev', branch: 'IT', status: 'Rejected', appliedAt: '2025-01-10', cgpa: 7.8 },
-  { id: 5, student: 'Sneha Reddy', rollNo: '2021CS067', company: 'Infosys', role: 'Systems Analyst', branch: 'CS', status: 'Selected', appliedAt: '2025-01-12', cgpa: 8.0 },
-  { id: 6, student: 'Vikram Nair', rollNo: '2021ME030', company: 'Wipro', role: 'Engineer', branch: 'Mech', status: 'Applied', appliedAt: '2025-01-22', cgpa: 7.5 },
-  { id: 7, student: 'Deepa Menon', rollNo: '2021CS099', company: 'Adobe', role: 'UI Engineer', branch: 'CS', status: 'Shortlisted', appliedAt: '2025-01-19', cgpa: 9.0 },
-];
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import toast from 'react-hot-toast';
 
 const STATUS_CLASS = { Selected: 'badge-green', Shortlisted: 'badge-blue', Applied: 'badge-gray', Rejected: 'badge-red' };
 
 export default function AdminApplications() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [applications, setApplications] = useState(DEMO_APPS);
+  const [applications, setApplications] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [appsSnap, studentsSnap, jobsSnap] = await Promise.all([
+          getDocs(collection(db, 'applications')),
+          getDocs(collection(db, 'students')),
+          getDocs(collection(db, 'jobs')),
+        ]);
+
+        const studentMap = new Map(studentsSnap.docs.map((d) => [d.id, d.data()]));
+        const jobMap = new Map(jobsSnap.docs.map((d) => [d.id, d.data()]));
+
+        const records = appsSnap.docs.map((d) => {
+          const a = d.data();
+          const s = studentMap.get(a.studentId) || {};
+          const j = jobMap.get(a.jobId) || {};
+          return {
+            id: d.id,
+            student: s.name || 'Student',
+            rollNo: s.rollNo || 'N/A',
+            company: j.company || 'N/A',
+            role: j.title || 'N/A',
+            branch: s.branch || 'N/A',
+            status: a.status || 'Applied',
+            appliedAt: (a.appliedAt || '').slice(0, 10) || 'N/A',
+            cgpa: Number(s.cgpa || 0),
+          };
+        });
+        setApplications(records);
+      } catch {
+        setApplications([]);
+      }
+    };
+    load();
+  }, []);
 
   const filtered = applications.filter((a) => {
     const matchSearch = !search || a.student.toLowerCase().includes(search.toLowerCase()) || a.company.toLowerCase().includes(search.toLowerCase());
@@ -27,8 +56,13 @@ export default function AdminApplications() {
     return matchSearch && matchStatus;
   });
 
-  const updateStatus = (id, status) => {
-    setApplications((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
+  const updateStatus = async (id, status) => {
+    try {
+      await updateDoc(doc(db, 'applications', id), { status, updatedAt: new Date().toISOString() });
+      setApplications((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
+    } catch {
+      toast.error('Failed to update application status');
+    }
   };
 
   return (

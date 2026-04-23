@@ -1,78 +1,11 @@
 // src/pages/faculty/DataVerification.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Eye, AlertCircle, Search, Filter } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, AlertCircle, Search } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-
-const PENDING_VERIFICATIONS = [
-  {
-    id: 1,
-    student: 'Priya Sharma',
-    rollNo: '2021CS001',
-    field: 'CGPA',
-    oldValue: '8.5',
-    newValue: '9.1',
-    submittedAt: '2025-01-22',
-    evidence: 'Grade card semester 6',
-    status: 'pending',
-  },
-  {
-    id: 2,
-    student: 'Rahul Kumar',
-    rollNo: '2021CS042',
-    field: 'Skills',
-    oldValue: 'Python, Java',
-    newValue: 'Python, Java, TensorFlow, AWS',
-    submittedAt: '2025-01-21',
-    evidence: 'AWS Certification, TensorFlow Certificate',
-    status: 'pending',
-  },
-  {
-    id: 3,
-    student: 'Anjali Singh',
-    rollNo: '2021CS015',
-    field: 'Resume',
-    oldValue: 'resume_v1.pdf',
-    newValue: 'resume_v2.pdf',
-    submittedAt: '2025-01-20',
-    evidence: 'Updated resume uploaded',
-    status: 'pending',
-  },
-  {
-    id: 4,
-    student: 'Amit Patel',
-    rollNo: '2021CS008',
-    field: 'Branch',
-    oldValue: 'Information Technology',
-    newValue: 'Computer Science',
-    submittedAt: '2025-01-19',
-    evidence: 'Transfer certificate',
-    status: 'pending',
-  },
-  {
-    id: 5,
-    student: 'Sneha Reddy',
-    rollNo: '2021CS067',
-    field: 'CGPA',
-    oldValue: '7.2',
-    newValue: '8.0',
-    submittedAt: '2025-01-18',
-    evidence: 'Grade card semester 5 & 6',
-    status: 'approved',
-  },
-  {
-    id: 6,
-    student: 'Vikram Nair',
-    rollNo: '2021CS030',
-    field: 'Projects',
-    oldValue: '2 projects',
-    newValue: '4 projects',
-    submittedAt: '2025-01-17',
-    evidence: 'GitHub links provided',
-    status: 'rejected',
-  },
-];
+import { collection, getDocs, updateDoc, doc, orderBy, query } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const FIELD_COLORS = {
   CGPA: 'badge-gold',
@@ -89,11 +22,24 @@ const STATUS_COLORS = {
 };
 
 export default function FacultyDataVerification() {
-  const [verifications, setVerifications] = useState(PENDING_VERIFICATIONS);
+  const [verifications, setVerifications] = useState([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('pending');
   const [selected, setSelected] = useState(null);
   const [comment, setComment] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'verifications'), orderBy('submittedAt', 'desc')));
+        const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setVerifications(records);
+      } catch {
+        setVerifications([]);
+      }
+    };
+    load();
+  }, []);
 
   const filtered = verifications.filter((v) => {
     const matchSearch = !search ||
@@ -103,23 +49,33 @@ export default function FacultyDataVerification() {
     return matchSearch && matchFilter;
   });
 
-  const handleApprove = (id) => {
-    setVerifications((prev) => prev.map((v) =>
-      v.id === id ? { ...v, status: 'approved', comment } : v
-    ));
-    setSelected(null);
-    setComment('');
-    toast.success('Data change approved ✅');
+  const handleApprove = async (id) => {
+    try {
+      await updateDoc(doc(db, 'verifications', id), { status: 'approved', comment, reviewedAt: new Date().toISOString() });
+      setVerifications((prev) => prev.map((v) =>
+        v.id === id ? { ...v, status: 'approved', comment } : v
+      ));
+      setSelected(null);
+      setComment('');
+      toast.success('Data change approved ✅');
+    } catch {
+      toast.error('Failed to approve');
+    }
   };
 
-  const handleReject = (id) => {
+  const handleReject = async (id) => {
     if (!comment.trim()) return toast.error('Please provide a reason for rejection');
-    setVerifications((prev) => prev.map((v) =>
-      v.id === id ? { ...v, status: 'rejected', comment } : v
-    ));
-    setSelected(null);
-    setComment('');
-    toast.success('Data change rejected');
+    try {
+      await updateDoc(doc(db, 'verifications', id), { status: 'rejected', comment, reviewedAt: new Date().toISOString() });
+      setVerifications((prev) => prev.map((v) =>
+        v.id === id ? { ...v, status: 'rejected', comment } : v
+      ));
+      setSelected(null);
+      setComment('');
+      toast.success('Data change rejected');
+    } catch {
+      toast.error('Failed to reject');
+    }
   };
 
   const pendingCount = verifications.filter((v) => v.status === 'pending').length;

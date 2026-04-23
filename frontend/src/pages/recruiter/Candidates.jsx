@@ -1,25 +1,48 @@
 // src/pages/recruiter/Candidates.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Download, Filter, Star, ExternalLink } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-
-const DEMO_CANDIDATES = [
-  { id: 1, name: 'Priya Sharma', branch: 'Computer Science', cgpa: 9.1, skills: ['React', 'Node.js', 'Python'], status: 'Available', starred: true, projects: 4, internships: 2 },
-  { id: 2, name: 'Rahul Kumar', branch: 'Computer Science', cgpa: 8.7, skills: ['Python', 'ML', 'TensorFlow'], status: 'Available', starred: false, projects: 3, internships: 1 },
-  { id: 3, name: 'Anjali Singh', branch: 'ECE', cgpa: 8.3, skills: ['Java', 'Spring', 'AWS'], status: 'Available', starred: true, projects: 5, internships: 2 },
-  { id: 4, name: 'Amit Patel', branch: 'IT', cgpa: 7.8, skills: ['Vue.js', 'Django', 'PostgreSQL'], status: 'Placed', starred: false, projects: 2, internships: 1 },
-  { id: 5, name: 'Sneha Reddy', branch: 'Computer Science', cgpa: 8.0, skills: ['C++', 'DSA', 'Competitive Programming'], status: 'Available', starred: false, projects: 3, internships: 0 },
-  { id: 6, name: 'Deepa Menon', branch: 'Computer Science', cgpa: 9.0, skills: ['UI/UX', 'Figma', 'React'], status: 'Available', starred: true, projects: 6, internships: 3 },
-];
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 export default function RecruiterCandidates() {
-  const [candidates, setCandidates] = useState(DEMO_CANDIDATES);
+  const [candidates, setCandidates] = useState([]);
   const [search, setSearch] = useState('');
   const [minCGPA, setMinCGPA] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [selected, setSelected] = useState(null);
+  const [starred, setStarred] = useState({});
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'students'));
+        const data = snap.docs.map((d) => {
+          const v = d.data();
+          const skills = Array.isArray(v.skills)
+            ? v.skills
+            : String(v.skills || '').split(',').map((s) => s.trim()).filter(Boolean);
+          return {
+            id: d.id,
+            name: v.name || 'Student',
+            branch: v.branch || 'Unknown',
+            cgpa: Number(v.cgpa || 0),
+            skills,
+            status: (v.placementStatus || '').toLowerCase() === 'placed' ? 'Placed' : 'Available',
+            email: v.email || '',
+            rollNo: v.rollNo || '',
+          };
+        });
+        setCandidates(data);
+      } catch {
+        toast.error('Unable to load candidates');
+      }
+    };
+
+    load();
+  }, []);
 
   const filtered = candidates.filter((c) => {
     const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()));
@@ -28,7 +51,7 @@ export default function RecruiterCandidates() {
     return matchSearch && matchCGPA && matchBranch && c.status !== 'Placed';
   });
 
-  const toggleStar = (id) => setCandidates((prev) => prev.map((c) => c.id === id ? { ...c, starred: !c.starred } : c));
+  const toggleStar = (id) => setStarred((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const shortlist = (candidate) => {
     toast.success(`${candidate.name} shortlisted!`);
@@ -50,7 +73,7 @@ export default function RecruiterCandidates() {
             <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}
               className="input-field py-2 text-sm w-44 appearance-none">
               <option value="">All Branches</option>
-              {['Computer Science', 'IT', 'ECE', 'Mechanical', 'Civil'].map((b) => (
+              {[...new Set(candidates.map((c) => c.branch).filter(Boolean))].map((b) => (
                 <option key={b} value={b} className="bg-dark-700">{b}</option>
               ))}
             </select>
@@ -73,7 +96,7 @@ export default function RecruiterCandidates() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-white font-semibold text-sm">{c.name}</p>
-                      {c.starred && <Star size={12} className="text-gold fill-gold" />}
+                      {starred[c.id] && <Star size={12} className="text-gold fill-gold" />}
                     </div>
                     <p className="text-white/40 text-xs font-body">{c.branch} · CGPA {c.cgpa}</p>
                     <div className="flex gap-1 mt-1 flex-wrap">
@@ -83,9 +106,9 @@ export default function RecruiterCandidates() {
                   <div className="flex flex-col items-end gap-2">
                     <button onClick={(e) => { e.stopPropagation(); toggleStar(c.id); }}
                       className="text-white/30 hover:text-gold transition-colors">
-                      <Star size={14} className={c.starred ? 'text-gold fill-gold' : ''} />
+                      <Star size={14} className={starred[c.id] ? 'text-gold fill-gold' : ''} />
                     </button>
-                    <div className="text-xs text-white/30 font-body">{c.projects}P · {c.internships}I</div>
+                    <div className="text-xs text-white/30 font-body">{c.skills.length} skills</div>
                   </div>
                 </div>
               </motion.div>
@@ -108,8 +131,8 @@ export default function RecruiterCandidates() {
             <div className="space-y-2 py-4 border-y border-white/5">
               {[
                 { label: 'CGPA', value: selected.cgpa, color: 'text-gold' },
-                { label: 'Projects', value: selected.projects },
-                { label: 'Internships', value: selected.internships },
+                { label: 'Roll No', value: selected.rollNo || 'N/A' },
+                { label: 'Email', value: selected.email || 'N/A' },
                 { label: 'Status', value: selected.status },
               ].map(({ label, value, color }) => (
                 <div key={label} className="flex justify-between text-sm">

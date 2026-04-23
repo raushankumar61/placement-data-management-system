@@ -1,29 +1,17 @@
 // src/pages/faculty/Dashboard.jsx
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-
-const deptStudents = [
-  { name: 'Priya Sharma', cgpa: 9.1, status: 'Placed', company: 'Google', rollNo: '2021CS001' },
-  { name: 'Rahul Kumar', cgpa: 8.7, status: 'In Process', company: 'Amazon', rollNo: '2021CS042' },
-  { name: 'Anjali Singh', cgpa: 8.3, status: 'Applied', company: '—', rollNo: '2021CS015' },
-  { name: 'Amit Patel', cgpa: 7.8, status: 'Unplaced', company: '—', rollNo: '2021CS008' },
-  { name: 'Sneha Reddy', cgpa: 8.0, status: 'Placed', company: 'Infosys', rollNo: '2021CS067' },
-];
-
-const cgpaDistribution = [
-  { range: '< 6.5', count: 12 },
-  { range: '6.5-7.5', count: 28 },
-  { range: '7.5-8.5', count: 45 },
-  { range: '8.5-9.5', count: 31 },
-  { range: '> 9.5', count: 8 },
-];
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const STATUS_CLASS = {
-  Placed: 'badge-green', 'In Process': 'badge-blue', Applied: 'badge-gray', Unplaced: 'badge-red',
+  placed: 'badge-green',
+  'in-process': 'badge-blue',
+  unplaced: 'badge-red',
 };
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -37,6 +25,54 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function FacultyDashboard() {
   const { userProfile } = useAuth();
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'students'));
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setStudents(data);
+      } catch {
+        setStudents([]);
+      }
+    };
+    load();
+  }, []);
+
+  const deptStudents = useMemo(() => {
+    const dept = userProfile?.department;
+    const source = dept ? students.filter((s) => s.branch === dept) : students;
+    return source.map((s) => ({
+      id: s.id,
+      rollNo: s.rollNo || 'N/A',
+      name: s.name || 'Student',
+      cgpa: Number(s.cgpa || 0),
+      status: (s.placementStatus || 'unplaced').toLowerCase(),
+      company: s.company || '—',
+    }));
+  }, [students, userProfile?.department]);
+
+  const cgpaDistribution = useMemo(() => {
+    const ranges = [
+      { range: '< 6.5', min: 0, max: 6.5 },
+      { range: '6.5-7.5', min: 6.5, max: 7.5 },
+      { range: '7.5-8.5', min: 7.5, max: 8.5 },
+      { range: '8.5-9.5', min: 8.5, max: 9.5 },
+      { range: '> 9.5', min: 9.5, max: 20 },
+    ];
+    return ranges.map((r) => ({
+      range: r.range,
+      count: deptStudents.filter((s) => s.cgpa >= r.min && s.cgpa < r.max).length,
+    }));
+  }, [deptStudents]);
+
+  const stats = useMemo(() => ({
+    total: deptStudents.length,
+    placed: deptStudents.filter((s) => s.status === 'placed').length,
+    inProcess: deptStudents.filter((s) => s.status === 'in-process').length,
+    unplaced: deptStudents.filter((s) => s.status === 'unplaced').length,
+  }), [deptStudents]);
 
   return (
     <DashboardLayout title="Faculty Dashboard">
@@ -52,10 +88,10 @@ export default function FacultyDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Dept Students', value: 124, color: 'text-white' },
-            { label: 'Placed', value: 89, color: 'text-green-400' },
-            { label: 'In Process', value: 21, color: 'text-blue-electric' },
-            { label: 'Unplaced', value: 14, color: 'text-red-400' },
+            { label: 'Dept Students', value: stats.total, color: 'text-white' },
+            { label: 'Placed', value: stats.placed, color: 'text-green-400' },
+            { label: 'In Process', value: stats.inProcess, color: 'text-blue-electric' },
+            { label: 'Unplaced', value: stats.unplaced, color: 'text-red-400' },
           ].map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }} className="glass-card p-4">
@@ -80,8 +116,8 @@ export default function FacultyDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {deptStudents.map((s, i) => (
-                  <motion.tr key={s.rollNo} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                {deptStudents.slice(0, 10).map((s, i) => (
+                  <motion.tr key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 + i * 0.07 }} className="table-row">
                     <td className="px-4 py-3 font-mono text-xs text-white/50">{s.rollNo}</td>
                     <td className="px-4 py-3 text-white text-sm">{s.name}</td>
@@ -90,6 +126,11 @@ export default function FacultyDashboard() {
                     <td className="px-4 py-3 text-white/50 text-sm font-body">{s.company}</td>
                   </motion.tr>
                 ))}
+                {deptStudents.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="px-4 py-8 text-center text-white/40 text-sm font-body">No department students found.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

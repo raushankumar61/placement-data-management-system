@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/common/DashboardLayout';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { bulkImportStudents } from '../../services/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
@@ -15,7 +16,19 @@ const STATUS_COLORS = {
   'in-process': 'badge-blue',
 };
 
-const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical'];
+const BRANCHES = [
+  'Computer Science',
+  'Information Technology',
+  'Electronics & Communication',
+  'Mechanical',
+  'Civil',
+  'Electrical',
+  'Artificial Intelligence & Machine Learning',
+  'Data Science',
+  'Aerospace Engineering',
+  'Biotechnology',
+  'Robotics and Automation',
+];
 
 const INITIAL_FORM = { name: '', email: '', branch: '', cgpa: '', skills: '', placementStatus: 'unplaced', phone: '', rollNo: '' };
 
@@ -39,20 +52,9 @@ export default function AdminStudents() {
       setStudents(data);
       setFiltered(data);
     } catch {
-      // Use demo data if Firebase not configured
-      const demo = Array.from({ length: 20 }, (_, i) => ({
-        id: `demo-${i}`,
-        name: ['Priya Sharma', 'Rahul Kumar', 'Anjali Singh', 'Amit Patel', 'Sneha Reddy'][i % 5] + ` ${i + 1}`,
-        email: `student${i + 1}@college.edu`,
-        branch: BRANCHES[i % BRANCHES.length],
-        cgpa: (6.5 + (i % 4) * 0.5).toFixed(1),
-        skills: ['React, Node.js', 'Python, ML', 'Java, Spring', 'C++, DSA', 'Vue, Django'][i % 5],
-        placementStatus: ['placed', 'unplaced', 'in-process'][i % 3],
-        rollNo: `2021CS${String(i + 1).padStart(3, '0')}`,
-        phone: `+91 9${String(800000000 + i)}`,
-      }));
-      setStudents(demo);
-      setFiltered(demo);
+      setStudents([]);
+      setFiltered([]);
+      toast.error('Unable to load students. Check Firebase configuration.');
     } finally {
       setLoading(false);
     }
@@ -83,7 +85,7 @@ export default function AdminStudents() {
     setSaving(true);
     try {
       const payload = { ...form, skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean), updatedAt: serverTimestamp() };
-      if (editStudent?.id && !editStudent.id.startsWith('demo-')) {
+      if (editStudent?.id) {
         await updateDoc(doc(db, 'students', editStudent.id), payload);
         toast.success('Student updated');
       } else {
@@ -93,15 +95,7 @@ export default function AdminStudents() {
       setShowModal(false);
       fetchStudents();
     } catch {
-      // Demo mode: update locally
-      if (editStudent) {
-        setStudents((prev) => prev.map((s) => s.id === editStudent.id ? { ...s, ...form } : s));
-        toast.success('Student updated (demo mode)');
-      } else {
-        setStudents((prev) => [{ ...form, id: `demo-new-${Date.now()}` }, ...prev]);
-        toast.success('Student added (demo mode)');
-      }
-      setShowModal(false);
+      toast.error('Failed to save student');
     } finally {
       setSaving(false);
     }
@@ -110,12 +104,11 @@ export default function AdminStudents() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this student?')) return;
     try {
-      if (!id.startsWith('demo-')) await deleteDoc(doc(db, 'students', id));
+      await deleteDoc(doc(db, 'students', id));
       setStudents((prev) => prev.filter((s) => s.id !== id));
       toast.success('Student deleted');
     } catch {
-      setStudents((prev) => prev.filter((s) => s.id !== id));
-      toast.success('Student deleted');
+      toast.error('Failed to delete student');
     }
   };
 
@@ -133,27 +126,19 @@ export default function AdminStudents() {
   const handleImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
+    const runImport = async () => {
       try {
-        const wb = XLSX.read(evt.target.result, { type: 'binary' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws);
-        const imported = rows.map((r, i) => ({
-          id: `imported-${i}`,
-          name: r['Name'] || '',
-          email: r['Email'] || '',
-          branch: r['Branch'] || '',
-          cgpa: r['CGPA'] || '',
-          placementStatus: r['Status'] || 'unplaced',
-          rollNo: r['Roll No'] || '',
-          skills: [],
-        }));
-        setStudents((prev) => [...imported, ...prev]);
-        toast.success(`${imported.length} students imported`);
-      } catch { toast.error('Invalid file format'); }
+        const formData = new FormData();
+        formData.append('file', file);
+        const { data } = await bulkImportStudents(formData);
+        toast.success(data?.message || 'Students imported');
+        fetchStudents();
+      } catch {
+        toast.error('Import failed. Ensure you are logged in as admin and file format is valid.');
+      }
     };
-    reader.readAsBinaryString(file);
+
+    runImport();
     e.target.value = '';
   };
 
@@ -321,7 +306,7 @@ export default function AdminStudents() {
                 <div>
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Full Name *</label>
                   <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="input-field text-sm" placeholder="Priya Sharma" required />
+                    className="input-field text-sm" placeholder="Student Name" required />
                 </div>
                 <div>
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Roll Number</label>
@@ -332,7 +317,7 @@ export default function AdminStudents() {
               <div>
                 <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Email *</label>
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="input-field text-sm" placeholder="priya@college.edu" required />
+                  className="input-field text-sm" placeholder="student@college.edu" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

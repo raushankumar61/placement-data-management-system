@@ -1,0 +1,71 @@
+Name,Email,Branch,CGPA,Roll No,Skills,Status,Phone
+Aarav Sharma,aarav.sharma@dsce.edu.in,Computer Science,9.2,1DS23CS001,"React, Node.js, DSA",placed,+91 9876500001
+Aditi Rao,aditi.rao@dsce.edu.in,Information Technology,8.8,1DS23IT002,"Python, SQL, Flask",in-process,+91 9876500002
+Arjun Nair,arjun.nair@dsce.edu.in,Electronics & Communication,8.1,1DS23EC003,"Embedded C, VLSI, IoT",unplaced,+91 9876500003
+Bhavana K,bhavana.k@dsce.edu.in,Electrical,7.9,1DS23EE004,"MATLAB, Power Systems, Python",in-process,+91 9876500004
+Chaitanya P,chaitanya.p@dsce.edu.in,Mechanical,7.6,1DS23ME005,"SolidWorks, CAD, ANSYS",unplaced,+91 9876500005
+Divya Menon,divya.menon@dsce.edu.in,Civil,8.3,1DS23CV006,"AutoCAD, STAAD Pro, MS Excel",placed,+91 9876500006
+Eshan Kulkarni,eshan.k@dsce.edu.in,Computer Science,9.0,1DS23CS007,"Java, Spring Boot, AWS",placed,+91 9876500007
+Fatima Shaik,fatima.shaik@dsce.edu.in,Information Technology,8.4,1DS23IT008,"React, MongoDB, UI/UX",in-process,+91 9876500008
+Goutham Raj,goutham.raj@dsce.edu.in,Electronics & Communication,7.8,1DS23EC009,"Verilog, FPGA, C",unplaced,+91 9876500009
+Harini S,harini.s@dsce.edu.in,Electrical,8.0,1DS23EE010,"Power Electronics, ETAP, MATLAB",placed,+91 9876500010
+Ishaan Verma,ishaan.verma@dsce.edu.in,Mechanical,7.4,1DS23ME011,"CATIA, CNC, Manufacturing",unplaced,+91 9876500011
+Jahnavi T,jahnavi.t@dsce.edu.in,Civil,8.6,1DS23CV012,"Surveying, AutoCAD, Estimation",in-process,+91 9876500012
+Karan Bhat,karan.bhat@dsce.edu.in,Computer Science,9.4,1DS23CS013,"Python, ML, TensorFlow",placed,+91 9876500013
+Lavanya N,lavanya.n@dsce.edu.in,Information Technology,8.2,1DS23IT014,"Angular, Node.js, MySQL",unplaced,+91 9876500014
+Manoj R,manoj.r@dsce.edu.in,Electronics & Communication,7.7,1DS23EC015,"Communication Systems, DSP, C++",in-process,+91 9876500015
+Nandini H,nandini.h@dsce.edu.in,Electrical,8.5,1DS23EE016,"Circuit Design, PSIM, Python",placed,+91 9876500016
+Omkar Desai,omkar.desai@dsce.edu.in,Mechanical,7.9,1DS23ME017,"AutoCAD, Thermal Engineering, Excel",unplaced,+91 9876500017
+Pooja A,pooja.a@dsce.edu.in,Civil,8.1,1DS23CV018,"Structural Analysis, STAAD Pro, Revit",placed,+91 9876500018
+Rahul Kumar,rahul.kumar@dsce.edu.in,Computer Science,9.1,1DS23CS019,"DSA, Java, System Design",in-process,+91 9876500019
+Sahana M,sahana.m@dsce.edu.in,Information Technology,8.7,1DS23IT020,"React, Firebase, CSS",placed,+91 9876500020
+Tarun Shetty,tarun.shetty@dsce.edu.in,Electronics & Communication,7.5,1DS23EC021,"Signal Processing, MATLAB, C",unplaced,+91 9876500021
+Usha Priya,usha.priya@dsce.edu.in,Electrical,8.3,1DS23EE022,"Power Systems, Arduino, IoT",in-process,+91 9876500022
+Vignesh G,vignesh.g@dsce.edu.in,Mechanical,7.8,1DS23ME023,"SolidWorks, Thermodynamics, Python",unplaced,+91 9876500023
+Wendy Thomas,wendy.thomas@dsce.edu.in,Civil,8.4,1DS23CV024,"GeoTech, AutoCAD, Excel",placed,+91 9876500024
+Yashaswini R,yashaswini.r@dsce.edu.in,Computer Science,9.0,1DS23CS025,"MERN, AWS, Docker",placed,+91 9876500025
+Zaid Ahmed,zaid.ahmed@dsce.edu.in,Information Technology,8.0,1DS23IT026,"Python, Django, PostgreSQL",in-process,+91 9876500026
+Ananya Singh,ananya.singh@dsce.edu.in,Electronics & Communication,8.2,1DS23EC027,"VHDL, IoT, C",unplaced,+91 9876500027
+Bharath M,bharath.m@dsce.edu.in,Electrical,7.6,1DS23EE028,"Circuit Analysis, MATLAB, SCADA",placed,+91 9876500028
+Charan R,charan.r@dsce.edu.in,Mechanical,7.3,1DS23ME029,"CAD, ANSYS, Robotics",unplaced,+91 9876500029
+Deepthi H,deepthi.h@dsce.edu.in,Civil,8.5,1DS23CV030,"AutoCAD, Quantity Surveying, Revit",in-process,+91 9876500030
+Eshwar S,eshwar.s@dsce.edu.in,Computer Science,9.3,1DS23CS031,"Go, Kubernetes, Cloud",placed,+91 9876500031
+Faria Khan,faria.khan@dsce.edu.in,Information Technology,8.6,1DS23IT032,"JavaScript, React, Node.js",placed,+91 9876500032
+Gagan P,gagan.p@dsce.edu.in,Electronics & Communication,7.9,1DS23EC033,"Embedded Systems, C, Proteus",in-process,+91 9876500033
+Harsha V,harsha.v@dsce.edu.in,Electrical,8.1,1DS23EE034,"Power Electronics, PLC, MATLAB",unplaced,+91 9876500034
+Ira Joseph,ira.joseph@dsce.edu.in,Mechanical,7.7,1DS23ME035,"AutoCAD, 3D Printing, Python",placed,+91 9876500035
+Jeevan D,jeevan.d@dsce.edu.in,Civil,8.2,1DS23CV036,"STAAD Pro, Surveying, Excel",unplaced,+91 9876500036
+Kriti M,kriti.m@dsce.edu.in,Computer Science,9.1,1DS23CS037,"Python, FastAPI, PostgreSQL",in-process,+91 9876500037
+Lokesh S,lokesh.s@dsce.edu.in,Information Technology,8.4,1DS23IT038,"React, TypeScript, Firebase",placed,+91 9876500038
+Meera N,meera.n@dsce.edu.in,Electronics & Communication,7.8,1DS23EC039,"Signals, DSP, MATLAB",unplaced,+91 9876500039
+Nikhil R,nikhil.r@dsce.edu.in,Electrical,8.0,1DS23EE040,"Power Systems, ETAP, SCADA",in-process,+91 9876500040
+Oviya S,oviya.s@dsce.edu.in,Mechanical,7.5,1DS23ME041,"CATIA, Thermal Design, Excel",placed,+91 9876500041
+Pranav K,pranav.k@dsce.edu.in,Civil,8.6,1DS23CV042,"Revit, STAAD Pro, Planning",unplaced,+91 9876500042
+Qureshi A,qureshi.a@dsce.edu.in,Computer Science,9.4,1DS23CS043,"ML, NLP, PyTorch",placed,+91 9876500043
+Rhea Thomas,rhea.thomas@dsce.edu.in,Information Technology,8.3,1DS23IT044,"Vue, Node.js, MySQL",in-process,+91 9876500044
+Shivani B,shivani.b@dsce.edu.in,Electronics & Communication,7.6,1DS23EC045,"FPGA, Verilog, C++",unplaced,+91 9876500045
+Tejaswini C,tejaswini.c@dsce.edu.in,Electrical,8.7,1DS23EE046,"Circuit Design, MATLAB, IoT",placed,+91 9876500046
+Umair Z,umair.z@dsce.edu.in,Mechanical,7.4,1DS23ME047,"ANSYS, CAD, Manufacturing",unplaced,+91 9876500047
+Varsha R,varsha.r@dsce.edu.in,Civil,8.1,1DS23CV048,"Surveying, AutoCAD, Estimation",placed,+91 9876500048
+Wasim A,wasim.a@dsce.edu.in,Computer Science,9.0,1DS23CS049,"Java, Spring Boot, Docker",in-process,+91 9876500049
+Zoya F,zoya.f@dsce.edu.in,Information Technology,8.5,1DS23IT050,"React, GraphQL, Firebase",placed,+91 9876500050
+Adarsh P,adarsh.p@dsce.edu.in,Artificial Intelligence & Machine Learning,9.2,1DS23AI051,"Python, ML, PyTorch",placed,+91 9876500051
+Aishwarya S,aishwarya.s@dsce.edu.in,Data Science,8.9,1DS23DS052,"Python, Pandas, Power BI",in-process,+91 9876500052
+Akshay M,akshay.m@dsce.edu.in,Aerospace Engineering,7.8,1DS23AE053,"CAD, MATLAB, CFD",unplaced,+91 9876500053
+Amrita J,amrita.j@dsce.edu.in,Biotechnology,8.1,1DS23BT054,"Bioprocess, Python, Excel",in-process,+91 9876500054
+Aniket L,aniket.l@dsce.edu.in,Robotics and Automation,8.6,1DS23RA055,"ROS, Embedded C, IoT",placed,+91 9876500055
+Archana V,archana.v@dsce.edu.in,Computer Science,9.0,1DS23CS056,"Java, DSA, Spring Boot",placed,+91 9876500056
+Ashwin K,ashwin.k@dsce.edu.in,Information Technology,8.3,1DS23IT057,"React, Node.js, PostgreSQL",unplaced,+91 9876500057
+Deepak R,deepak.r@dsce.edu.in,Electronics & Communication,7.9,1DS23EC058,"VLSI, Verilog, FPGA",in-process,+91 9876500058
+Gowri N,gowri.n@dsce.edu.in,Electrical,8.4,1DS23EE059,"Power Systems, ETAP, MATLAB",placed,+91 9876500059
+Hemanth S,hemanth.s@dsce.edu.in,Mechanical,7.5,1DS23ME060,"SolidWorks, ANSYS, Design",unplaced,+91 9876500060
+Keerthana A,keerthana.a@dsce.edu.in,Civil,8.7,1DS23CV061,"STAAD Pro, Revit, Surveying",placed,+91 9876500061
+Madhav D,madhav.d@dsce.edu.in,Artificial Intelligence & Machine Learning,9.1,1DS23AI062,"Python, NLP, TensorFlow",in-process,+91 9876500062
+Nithya R,nithya.r@dsce.edu.in,Data Science,8.8,1DS23DS063,"SQL, Python, Tableau",placed,+91 9876500063
+Prathyusha K,prathyusha.k@dsce.edu.in,Aerospace Engineering,7.7,1DS23AE064,"CAD, Materials, Aerodynamics",unplaced,+91 9876500064
+Rohit Kumar,rohit.kumar@dsce.edu.in,Biotechnology,8.2,1DS23BT065,"Microbiology, Excel, R",in-process,+91 9876500065
+Sanjana H,sanjana.h@dsce.edu.in,Robotics and Automation,8.5,1DS23RA066,"ROS, Python, Control Systems",placed,+91 9876500066
+Tanishq B,tanishq.b@dsce.edu.in,Computer Science,9.3,1DS23CS067,"Go, Kubernetes, Cloud",placed,+91 9876500067
+Vaibhav S,vaibhav.s@dsce.edu.in,Information Technology,8.1,1DS23IT068,"TypeScript, React, Firebase",unplaced,+91 9876500068
+Zarina F,zarina.f@dsce.edu.in,Electronics & Communication,7.8,1DS23EC069,"DSP, MATLAB, C",in-process,+91 9876500069
+Zuber N,zuber.n@dsce.edu.in,Electrical,8.6,1DS23EE070,"SCADA, PLC, Power Electronics",placed,+91 9876500070

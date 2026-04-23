@@ -1,21 +1,11 @@
 // src/pages/recruiter/InterviewScheduler.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, Plus, X, CheckCircle, User, Video, MapPin } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-
-const SHORTLISTED_STUDENTS = [
-  { id: 1, name: 'Priya Sharma', branch: 'CS', cgpa: 9.1, email: 'priya@college.edu' },
-  { id: 2, name: 'Rahul Kumar', branch: 'CS', cgpa: 8.7, email: 'rahul@college.edu' },
-  { id: 3, name: 'Anjali Singh', branch: 'ECE', cgpa: 8.3, email: 'anjali@college.edu' },
-  { id: 4, name: 'Deepa Menon', branch: 'CS', cgpa: 9.0, email: 'deepa@college.edu' },
-];
-
-const SCHEDULED = [
-  { id: 1, student: 'Priya Sharma', role: 'SDE', date: '2025-02-05', time: '10:00 AM', mode: 'Online', platform: 'Google Meet', round: 'Technical Round 1', link: 'meet.google.com/abc-def' },
-  { id: 2, student: 'Rahul Kumar', role: 'SDE', date: '2025-02-06', time: '11:00 AM', mode: 'Online', platform: 'Zoom', round: 'Technical Round 1', link: 'zoom.us/j/123456' },
-];
+import { collection, getDocs, addDoc, deleteDoc, doc, orderBy, query } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const INITIAL_FORM = {
   studentId: '', role: '', date: '', time: '',
@@ -26,10 +16,48 @@ const INITIAL_FORM = {
 const ROUNDS = ['Technical Round 1', 'Technical Round 2', 'HR Round', 'Managerial Round', 'Final Round'];
 
 export default function RecruiterInterviewScheduler() {
-  const [scheduled, setScheduled] = useState(SCHEDULED);
+  const [students, setStudents] = useState([]);
+  const [scheduled, setScheduled] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [studentsSnap, interviewsSnap] = await Promise.all([
+          getDocs(collection(db, 'students')),
+          getDocs(query(collection(db, 'interviews'), orderBy('createdAt', 'desc'))),
+        ]);
+
+        const data = studentsSnap.docs.map((d) => {
+          const v = d.data();
+          return {
+            id: d.id,
+            name: v.name || 'Student',
+            branch: v.branch || 'Unknown',
+            cgpa: Number(v.cgpa || 0),
+            email: v.email || '',
+            placementStatus: (v.placementStatus || 'unplaced').toLowerCase(),
+          };
+        });
+        setStudents(data);
+
+        const scheduledData = interviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setScheduled(scheduledData);
+      } catch {
+        setStudents([]);
+        setScheduled([]);
+      }
+    };
+
+    load();
+  }, []);
+
+  const shortlistedStudents = useMemo(
+    () => students.filter((s) => s.placementStatus !== 'placed').slice(0, 30),
+    [students]
+  );
 
   const handleSchedule = async (e) => {
     e.preventDefault();
@@ -39,29 +67,41 @@ export default function RecruiterInterviewScheduler() {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 800));
 
-    const student = SHORTLISTED_STUDENTS.find((s) => s.id === parseInt(form.studentId));
+    const student = shortlistedStudents.find((s) => s.id === form.studentId);
     const newInterview = {
-      id: Date.now(),
       student: student?.name || '',
+      studentId: student?.id || '',
       role: form.role,
       date: form.date,
       time: form.time,
       mode: form.mode,
-      platform: form.platform,
+      platform: form.mode === 'Online' ? (form.platform || 'Google Meet') : 'Offline',
       round: form.round,
-      link: form.link,
+      link: form.mode === 'Online' ? form.link : form.venue,
+      createdAt: new Date().toISOString(),
     };
 
-    setScheduled((prev) => [newInterview, ...prev]);
-    toast.success(`Interview scheduled for ${student?.name}!`);
-    setShowModal(false);
-    setForm(INITIAL_FORM);
-    setSaving(false);
+    try {
+      const ref = await addDoc(collection(db, 'interviews'), newInterview);
+      setScheduled((prev) => [{ id: ref.id, ...newInterview }, ...prev]);
+      toast.success(`Interview scheduled for ${student?.name}!`);
+      setShowModal(false);
+      setForm(INITIAL_FORM);
+    } catch {
+      toast.error('Failed to schedule interview');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const cancelInterview = (id) => {
-    setScheduled((prev) => prev.filter((s) => s.id !== id));
-    toast.success('Interview cancelled');
+  const cancelInterview = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'interviews', id));
+      setScheduled((prev) => prev.filter((s) => s.id !== id));
+      toast.success('Interview cancelled');
+    } catch {
+      toast.error('Failed to cancel interview');
+    }
   };
 
   return (
@@ -170,7 +210,7 @@ export default function RecruiterInterviewScheduler() {
                   required
                 >
                   <option value="">Select Student</option>
-                  {SHORTLISTED_STUDENTS.map((s) => (
+                  {shortlistedStudents.map((s) => (
                     <option key={s.id} value={s.id} className="bg-dark-700">
                       {s.name} — {s.branch} (CGPA: {s.cgpa})
                     </option>
@@ -253,6 +293,18 @@ export default function RecruiterInterviewScheduler() {
                   placeholder={form.mode === 'Online' ? 'e.g. meet.google.com/abc-def' : 'e.g. Room 204, Block A'}
                 />
               </div>
+
+              {form.mode === 'Online' && (
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Platform</label>
+                  <input
+                    value={form.platform}
+                    onChange={(e) => setForm({ ...form, platform: e.target.value })}
+                    className="input-field text-sm"
+                    placeholder="Google Meet / Zoom / Teams"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Instructions for Student</label>

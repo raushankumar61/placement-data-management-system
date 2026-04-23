@@ -1,17 +1,11 @@
 // src/pages/faculty/Recommendations.jsx  (D3)
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Send, X, Plus, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-
-const STUDENTS = [
-  { id: 1, name: 'Priya Sharma', rollNo: '2021CS001', cgpa: 9.1, skills: ['React', 'Node.js', 'Python'], branch: 'CS' },
-  { id: 2, name: 'Rahul Kumar', rollNo: '2021CS042', cgpa: 8.7, skills: ['Python', 'ML', 'TensorFlow'], branch: 'CS' },
-  { id: 3, name: 'Anjali Singh', rollNo: '2021CS015', cgpa: 8.3, skills: ['Java', 'Spring', 'AWS'], branch: 'CS' },
-  { id: 4, name: 'Deepa Menon', rollNo: '2021CS099', cgpa: 9.0, skills: ['UI/UX', 'Figma', 'React'], branch: 'CS' },
-  { id: 5, name: 'Amit Patel', rollNo: '2021CS008', cgpa: 7.8, skills: ['C++', 'DSA'], branch: 'CS' },
-];
+import { collection, getDocs, addDoc, orderBy, query } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const JOBS = [
   { id: 1, title: 'SDE', company: 'Google' },
@@ -20,16 +14,30 @@ const JOBS = [
   { id: 4, title: 'Frontend Developer', company: 'Flipkart' },
 ];
 
-const SENT_RECOMMENDATIONS = [
-  { id: 1, student: 'Priya Sharma', role: 'SDE', company: 'Google', reason: 'Top performer in algorithms. Excellent project portfolio.', date: '2025-01-20', status: 'Accepted' },
-  { id: 2, student: 'Deepa Menon', role: 'Frontend Developer', company: 'Flipkart', reason: 'Outstanding UI/UX skills and React expertise.', date: '2025-01-22', status: 'Pending' },
-];
-
 export default function FacultyRecommendations() {
-  const [recommendations, setRecommendations] = useState(SENT_RECOMMENDATIONS);
+  const [students, setStudents] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ studentId: '', jobId: '', reason: '', rating: 5 });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [studentsSnap, recsSnap] = await Promise.all([
+          getDocs(collection(db, 'students')),
+          getDocs(query(collection(db, 'recommendations'), orderBy('createdAt', 'desc'))),
+        ]);
+        const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setStudents(data);
+        setRecommendations(recsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch {
+        setStudents([]);
+        setRecommendations([]);
+      }
+    };
+    load();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,23 +45,32 @@ export default function FacultyRecommendations() {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 800));
 
-    const student = STUDENTS.find((s) => s.id === parseInt(form.studentId));
-    const job = JOBS.find((j) => j.id === parseInt(form.jobId));
+    const student = students.find((s) => s.id === form.studentId);
+    const job = JOBS.find((j) => j.id === parseInt(form.jobId, 10));
 
-    setRecommendations((prev) => [{
-      id: Date.now(),
+    const record = {
       student: student?.name,
+      studentId: student?.id,
       role: job?.title,
       company: job?.company,
       reason: form.reason,
       date: new Date().toISOString().split('T')[0],
       status: 'Pending',
-    }, ...prev]);
+      rating: form.rating,
+      createdAt: new Date().toISOString(),
+    };
 
-    toast.success(`Recommendation sent for ${student?.name}!`);
-    setShowModal(false);
-    setForm({ studentId: '', jobId: '', reason: '', rating: 5 });
-    setSaving(false);
+    try {
+      const ref = await addDoc(collection(db, 'recommendations'), record);
+      setRecommendations((prev) => [{ id: ref.id, ...record }, ...prev]);
+      toast.success(`Recommendation sent for ${student?.name}!`);
+      setShowModal(false);
+      setForm({ studentId: '', jobId: '', reason: '', rating: 5 });
+    } catch {
+      toast.error('Failed to save recommendation');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -129,9 +146,9 @@ export default function FacultyRecommendations() {
                 <select value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })}
                   className="input-field text-sm appearance-none" required>
                   <option value="">Choose a student</option>
-                  {STUDENTS.map((s) => (
+                  {students.map((s) => (
                     <option key={s.id} value={s.id} className="bg-dark-700">
-                      {s.name} — CGPA {s.cgpa}
+                      {s.name || 'Student'} — CGPA {s.cgpa || 'N/A'}
                     </option>
                   ))}
                 </select>

@@ -180,7 +180,7 @@ export function Stats() {
 // ─── Testimonials ───────────────────────────────────────────────────────────
 
 const testimonials = [
-  { name: 'Priya Sharma', role: 'CS Student, NIT Trichy', quote: 'PlaceCloud made the entire placement process seamless. I could track my applications in real-time and never missed a deadline.' },
+  { name: 'Student Success Story', role: 'CS Student, India', quote: 'PlaceCloud made the entire placement process seamless. I could track my applications in real-time and never missed a deadline.' },
   { name: 'Rahul Mehta', role: 'Placement Officer, VIT', quote: 'Managing 3000+ students used to be a nightmare. Now everything is centralized and analytics give us instant insights.' },
   { name: 'Sarah Chen', role: 'HR Manager, Microsoft', quote: 'The candidate filtering and profile system saved us hours. We could shortlist the right candidates in minutes.' },
   { name: 'Arjun Kumar', role: 'ECE Student, BITS Pilani', quote: 'The AI job matching is incredible — it only showed me relevant opportunities. Got placed at my dream company!' },
