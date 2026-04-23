@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Users, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
+import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
@@ -28,22 +29,41 @@ export default function FacultyDashboard() {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [jobsById, setJobsById] = useState({});
+  const [interviews, setInterviews] = useState([]);
   const [pendingVerifications, setPendingVerifications] = useState(0);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, verificationsSnap] = await Promise.all([
+        const [studentsSnap, verificationsSnap, appsSnap, jobsSnap, interviewsSnap] = await Promise.all([
           getDocs(collection(db, 'students')),
           getDocs(collection(db, 'verifications')),
+          getDocs(collection(db, 'applications')),
+          getDocs(collection(db, 'jobs')),
+          getDocs(collection(db, 'interviews')),
         ]);
         const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const apps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const jobs = jobsSnap.docs.reduce((acc, d) => {
+          acc[d.id] = d.data();
+          return acc;
+        }, {});
+        const interviewData = interviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setStudents(data);
+        setApplications(apps);
+        setJobsById(jobs);
+        setInterviews(interviewData);
         setPendingVerifications(
           verificationsSnap.docs.filter((d) => (d.data()?.status || 'pending') === 'pending').length
         );
       } catch {
         setStudents([]);
+        setApplications([]);
+        setJobsById({});
+        setInterviews([]);
         setPendingVerifications(0);
       }
     };
@@ -83,6 +103,66 @@ export default function FacultyDashboard() {
     inProcess: deptStudents.filter((s) => s.status === 'in-process').length,
     unplaced: deptStudents.filter((s) => s.status === 'unplaced').length,
   }), [deptStudents]);
+
+  const normalizeStatus = (value) => String(value || '').toLowerCase();
+
+  const getStudentInsights = (student) => {
+    if (!student) return null;
+
+    const studentKeys = [student.id, student.rollNo, student.email].filter(Boolean).map((v) => String(v).toLowerCase());
+    const matchesStudent = (item) => {
+      const candidates = [item.studentId, item.rollNo, item.email, item.studentEmail].filter(Boolean).map((v) => String(v).toLowerCase());
+      return candidates.some((v) => studentKeys.includes(v));
+    };
+
+    const studentApps = applications.filter(matchesStudent);
+    const offerStatuses = new Set(['selected', 'offered', 'offer', 'placed']);
+    const offerApps = studentApps.filter((a) => offerStatuses.has(normalizeStatus(a.status)));
+
+    const companies = Array.from(new Set(offerApps.map((a) => jobsById[a.jobId]?.company || a.company).filter(Boolean)));
+    const packages = Array.from(new Set(offerApps.map((a) => jobsById[a.jobId]?.ctc || a.package || a.ctc).filter(Boolean)));
+    const studentInterviews = interviews.filter(matchesStudent);
+    const latestInterview = studentInterviews[0] || null;
+    const interviewExperience = student.interviewExperience
+      || latestInterview?.feedback
+      || latestInterview?.notes
+      || latestInterview?.experience
+      || 'No interview experience submitted yet.';
+
+    const suggestions = Array.isArray(student.improvementSuggestions)
+      ? student.improvementSuggestions
+      : String(student.improvementSuggestions || '').split('\n').map((s) => s.trim()).filter(Boolean);
+
+    const autoSuggestions = [];
+    if (!suggestions.length) {
+      if (Number(student.cgpa || 0) < 7.5) autoSuggestions.push('Focus on improving core fundamentals and maintain a semester-wise CGPA improvement plan.');
+      if ((Array.isArray(student.skills) ? student.skills.length : String(student.skills || '').split(',').filter(Boolean).length) < 4) {
+        autoSuggestions.push('Add 2-3 role-focused technical skills and build project proofs for each.');
+      }
+      if ((student.placementStatus || 'unplaced') !== 'placed') {
+        autoSuggestions.push('Practice mock interviews weekly and apply consistently to role-matched openings.');
+      }
+      if (!autoSuggestions.length) autoSuggestions.push('Keep improving communication clarity and system design depth for higher package opportunities.');
+    }
+
+    const offersCount = offerApps.length;
+    const placementsCount = Math.max((student.placementStatus === 'placed' ? 1 : 0), offersCount);
+
+    return {
+      applicationsCount: studentApps.length,
+      offersCount,
+      placementsCount,
+      companyText: companies.length ? companies.join(', ') : (student.company || 'N/A'),
+      packageText: packages.length ? packages.join(', ') : (student.ctc || 'N/A'),
+      interviewCount: studentInterviews.length,
+      interviewExperience,
+      suggestions: suggestions.length ? suggestions : autoSuggestions,
+      skillsText: Array.isArray(student.skills) ? student.skills.join(', ') : (student.skills || 'N/A'),
+      offerSummary: offersCount
+        ? `${offersCount} offer(s) tracked across ${Math.max(1, companies.length)} compan${companies.length === 1 ? 'y' : 'ies'}.`
+        : 'No confirmed offers yet. Student is currently in preparation/application stage.',
+    };
+  };
 
   return (
     <DashboardLayout title="Faculty Dashboard">
@@ -128,7 +208,8 @@ export default function FacultyDashboard() {
               <tbody>
                 {deptStudents.slice(0, 10).map((s, i) => (
                   <motion.tr key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 + i * 0.07 }} className="table-row">
+                    transition={{ delay: 0.3 + i * 0.07 }} className="table-row cursor-pointer"
+                    onClick={() => setSelectedStudent(s)}>
                     <td className="px-4 py-3 font-mono text-xs text-white/50">{s.rollNo}</td>
                     <td className="px-4 py-3 text-white text-sm">{s.name}</td>
                     <td className="px-4 py-3 font-mono text-gold text-sm">{s.cgpa}</td>
@@ -184,6 +265,13 @@ export default function FacultyDashboard() {
           </div>
         </div>
       </div>
+
+      <StudentInsightsModal
+        open={!!selectedStudent}
+        onClose={() => setSelectedStudent(null)}
+        student={selectedStudent}
+        insights={getStudentInsights(selectedStudent)}
+      />
     </DashboardLayout>
   );
 }

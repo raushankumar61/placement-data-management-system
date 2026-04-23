@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Upload, Download, Trash2, Edit2, Filter, X, ChevronDown } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
+import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -35,30 +36,112 @@ const INITIAL_FORM = { name: '', email: '', branch: '', cgpa: '', skills: '', pl
 export default function AdminStudents() {
   const [students, setStudents] = useState([]);
   const [filtered, setFiltered] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [jobsById, setJobsById] = useState({});
+  const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editStudent, setEditStudent] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'students'));
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const [studentsSnap, appsSnap, jobsSnap, interviewsSnap] = await Promise.all([
+        getDocs(collection(db, 'students')),
+        getDocs(collection(db, 'applications')),
+        getDocs(collection(db, 'jobs')),
+        getDocs(collection(db, 'interviews')),
+      ]);
+      const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const apps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const jobs = jobsSnap.docs.reduce((acc, d) => {
+        acc[d.id] = d.data();
+        return acc;
+      }, {});
+      const interviewsData = interviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setStudents(data);
       setFiltered(data);
+      setApplications(apps);
+      setJobsById(jobs);
+      setInterviews(interviewsData);
     } catch {
       setStudents([]);
       setFiltered([]);
+      setApplications([]);
+      setJobsById({});
+      setInterviews([]);
       toast.error('Unable to load students. Check Firebase configuration.');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const normalizeStatus = (value) => String(value || '').toLowerCase();
+
+  const getStudentInsights = (student) => {
+    if (!student) return null;
+
+    const studentKeys = [student.id, student.rollNo, student.email].filter(Boolean).map((v) => String(v).toLowerCase());
+    const matchesStudent = (item) => {
+      const candidates = [item.studentId, item.rollNo, item.email, item.studentEmail].filter(Boolean).map((v) => String(v).toLowerCase());
+      return candidates.some((v) => studentKeys.includes(v));
+    };
+
+    const studentApps = applications.filter(matchesStudent);
+    const offerStatuses = new Set(['selected', 'offered', 'offer', 'placed']);
+    const offerApps = studentApps.filter((a) => offerStatuses.has(normalizeStatus(a.status)));
+
+    const companies = Array.from(new Set(offerApps.map((a) => jobsById[a.jobId]?.company || a.company).filter(Boolean)));
+    const packages = Array.from(new Set(offerApps.map((a) => jobsById[a.jobId]?.ctc || a.package || a.ctc).filter(Boolean)));
+
+    const studentInterviews = interviews.filter(matchesStudent);
+    const latestInterview = studentInterviews[0] || null;
+    const interviewExperience = student.interviewExperience
+      || latestInterview?.feedback
+      || latestInterview?.notes
+      || latestInterview?.experience
+      || 'No interview experience submitted yet.';
+
+    const suggestions = Array.isArray(student.improvementSuggestions)
+      ? student.improvementSuggestions
+      : String(student.improvementSuggestions || '').split('\n').map((s) => s.trim()).filter(Boolean);
+
+    const autoSuggestions = [];
+    if (!suggestions.length) {
+      if (Number(student.cgpa || 0) < 7.5) autoSuggestions.push('Focus on improving core fundamentals and maintain a semester-wise CGPA improvement plan.');
+      if ((Array.isArray(student.skills) ? student.skills.length : String(student.skills || '').split(',').filter(Boolean).length) < 4) {
+        autoSuggestions.push('Add 2-3 role-focused technical skills and build project proofs for each.');
+      }
+      if ((student.placementStatus || 'unplaced') !== 'placed') {
+        autoSuggestions.push('Practice mock interviews weekly and apply consistently to role-matched openings.');
+      }
+      if (!autoSuggestions.length) autoSuggestions.push('Keep improving communication clarity and system design depth for higher package opportunities.');
+    }
+
+    const offersCount = offerApps.length;
+    const placementsCount = Math.max((student.placementStatus === 'placed' ? 1 : 0), offersCount);
+
+    return {
+      applicationsCount: studentApps.length,
+      offersCount,
+      placementsCount,
+      companyText: companies.length ? companies.join(', ') : (student.company || 'N/A'),
+      packageText: packages.length ? packages.join(', ') : (student.ctc || 'N/A'),
+      interviewCount: studentInterviews.length,
+      interviewExperience,
+      suggestions: suggestions.length ? suggestions : autoSuggestions,
+      skillsText: Array.isArray(student.skills) ? student.skills.join(', ') : (student.skills || 'N/A'),
+      offerSummary: offersCount
+        ? `${offersCount} offer(s) tracked across ${Math.max(1, companies.length)} compan${companies.length === 1 ? 'y' : 'ies'}.`
+        : 'No confirmed offers yet. Student is currently in preparation/application stage.',
+    };
+  };
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
 
@@ -237,7 +320,8 @@ export default function AdminStudents() {
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
-                      className="table-row"
+                      className="table-row cursor-pointer"
+                      onClick={() => setSelectedStudent(student)}
                     >
                       <td className="px-4 py-3 font-mono text-xs text-white/60">{student.rollNo || '—'}</td>
                       <td className="px-4 py-3">
@@ -263,11 +347,17 @@ export default function AdminStudents() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <button onClick={() => openModal(student)}
+                          <button onClick={(e) => {
+                              e.stopPropagation();
+                              openModal(student);
+                            }}
                             className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-blue-electric transition-colors">
                             <Edit2 size={14} />
                           </button>
-                          <button onClick={() => handleDelete(student.id)}
+                          <button onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(student.id);
+                          }}
                             className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
                             <Trash2 size={14} />
                           </button>
@@ -360,6 +450,13 @@ export default function AdminStudents() {
           </motion.div>
         </div>
       )}
+
+      <StudentInsightsModal
+        open={!!selectedStudent}
+        onClose={() => setSelectedStudent(null)}
+        student={selectedStudent}
+        insights={getStudentInsights(selectedStudent)}
+      />
     </DashboardLayout>
   );
 }
