@@ -42,9 +42,11 @@ export default function FacultyDataVerification() {
   }, []);
 
   const filtered = verifications.filter((v) => {
+    const studentName = String(v.student || '').toLowerCase();
+    const rollNo = String(v.rollNo || '').toLowerCase();
     const matchSearch = !search ||
-      v.student.toLowerCase().includes(search.toLowerCase()) ||
-      v.rollNo.toLowerCase().includes(search.toLowerCase());
+      studentName.includes(search.toLowerCase()) ||
+      rollNo.includes(search.toLowerCase());
     const matchFilter = filter === 'all' || v.status === filter;
     return matchSearch && matchFilter;
   });
@@ -162,8 +164,8 @@ export default function FacultyDataVerification() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="text-white font-semibold text-sm">{v.student}</p>
-                      <span className="text-white/30 font-mono text-xs">{v.rollNo}</span>
+                      <p className="text-white font-semibold text-sm">{v.student || 'Student'}</p>
+                      <span className="text-white/30 font-mono text-xs">{v.rollNo || 'N/A'}</span>
                     </div>
                     <div className="flex items-center gap-2 mb-2">
                       <span className={FIELD_COLORS[v.field] || 'badge-gray'}>{v.field}</span>
@@ -175,7 +177,7 @@ export default function FacultyDataVerification() {
                       <span className="text-white/70">{v.newValue}</span>
                     </div>
                   </div>
-                  <p className="text-white/30 text-xs font-body flex-shrink-0">{v.submittedAt}</p>
+                    <p className="text-white/30 text-xs font-body flex-shrink-0">{v.submittedAt || 'N/A'}</p>
                 </div>
               </motion.div>
             ))}
@@ -198,8 +200,8 @@ export default function FacultyDataVerification() {
                 className="glass-card p-5 border border-white/10 sticky top-4 space-y-4"
               >
                 <div>
-                  <p className="section-title mb-1">{selected.student}</p>
-                  <p className="text-white/40 text-xs font-body">{selected.rollNo}</p>
+                  <p className="section-title mb-1">{selected.student || 'Student'}</p>
+                  <p className="text-white/40 text-xs font-body">{selected.rollNo || 'N/A'}</p>
                 </div>
 
                 <div className="glow-divider" />

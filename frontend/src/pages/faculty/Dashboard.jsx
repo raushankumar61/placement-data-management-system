@@ -5,6 +5,7 @@ import { Users, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
@@ -25,16 +26,25 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function FacultyDashboard() {
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState(0);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDocs(collection(db, 'students'));
-        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const [studentsSnap, verificationsSnap] = await Promise.all([
+          getDocs(collection(db, 'students')),
+          getDocs(collection(db, 'verifications')),
+        ]);
+        const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setStudents(data);
+        setPendingVerifications(
+          verificationsSnap.docs.filter((d) => (d.data()?.status || 'pending') === 'pending').length
+        );
       } catch {
         setStudents([]);
+        setPendingVerifications(0);
       }
     };
     load();
@@ -153,10 +163,17 @@ export default function FacultyDashboard() {
             <div className="mt-4 space-y-2">
               <p className="text-white/40 text-xs uppercase tracking-wider font-body">Quick Actions</p>
               {[
-                { label: 'Verify Pending Student Data', icon: CheckCircle, color: 'text-green-400' },
-                { label: 'Students Needing Attention', icon: AlertCircle, color: 'text-gold', count: 4 },
+                { label: 'Verify Pending Student Data', icon: CheckCircle, color: 'text-green-400', action: () => navigate('/faculty/verification') },
+                {
+                  label: 'Students Needing Attention',
+                  icon: AlertCircle,
+                  color: 'text-gold',
+                  count: pendingVerifications || deptStudents.filter((s) => s.status !== 'placed' || s.cgpa < 7.5).length,
+                  action: () => navigate('/faculty/verification'),
+                },
               ].map((a) => (
                 <button key={a.label}
+                  onClick={a.action}
                   className="w-full flex items-center gap-2 p-3 rounded-xl border border-white/5 hover:border-white/15 text-left transition-colors">
                   <a.icon size={14} className={a.color} />
                   <span className="text-white/60 text-xs font-body">{a.label}</span>
