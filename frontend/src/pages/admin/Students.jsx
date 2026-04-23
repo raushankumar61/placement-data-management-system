@@ -31,7 +31,38 @@ const BRANCHES = [
   'Robotics and Automation',
 ];
 
-const INITIAL_FORM = { name: '', email: '', branch: '', cgpa: '', skills: '', placementStatus: 'unplaced', phone: '', rollNo: '' };
+const INITIAL_FORM = {
+  name: '',
+  email: '',
+  branch: '',
+  cgpa: '',
+  skills: '',
+  placementStatus: 'unplaced',
+  phone: '',
+  rollNo: '',
+  usn: '',
+  graduationYear: '',
+  tenthPercentage: '',
+  twelfthPercentage: '',
+  backlogCount: 0,
+  placementReadinessScore: 0,
+  companyPlaced: '',
+  currentPackage: '',
+  highestPackage: '',
+  offersCount: 0,
+  offerCompanies: '',
+  interviewExperience: '',
+  improvementSuggestions: '',
+  bio: '',
+  linkedin: '',
+  github: '',
+  resumeURL: '',
+  projects: '',
+  certificationLinks: '',
+  address: '',
+  dateOfBirth: '',
+  gender: '',
+};
 
 export default function AdminStudents() {
   const [students, setStudents] = useState([]);
@@ -124,15 +155,15 @@ export default function AdminStudents() {
       if (!autoSuggestions.length) autoSuggestions.push('Keep improving communication clarity and system design depth for higher package opportunities.');
     }
 
-    const offersCount = offerApps.length;
+    const offersCount = Math.max(Number(student.offersCount || 0), offerApps.length);
     const placementsCount = Math.max((student.placementStatus === 'placed' ? 1 : 0), offersCount);
 
     return {
       applicationsCount: studentApps.length,
       offersCount,
       placementsCount,
-      companyText: companies.length ? companies.join(', ') : (student.company || 'N/A'),
-      packageText: packages.length ? packages.join(', ') : (student.ctc || 'N/A'),
+      companyText: companies.length ? companies.join(', ') : (student.companyPlaced || student.company || 'N/A'),
+      packageText: packages.length ? packages.join(', ') : (student.highestPackage || student.currentPackage || student.ctc || 'N/A'),
       interviewCount: studentInterviews.length,
       interviewExperience,
       suggestions: suggestions.length ? suggestions : autoSuggestions,
@@ -163,7 +194,17 @@ export default function AdminStudents() {
 
   const openModal = (student = null) => {
     setEditStudent(student);
-    setForm(student ? { ...student, skills: Array.isArray(student.skills) ? student.skills.join(', ') : student.skills } : INITIAL_FORM);
+    setForm(student ? {
+      ...INITIAL_FORM,
+      ...student,
+      skills: Array.isArray(student.skills) ? student.skills.join(', ') : String(student.skills || ''),
+      offerCompanies: Array.isArray(student.offerCompanies) ? student.offerCompanies.join(', ') : String(student.offerCompanies || ''),
+      projects: Array.isArray(student.projects) ? student.projects.join(', ') : String(student.projects || ''),
+      certificationLinks: Array.isArray(student.certificationLinks) ? student.certificationLinks.join(', ') : String(student.certificationLinks || ''),
+      improvementSuggestions: Array.isArray(student.improvementSuggestions)
+        ? student.improvementSuggestions.join('\n')
+        : String(student.improvementSuggestions || ''),
+    } : INITIAL_FORM);
     setShowModal(true);
   };
 
@@ -171,9 +212,30 @@ export default function AdminStudents() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = { ...form, skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean), updatedAt: serverTimestamp() };
+      const payload = {
+        ...form,
+        cgpa: Number(form.cgpa || 0),
+        offersCount: Number(form.offersCount || 0),
+        placementReadinessScore: Number(form.placementReadinessScore || 0),
+        backlogCount: Number(form.backlogCount || 0),
+        skills: String(form.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+        offerCompanies: String(form.offerCompanies || '').split(',').map((s) => s.trim()).filter(Boolean),
+        projects: String(form.projects || '').split(',').map((s) => s.trim()).filter(Boolean),
+        certificationLinks: String(form.certificationLinks || '').split(',').map((s) => s.trim()).filter(Boolean),
+        improvementSuggestions: String(form.improvementSuggestions || '').split('\n').map((s) => s.trim()).filter(Boolean),
+        updatedAt: serverTimestamp(),
+      };
       if (editStudent?.id) {
         await updateDoc(doc(db, 'students', editStudent.id), payload);
+        try {
+          await updateDoc(doc(db, 'users', editStudent.id), {
+            name: payload.name,
+            branch: payload.branch,
+            phone: payload.phone || '',
+          });
+        } catch {
+          // Some imported student docs may not have a matching users doc.
+        }
         toast.success('Student updated');
       } else {
         await addDoc(collection(db, 'students'), { ...payload, createdAt: serverTimestamp() });
@@ -434,14 +496,142 @@ export default function AdminStudents() {
                 <input value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })}
                   className="input-field text-sm" placeholder="React, Node.js, Python" />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Placement Status</label>
+                  <select value={form.placementStatus} onChange={(e) => setForm({ ...form, placementStatus: e.target.value })}
+                    className="input-field text-sm appearance-none">
+                    <option value="unplaced" className="bg-dark-700">Unplaced</option>
+                    <option value="in-process" className="bg-dark-700">In Process</option>
+                    <option value="placed" className="bg-dark-700">Placed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">USN</label>
+                  <input value={form.usn} onChange={(e) => setForm({ ...form, usn: e.target.value })}
+                    className="input-field text-sm" placeholder="USN" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Graduation Year</label>
+                  <input value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })}
+                    className="input-field text-sm" placeholder="2027" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Backlogs</label>
+                  <input type="number" min="0" value={form.backlogCount} onChange={(e) => setForm({ ...form, backlogCount: e.target.value })}
+                    className="input-field text-sm" placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">10th %</label>
+                  <input value={form.tenthPercentage} onChange={(e) => setForm({ ...form, tenthPercentage: e.target.value })}
+                    className="input-field text-sm" placeholder="86" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">12th %</label>
+                  <input value={form.twelfthPercentage} onChange={(e) => setForm({ ...form, twelfthPercentage: e.target.value })}
+                    className="input-field text-sm" placeholder="88" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Company Placed In</label>
+                  <input value={form.companyPlaced} onChange={(e) => setForm({ ...form, companyPlaced: e.target.value })}
+                    className="input-field text-sm" placeholder="Company" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Current Package</label>
+                  <input value={form.currentPackage} onChange={(e) => setForm({ ...form, currentPackage: e.target.value })}
+                    className="input-field text-sm" placeholder="12 LPA" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Highest Package</label>
+                  <input value={form.highestPackage} onChange={(e) => setForm({ ...form, highestPackage: e.target.value })}
+                    className="input-field text-sm" placeholder="18 LPA" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Offers Count</label>
+                  <input type="number" min="0" value={form.offersCount} onChange={(e) => setForm({ ...form, offersCount: e.target.value })}
+                    className="input-field text-sm" placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Readiness Score</label>
+                  <input type="number" min="0" max="100" value={form.placementReadinessScore} onChange={(e) => setForm({ ...form, placementReadinessScore: e.target.value })}
+                    className="input-field text-sm" placeholder="0-100" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Date Of Birth</label>
+                  <input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+                    className="input-field text-sm" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Gender</label>
+                  <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                    className="input-field text-sm appearance-none">
+                    <option value="" className="bg-dark-700">Select</option>
+                    <option value="male" className="bg-dark-700">Male</option>
+                    <option value="female" className="bg-dark-700">Female</option>
+                    <option value="other" className="bg-dark-700">Other</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Placement Status</label>
-                <select value={form.placementStatus} onChange={(e) => setForm({ ...form, placementStatus: e.target.value })}
-                  className="input-field text-sm appearance-none">
-                  <option value="unplaced" className="bg-dark-700">Unplaced</option>
-                  <option value="in-process" className="bg-dark-700">In Process</option>
-                  <option value="placed" className="bg-dark-700">Placed</option>
-                </select>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Offer Companies (comma-separated)</label>
+                <input value={form.offerCompanies} onChange={(e) => setForm({ ...form, offerCompanies: e.target.value })}
+                  className="input-field text-sm" placeholder="Google, Amazon" />
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Projects (comma-separated)</label>
+                <input value={form.projects} onChange={(e) => setForm({ ...form, projects: e.target.value })}
+                  className="input-field text-sm" placeholder="Project A, Project B" />
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Certifications (comma-separated)</label>
+                <input value={form.certificationLinks} onChange={(e) => setForm({ ...form, certificationLinks: e.target.value })}
+                  className="input-field text-sm" placeholder="https://..." />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">LinkedIn</label>
+                  <input value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
+                    className="input-field text-sm" placeholder="LinkedIn URL" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">GitHub</label>
+                  <input value={form.github} onChange={(e) => setForm({ ...form, github: e.target.value })}
+                    className="input-field text-sm" placeholder="GitHub URL" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Resume URL</label>
+                <input value={form.resumeURL} onChange={(e) => setForm({ ...form, resumeURL: e.target.value })}
+                  className="input-field text-sm" placeholder="Resume URL" />
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Bio</label>
+                <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                  className="input-field text-sm resize-none" rows={3} placeholder="Short profile summary" />
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Address</label>
+                <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  className="input-field text-sm resize-none" rows={2} placeholder="Address" />
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Interview Experience</label>
+                <textarea value={form.interviewExperience} onChange={(e) => setForm({ ...form, interviewExperience: e.target.value })}
+                  className="input-field text-sm resize-none" rows={3} placeholder="Interview experience" />
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Improvement Suggestions (one per line)</label>
+                <textarea value={form.improvementSuggestions} onChange={(e) => setForm({ ...form, improvementSuggestions: e.target.value })}
+                  className="input-field text-sm resize-none" rows={4} placeholder="Suggestion 1\nSuggestion 2" />
               </div>
 
               <div className="flex gap-3 pt-2">
