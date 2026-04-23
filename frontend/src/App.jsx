@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import DashboardLayout from './components/common/DashboardLayout';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Pages
 import Landing from './pages/Landing';
@@ -131,7 +132,8 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
       <BrowserRouter>
         <Toaster
           position="top-right"
@@ -149,6 +151,8 @@ export default function App() {
         />
         <AppRoutes />
       </BrowserRouter>
+          </AuthProvider>
+        </ErrorBoundary>
     </AuthProvider>
   );
 }
