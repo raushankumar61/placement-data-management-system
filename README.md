@@ -264,4 +264,4 @@ interviews/{id}        → studentId, recruiterId, dateTime, venue
 
 ## 📜 License
 
-MIT © 2025 PlaceCloud
+DSCE © 2025 PlaceCloud
