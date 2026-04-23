@@ -36,7 +36,7 @@ import RecruiterInterviewScheduler from './pages/recruiter/InterviewScheduler';
 // Faculty
 import FacultyDashboard from './pages/faculty/Dashboard';
 import FacultyRecommendations from './pages/faculty/Recommendations';
-import FacultyDataVerification from './pages/faculty/DataVerification';
+import FacultyDataVerification from './pages/faculty/Dataverification';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, role, loading } = useAuth();
