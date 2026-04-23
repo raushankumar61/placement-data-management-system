@@ -1,77 +1,13 @@
 // src/pages/student/Interviews.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Calendar, Clock, MapPin, Monitor, MessageSquare,
+  Calendar, Clock, Monitor, MessageSquare,
   Star, ChevronDown, ChevronUp, CheckCircle
 } from 'lucide-react';
-
-const INTERVIEWS = [
-  {
-    id: 1,
-    company: 'Google',
-    role: 'Software Development Engineer',
-    date: '2025-02-05',
-    time: '10:00 AM',
-    mode: 'Online',
-    platform: 'Google Meet',
-    round: 'Technical Round 1',
-    status: 'upcoming',
-    instructions: 'Focus on Data Structures and Algorithms. Be ready to code on a shared editor.',
-    feedback: null,
-  },
-  {
-    id: 2,
-    company: 'Amazon',
-    role: 'SDE-2',
-    date: '2025-02-08',
-    time: '2:00 PM',
-    mode: 'Online',
-    platform: 'Zoom',
-    round: 'HR Round',
-    status: 'upcoming',
-    instructions: 'Prepare STAR format answers. Know Amazon Leadership Principles.',
-    feedback: null,
-  },
-  {
-    id: 3,
-    company: 'Microsoft',
-    role: 'Data Scientist',
-    date: '2025-01-20',
-    time: '11:00 AM',
-    mode: 'Offline',
-    platform: 'Microsoft Office, Hyderabad',
-    round: 'Technical Round',
-    status: 'completed',
-    instructions: '',
-    feedback: {
-      rating: 4,
-      strengths: 'Strong problem-solving skills. Good understanding of ML concepts.',
-      improvements: 'Need to improve communication of thought process while solving problems.',
-      result: 'Shortlisted for next round',
-      givenBy: 'Interviewer, Microsoft',
-    },
-  },
-  {
-    id: 4,
-    company: 'Infosys',
-    role: 'Systems Analyst',
-    date: '2025-01-15',
-    time: '9:00 AM',
-    mode: 'Online',
-    platform: 'Webex',
-    round: 'Final Round',
-    status: 'completed',
-    instructions: '',
-    feedback: {
-      rating: 5,
-      strengths: 'Excellent communication. Strong technical foundation. Great attitude.',
-      improvements: 'Keep learning new technologies.',
-      result: 'Selected ✅',
-      givenBy: 'HR Manager, Infosys',
-    },
-  },
-];
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 function StarRating({ rating }) {
   return (
@@ -89,13 +25,14 @@ function StarRating({ rating }) {
 
 function InterviewCard({ interview }) {
   const [expanded, setExpanded] = useState(false);
-  const isUpcoming = interview.status === 'upcoming';
-  const isPast = interview.status === 'completed';
+  const isUpcoming = String(interview.status || '').toLowerCase() !== 'completed';
+  const isPast = !isUpcoming;
 
   const daysLeft = () => {
+    if (!interview.date) return null;
     const diff = new Date(interview.date) - new Date();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (days < 0) return null;
+    if (Number.isNaN(days) || days < 0) return null;
     if (days === 0) return 'Today!';
     if (days === 1) return 'Tomorrow';
     return `${days} days away`;
@@ -109,12 +46,11 @@ function InterviewCard({ interview }) {
         isUpcoming ? 'border-blue-electric/20' : 'border-white/5'
       }`}
     >
-      {/* Header */}
       <div className="p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-electric/20 to-gold/10 flex items-center justify-center border border-white/10 flex-shrink-0">
-              <span className="font-heading font-bold text-white">{interview.company[0]}</span>
+              <span className="font-heading font-bold text-white">{(interview.company || '?')[0]}</span>
             </div>
             <div>
               <p className="text-white font-heading font-semibold">{interview.company}</p>
@@ -131,7 +67,6 @@ function InterviewCard({ interview }) {
           </div>
         </div>
 
-        {/* Details */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
           <div className="flex items-center gap-2 text-white/50">
             <Calendar size={13} className="text-white/30" />
@@ -147,7 +82,6 @@ function InterviewCard({ interview }) {
           </div>
         </div>
 
-        {/* Instructions for upcoming */}
         {isUpcoming && interview.instructions && (
           <div className="mt-4 p-3 rounded-xl bg-blue-electric/5 border border-blue-electric/20">
             <p className="text-blue-electric text-xs font-semibold mb-1 font-body">📌 Instructions</p>
@@ -155,7 +89,6 @@ function InterviewCard({ interview }) {
           </div>
         )}
 
-        {/* Feedback preview for completed */}
         {isPast && interview.feedback && (
           <div className="mt-4">
             <button
@@ -176,7 +109,6 @@ function InterviewCard({ interview }) {
         )}
       </div>
 
-      {/* Expanded Feedback */}
       {expanded && interview.feedback && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -208,7 +140,7 @@ function InterviewCard({ interview }) {
             <div>
               <p className="text-white/40 text-xs font-body">Result</p>
               <p className={`font-semibold text-sm mt-0.5 ${
-                interview.feedback.result.includes('Selected') ? 'text-green-400' : 'text-blue-electric'
+                String(interview.feedback.result || '').includes('Selected') ? 'text-green-400' : 'text-blue-electric'
               }`}>
                 {interview.feedback.result}
               </p>
@@ -225,20 +157,32 @@ function InterviewCard({ interview }) {
 }
 
 export default function StudentInterviews() {
+  const { user } = useAuth();
   const [tab, setTab] = useState('upcoming');
+  const [interviews, setInterviews] = useState([]);
 
-  const upcoming = INTERVIEWS.filter((i) => i.status === 'upcoming');
-  const completed = INTERVIEWS.filter((i) => i.status === 'completed');
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+
+    const interviewsQuery = query(collection(db, 'interviews'), where('studentId', '==', user.uid));
+    const unsub = onSnapshot(interviewsQuery, (snap) => {
+      setInterviews(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }, () => setInterviews([]));
+
+    return unsub;
+  }, [user?.uid]);
+
+  const upcoming = useMemo(() => interviews.filter((interview) => String(interview.status || 'upcoming').toLowerCase() !== 'completed'), [interviews]);
+  const completed = useMemo(() => interviews.filter((interview) => String(interview.status || '').toLowerCase() === 'completed'), [interviews]);
   const displayed = tab === 'upcoming' ? upcoming : completed;
 
   return (
     <div className="space-y-5">
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Upcoming', value: upcoming.length, color: 'text-blue-electric' },
           { label: 'Completed', value: completed.length, color: 'text-green-400' },
-          { label: 'With Feedback', value: completed.filter(i => i.feedback).length, color: 'text-gold' },
+          { label: 'With Feedback', value: completed.filter((interview) => interview.feedback).length, color: 'text-gold' },
         ].map((s) => (
           <div key={s.label} className="glass-card p-4 text-center">
             <p className={`font-heading font-bold text-2xl ${s.color}`}>{s.value}</p>
@@ -247,7 +191,6 @@ export default function StudentInterviews() {
         ))}
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2">
         {['upcoming', 'completed'].map((t) => (
           <button
@@ -263,7 +206,6 @@ export default function StudentInterviews() {
         ))}
       </div>
 
-      {/* Interview Cards */}
       <div className="space-y-4">
         {displayed.length === 0 ? (
           <div className="glass-card p-12 text-center">

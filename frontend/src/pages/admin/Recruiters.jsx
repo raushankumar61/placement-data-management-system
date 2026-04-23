@@ -1,22 +1,34 @@
 // src/pages/admin/Recruiters.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, CheckCircle, XCircle, Search, Globe, Mail, Phone } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-
-const DEMO_RECRUITERS = [
-  { id: 1, companyName: 'Google', contactEmail: 'hr@google.com', phone: '+1 650-253-0000', website: 'google.com', industry: 'Technology', verified: true, jobsPosted: 3, hires: 12 },
-  { id: 2, companyName: 'Amazon', contactEmail: 'campus@amazon.com', phone: '+1 206-266-1000', website: 'amazon.com', industry: 'E-Commerce', verified: true, jobsPosted: 5, hires: 25 },
-  { id: 3, companyName: 'StartupXYZ', contactEmail: 'hr@startupxyz.io', phone: '+91 9876543210', website: 'startupxyz.io', industry: 'SaaS', verified: false, jobsPosted: 0, hires: 0 },
-  { id: 4, companyName: 'Infosys', contactEmail: 'campus.india@infosys.com', phone: '+91 80-2852-0261', website: 'infosys.com', industry: 'IT Services', verified: true, jobsPosted: 8, hires: 120 },
-  { id: 5, companyName: 'NewTech Corp', contactEmail: 'recruit@newtech.com', phone: '+91 9988776655', website: 'newtech.com', industry: 'Technology', verified: false, jobsPosted: 1, hires: 0 },
-];
+import { collection, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 export default function AdminRecruiters() {
-  const [recruiters, setRecruiters] = useState(DEMO_RECRUITERS);
+  const [recruiters, setRecruiters] = useState([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'recruiters'), (snap) => {
+      setRecruiters(snap.docs.map((d) => ({
+        id: d.id,
+        companyName: d.data().companyName || d.data().name || 'Recruiter',
+        contactEmail: d.data().contactEmail || d.data().email || '',
+        phone: d.data().phone || 'N/A',
+        website: d.data().website || 'N/A',
+        industry: d.data().industry || 'General',
+        verified: Boolean(d.data().verified),
+        jobsPosted: Number(d.data().jobsPosted || 0),
+        hires: Number(d.data().hires || 0),
+      })));
+    }, () => setRecruiters([]));
+
+    return unsub;
+  }, []);
 
   const filtered = recruiters.filter((r) => {
     const matchSearch = !search || r.companyName.toLowerCase().includes(search.toLowerCase());
@@ -24,24 +36,26 @@ export default function AdminRecruiters() {
     return matchSearch && matchFilter;
   });
 
-  const toggleVerify = (id) => {
-    setRecruiters((prev) => prev.map((r) => {
-      if (r.id !== id) return r;
-      const updated = { ...r, verified: !r.verified };
-      toast.success(`${updated.companyName} ${updated.verified ? 'approved' : 'suspended'}`);
-      return updated;
-    }));
+  const toggleVerify = async (id) => {
+    const recruiter = recruiters.find((item) => item.id === id);
+    if (!recruiter) return;
+
+    try {
+      await updateDoc(doc(db, 'recruiters', id), { verified: !recruiter.verified });
+      toast.success(`${recruiter.companyName} ${!recruiter.verified ? 'approved' : 'suspended'}`);
+    } catch {
+      toast.error('Unable to update recruiter status');
+    }
   };
 
   return (
     <DashboardLayout title="Recruiter Management">
       <div className="space-y-5">
-        {/* Summary */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Total Recruiters', value: recruiters.length, color: 'text-white' },
-            { label: 'Verified', value: recruiters.filter(r => r.verified).length, color: 'text-green-400' },
-            { label: 'Pending Approval', value: recruiters.filter(r => !r.verified).length, color: 'text-gold' },
+            { label: 'Verified', value: recruiters.filter((r) => r.verified).length, color: 'text-green-400' },
+            { label: 'Pending Approval', value: recruiters.filter((r) => !r.verified).length, color: 'text-gold' },
           ].map((s) => (
             <div key={s.label} className="glass-card p-4">
               <p className="text-white/40 text-xs font-body mb-1">{s.label}</p>
@@ -50,7 +64,6 @@ export default function AdminRecruiters() {
           ))}
         </div>
 
-        {/* Filters */}
         <div className="flex gap-3 flex-wrap">
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
@@ -73,7 +86,6 @@ export default function AdminRecruiters() {
           </div>
         </div>
 
-        {/* Cards */}
         <div className="grid md:grid-cols-2 gap-4">
           {filtered.map((r, i) => (
             <motion.div key={r.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}

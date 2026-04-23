@@ -1,41 +1,11 @@
 // src/pages/student/Applications.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Clock, XCircle, Circle, ChevronRight } from 'lucide-react';
+import { CheckCircle, Clock, Circle, ChevronRight } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
-
-const APPLICATIONS = [
-  {
-    id: 1, company: 'Google', role: 'SDE', appliedAt: 'Jan 15, 2025', ctc: '28 LPA',
-    timeline: [
-      { stage: 'Applied', date: 'Jan 15', status: 'done' },
-      { stage: 'Shortlisted', date: 'Jan 18', status: 'done' },
-      { stage: 'Technical Round 1', date: 'Feb 5', status: 'active' },
-      { stage: 'Technical Round 2', date: 'TBD', status: 'pending' },
-      { stage: 'HR Round', date: 'TBD', status: 'pending' },
-      { stage: 'Offer', date: 'TBD', status: 'pending' },
-    ],
-  },
-  {
-    id: 2, company: 'Microsoft', role: 'Data Scientist', appliedAt: 'Jan 22, 2025', ctc: '18 LPA',
-    timeline: [
-      { stage: 'Applied', date: 'Jan 22', status: 'done' },
-      { stage: 'Under Review', date: 'Jan 24', status: 'active' },
-      { stage: 'Technical Round', date: 'TBD', status: 'pending' },
-      { stage: 'Offer', date: 'TBD', status: 'pending' },
-    ],
-  },
-  {
-    id: 3, company: 'Infosys', role: 'Systems Analyst', appliedAt: 'Jan 10, 2025', ctc: '7 LPA',
-    timeline: [
-      { stage: 'Applied', date: 'Jan 10', status: 'done' },
-      { stage: 'Shortlisted', date: 'Jan 12', status: 'done' },
-      { stage: 'Online Test', date: 'Jan 16', status: 'done' },
-      { stage: 'HR Round', date: 'Jan 20', status: 'done' },
-      { stage: 'Selected', date: 'Jan 22', status: 'done' },
-    ],
-  },
-];
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 const STAGE_ICONS = {
   done: CheckCircle,
@@ -49,25 +19,109 @@ const STAGE_COLORS = {
   pending: 'text-white/20',
 };
 
-export default function StudentApplications() {
-  const [selected, setSelected] = useState(APPLICATIONS[0]);
+const normalize = (value) => String(value || '').trim().toLowerCase();
 
-  const overallStatus = (app) => {
-    const last = [...app.timeline].reverse().find((t) => t.status === 'done');
-    if (app.timeline[app.timeline.length - 1].status === 'done') return 'Selected';
-    return last?.stage || 'Applied';
-  };
+const toMillis = (value) => {
+  if (!value) return 0;
+  if (typeof value === 'string') return new Date(value).getTime() || 0;
+  if (value?.toDate) return value.toDate().getTime();
+  if (value instanceof Date) return value.getTime();
+  return 0;
+};
+
+const formatDate = (value) => {
+  if (!value) return 'TBD';
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value?.toDate) return value.toDate().toLocaleDateString();
+  if (value instanceof Date) return value.toLocaleDateString();
+  return String(value);
+};
+
+const buildTimeline = (status, appliedAt) => {
+  const normalized = normalize(status);
+  const appliedLabel = formatDate(appliedAt);
+  const stages = [{ stage: 'Applied', date: appliedLabel, status: 'done' }];
+
+  if (normalized === 'rejected') {
+    stages.push({ stage: 'Rejected', date: 'Latest update', status: 'done' });
+    return stages;
+  }
+
+  if (normalized !== 'applied') {
+    stages.push({ stage: 'Shortlisted', date: 'Latest update', status: 'done' });
+  }
+
+  if (['selected', 'placed', 'offer'].includes(normalized)) {
+    stages.push({ stage: 'Offer', date: 'Latest update', status: 'done' });
+  } else {
+    stages.push({ stage: 'Technical Round 1', date: 'Latest update', status: normalized === 'shortlisted' ? 'active' : 'pending' });
+    stages.push({ stage: 'Offer', date: 'TBD', status: 'pending' });
+  }
+
+  return stages;
+};
+
+const buildOverallStatus = (status) => {
+  const normalized = normalize(status);
+  if (['selected', 'placed', 'offer'].includes(normalized)) return 'Selected';
+  if (normalized === 'shortlisted') return 'Shortlisted';
+  if (normalized === 'rejected') return 'Rejected';
+  return 'Applied';
+};
+
+export default function StudentApplications() {
+  const { user } = useAuth();
+  const [applications, setApplications] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+
+    const appsUnsub = onSnapshot(query(collection(db, 'applications'), where('studentId', '==', user.uid)), (snap) => {
+      setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }, () => setApplications([]));
+
+    const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
+      setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }, () => setJobs([]));
+
+    return () => {
+      appsUnsub();
+      jobsUnsub();
+    };
+  }, [user?.uid]);
+
+  const records = useMemo(() => applications.map((app) => {
+    const job = jobs.find((item) => item.id === app.jobId) || {};
+    return {
+      id: app.id,
+      company: job.company || app.company || 'N/A',
+      role: job.title || app.role || 'N/A',
+      appliedAt: formatDate(app.appliedAt || app.createdAt),
+      ctc: job.ctc || app.ctc || 'N/A',
+      timeline: buildTimeline(app.status, app.appliedAt || app.createdAt),
+      overallStatus: buildOverallStatus(app.status),
+    };
+  }).sort((a, b) => toMillis(b.appliedAt) - toMillis(a.appliedAt)), [applications, jobs]);
+
+  const selected = records.find((app) => app.id === selectedId) || records[0] || null;
+
+  useEffect(() => {
+    if (!selectedId && records.length) {
+      setSelectedId(records[0].id);
+    }
+  }, [records, selectedId]);
 
   return (
     <DashboardLayout title="My Applications">
       <div className="grid lg:grid-cols-5 gap-5">
-        {/* Application List */}
         <div className="lg:col-span-2 space-y-3">
-          <p className="text-white/40 text-xs font-body">{APPLICATIONS.length} applications</p>
-          {APPLICATIONS.map((app, i) => (
+          <p className="text-white/40 text-xs font-body">{records.length} applications</p>
+          {records.map((app, i) => (
             <motion.div key={app.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
-              onClick={() => setSelected(app)}
+              onClick={() => setSelectedId(app.id)}
               className={`glass-card p-4 cursor-pointer border transition-all ${
                 selected?.id === app.id ? 'border-blue-electric/50 bg-blue-electric/5' : 'border-white/5 hover:border-white/15'
               }`}>
@@ -79,17 +133,21 @@ export default function StudentApplications() {
                 </div>
                 <div className="text-right">
                   <p className="text-gold font-mono text-sm">{app.ctc}</p>
-                  <p className="text-white/40 text-xs font-body mt-1">{overallStatus(app)}</p>
+                  <p className="text-white/40 text-xs font-body mt-1">{app.overallStatus}</p>
                   <ChevronRight size={14} className="text-white/30 mt-1 ml-auto" />
                 </div>
               </div>
             </motion.div>
           ))}
+          {!records.length && (
+            <div className="glass-card p-8 text-center border border-white/5 text-white/40 text-sm font-body">
+              No applications found yet.
+            </div>
+          )}
         </div>
 
-        {/* Timeline Detail */}
         <div className="lg:col-span-3">
-          {selected && (
+          {selected ? (
             <motion.div key={selected.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               className="glass-card p-6 border border-white/10">
               <div className="mb-6">
@@ -139,7 +197,7 @@ export default function StudentApplications() {
                 })}
               </div>
 
-              {overallStatus(selected) === 'Selected' && (
+              {selected.overallStatus === 'Selected' && (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   className="mt-5 p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-center">
                   <CheckCircle size={28} className="text-green-400 mx-auto mb-2" />
@@ -148,6 +206,10 @@ export default function StudentApplications() {
                 </motion.div>
               )}
             </motion.div>
+          ) : (
+            <div className="glass-card p-10 border border-white/5 text-center text-white/40 text-sm font-body">
+              No application details to show.
+            </div>
           )}
         </div>
       </div>

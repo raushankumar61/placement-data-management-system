@@ -1,39 +1,57 @@
 // src/pages/admin/Notifications.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, Send, Users, Briefcase, GraduationCap, BookOpen } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-
-const SENT_NOTIFICATIONS = [
-  { id: 1, message: 'Amazon drive registration deadline is tomorrow. Apply now!', target: 'students', sentAt: '2025-01-22 10:30', read: 145, total: 320 },
-  { id: 2, message: 'New recruiter Infosys has been approved and posted 3 jobs.', target: 'all', sentAt: '2025-01-21 14:15', read: 89, total: 200 },
-  { id: 3, message: 'Placement season officially begins. Update your profiles!', target: 'students', sentAt: '2025-01-20 09:00', read: 290, total: 320 },
-  { id: 4, message: 'Faculty: Please verify pending student data submissions.', target: 'faculty', sentAt: '2025-01-19 16:45', read: 12, total: 18 },
-];
+import { addDoc, collection, onSnapshot, query, serverTimestamp, orderBy } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const TARGET_ICONS = { students: GraduationCap, recruiters: Briefcase, faculty: BookOpen, all: Users };
+const TARGET_TOTALS = { students: 320, recruiters: 18, faculty: 12, all: 350 };
 
 export default function AdminNotifications() {
   const [form, setForm] = useState({ message: '', target: 'students', type: 'in-app' });
   const [sending, setSending] = useState(false);
-  const [notifications, setNotifications] = useState(SENT_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'notifications'), orderBy('createdAt', 'desc')), (snap) => {
+      setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }, () => setNotifications([]));
+
+    return unsub;
+  }, []);
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!form.message.trim()) return toast.error('Message is required');
+
     setSending(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setNotifications([{ id: Date.now(), message: form.message, target: form.target, sentAt: new Date().toLocaleString(), read: 0, total: 100 }, ...notifications]);
-    toast.success('Notification sent!');
-    setForm({ ...form, message: '' });
-    setSending(false);
+    try {
+      const total = TARGET_TOTALS[form.target] || TARGET_TOTALS.all;
+      const ref = await addDoc(collection(db, 'notifications'), {
+        message: form.message,
+        target: form.target,
+        channel: form.type,
+        sentAt: new Date().toISOString(),
+        read: 0,
+        total,
+        createdAt: serverTimestamp(),
+      });
+      setNotifications((prev) => [{ id: ref.id, message: form.message, target: form.target, sentAt: new Date().toISOString(), read: 0, total }, ...prev]);
+      toast.success('Notification sent!');
+      setForm({ ...form, message: '' });
+    } catch {
+      toast.error('Failed to send notification');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <DashboardLayout title="Notifications">
       <div className="grid lg:grid-cols-3 gap-5">
-        {/* Compose */}
         <div className="lg:col-span-1">
           <div className="glass-card p-5 border border-white/10">
             <div className="flex items-center gap-2 mb-5">
@@ -100,12 +118,11 @@ export default function AdminNotifications() {
           </div>
         </div>
 
-        {/* History */}
         <div className="lg:col-span-2 space-y-4">
           <p className="section-title">Notification History</p>
           {notifications.map((n, i) => {
             const Icon = TARGET_ICONS[n.target] || Users;
-            const readPct = Math.round((n.read / n.total) * 100);
+            const readPct = Math.round(((Number(n.read || 0)) / (Number(n.total || 1))) * 100);
             return (
               <motion.div key={n.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.08 }} className="glass-card p-4 border border-white/5">
@@ -117,12 +134,12 @@ export default function AdminNotifications() {
                     <p className="text-white/80 text-sm font-body leading-relaxed">{n.message}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <span className="badge-blue capitalize">{n.target}</span>
-                      <span className="text-white/30 text-xs font-body">{n.sentAt}</span>
+                      <span className="text-white/30 text-xs font-body">{String(n.sentAt || '').replace('T', ' ').slice(0, 16)}</span>
                     </div>
                     <div className="mt-3">
                       <div className="flex justify-between text-xs font-body mb-1">
                         <span className="text-white/40">Read rate</span>
-                        <span className="text-white/60">{n.read}/{n.total} ({readPct}%)</span>
+                        <span className="text-white/60">{Number(n.read || 0)}/{Number(n.total || 0)} ({readPct}%)</span>
                       </div>
                       <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                         <motion.div initial={{ width: 0 }} animate={{ width: `${readPct}%` }}
@@ -135,6 +152,11 @@ export default function AdminNotifications() {
               </motion.div>
             );
           })}
+          {!notifications.length && (
+            <div className="glass-card p-5 border border-white/5 text-white/40 text-sm font-body">
+              No notifications sent yet.
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>
