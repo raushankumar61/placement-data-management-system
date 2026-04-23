@@ -46,7 +46,7 @@ export default function StudentDashboard() {
             </div>
             <Link to="/student/jobs">
               <button className="btn-primary text-sm py-2.5 flex items-center gap-2">
-                Browse Jobs <ArrowRight size={14} />
+                Browse 24 Jobs <ArrowRight size={14} />
               </button>
             </Link>
           </div>

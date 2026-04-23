@@ -45,18 +45,21 @@ export default function AdminNotifications() {
                 <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Target Audience</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { value: 'students', label: 'Students' },
-                    { value: 'recruiters', label: 'Recruiters' },
-                    { value: 'faculty', label: 'Faculty' },
-                    { value: 'all', label: 'Everyone' },
+                    { value: 'students', label: 'Students', count: '320' },
+                    { value: 'recruiters', label: 'Recruiters', count: '18' },
+                    { value: 'faculty', label: 'Faculty', count: '12' },
+                    { value: 'all', label: 'Everyone', count: 'All' },
                   ].map((t) => (
                     <button key={t.value} type="button" onClick={() => setForm({ ...form, target: t.value })}
-                      className={`p-2 rounded-xl border text-xs font-body transition-all ${
+                      className={`p-2 rounded-xl border text-xs font-body transition-all flex items-center justify-between gap-2 ${
                         form.target === t.value
                           ? 'border-blue-electric/50 bg-blue-electric/10 text-blue-electric'
                           : 'border-white/10 text-white/40 hover:border-white/20'
                       }`}>
-                      {t.label}
+                      <span>{t.label}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${form.target === t.value ? 'bg-white/15 text-white' : 'bg-white/8 text-white/60'}`}>
+                        {t.count}
+                      </span>
                     </button>
                   ))}
                 </div>

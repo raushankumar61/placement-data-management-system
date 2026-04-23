@@ -64,11 +64,11 @@ export default function RecruiterDashboard() {
             <div className="flex gap-3">
               <Link to="/recruiter/post-job">
                 <button className="btn-primary text-sm py-2.5 flex items-center gap-2">
-                  Post a Job <ArrowRight size={14} />
+                  Post a Job · 3 Live <ArrowRight size={14} />
                 </button>
               </Link>
               <Link to="/recruiter/candidates">
-                <button className="btn-outline text-sm py-2.5">Browse Candidates</button>
+                <button className="btn-outline text-sm py-2.5">Browse Candidates · 5 New</button>
               </Link>
             </div>
           </div>

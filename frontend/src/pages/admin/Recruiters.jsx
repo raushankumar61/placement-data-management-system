@@ -58,14 +58,18 @@ export default function AdminRecruiters() {
               onChange={(e) => setSearch(e.target.value)} className="input-field pl-9 py-2 text-sm w-52" />
           </div>
           <div className="flex gap-2">
-            {['all', 'verified', 'pending'].map((f) => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`px-3 py-2 rounded-xl text-xs font-body border transition-all capitalize ${
-                  filter === f ? 'border-blue-electric/50 bg-blue-electric/10 text-blue-electric' : 'border-white/10 text-white/40'
-                }`}>
-                {f === 'pending' ? 'Pending' : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
+            {['all', 'verified', 'pending'].map((f) => {
+              const count = f === 'all' ? recruiters.length : recruiters.filter((r) => (f === 'verified' ? r.verified : !r.verified)).length;
+              return (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`tab-chip text-xs capitalize flex items-center gap-2 ${filter === f ? 'active' : ''}`}>
+                  {f === 'pending' ? 'Pending' : f.charAt(0).toUpperCase() + f.slice(1)}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${filter === f ? 'bg-white/15 text-white' : 'bg-white/8 text-white/60'}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

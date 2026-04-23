@@ -115,15 +115,20 @@ export default function FacultyDataVerification() {
             />
           </div>
           <div className="flex gap-2">
-            {['all', 'pending', 'approved', 'rejected'].map((f) => (
+            {['all', 'pending', 'approved', 'rejected'].map((f) => {
+              const count = f === 'all' ? verifications.length : verifications.filter((v) => v.status === f).length;
+              return (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`tab-chip text-xs capitalize ${filter === f ? 'active' : ''}`}
+                className={`tab-chip text-xs capitalize flex items-center gap-2 ${filter === f ? 'active' : ''}`}
               >
                 {f}
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${filter === f ? 'bg-white/15 text-white' : 'bg-white/8 text-white/60'}`}>
+                  {count}
+                </span>
               </button>
-            ))}
+            );})}
           </div>
         </div>
 

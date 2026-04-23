@@ -123,7 +123,7 @@ export default function AdminJobs() {
             />
           </div>
           <button onClick={() => openModal()} className="btn-primary text-sm py-2 px-4 flex items-center gap-2">
-            <Plus size={14} /> Post Job
+            <Plus size={14} /> Post Job · {jobs.filter((j) => j.status === 'active').length} Active
           </button>
         </div>
 

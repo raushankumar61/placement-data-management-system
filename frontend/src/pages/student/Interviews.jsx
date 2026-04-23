@@ -253,9 +253,12 @@ export default function StudentInterviews() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`tab-chip capitalize ${tab === t ? 'active' : ''}`}
+            className={`tab-chip capitalize flex items-center gap-2 ${tab === t ? 'active' : ''}`}
           >
             {t} ({t === 'upcoming' ? upcoming.length : completed.length})
+            <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${tab === t ? 'bg-white/15 text-white' : 'bg-white/8 text-white/60'}`}>
+              {t === 'upcoming' ? upcoming.length : completed.length}
+            </span>
           </button>
         ))}
       </div>
