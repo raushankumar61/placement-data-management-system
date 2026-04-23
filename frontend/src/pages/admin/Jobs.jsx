@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Trash2, Edit2, X, Briefcase, Calendar, MapPin, DollarSign, Users } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
+import { TableSkeleton } from '../../components/common/SkeletonLoader';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -143,9 +144,7 @@ export default function AdminJobs() {
 
         {/* Job Cards */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-blue-electric/30 border-t-blue-electric rounded-full animate-spin" />
-          </div>
+          <TableSkeleton rows={6} cols={6} />
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
             {filtered.map((job, i) => (

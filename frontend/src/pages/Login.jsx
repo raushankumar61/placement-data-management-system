@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Zap, Chrome } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { validateForm, validators } from '../utils/validation';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,7 +23,14 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password) return toast.error('Please fill all fields');
+    const errors = validateForm(
+      { email, password },
+      {
+        email: [validators.required, validators.email],
+        password: [validators.required],
+      }
+    );
+    if (Object.keys(errors).length) return toast.error(Object.values(errors)[0]);
     setLoading(true);
     try {
       const { profile } = await login(email, password);

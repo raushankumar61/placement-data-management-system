@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import toast from 'react-hot-toast';
+import { validateForm, validators } from '../../utils/validation';
 
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical'];
 
@@ -37,6 +38,18 @@ export default function StudentProfile() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const errors = validateForm(
+      form,
+      {
+        name: validators.required,
+        phone: validators.phone,
+        cgpa: validators.cgpa,
+        linkedin: validators.url,
+        github: validators.url,
+        branch: validators.required,
+      }
+    );
+    if (Object.keys(errors).length) return toast.error(Object.values(errors)[0]);
     setSaving(true);
     try {
       await updateDoc(doc(db, 'students', user.uid), form);

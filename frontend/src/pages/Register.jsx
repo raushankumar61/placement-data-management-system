@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Mail, Lock, Eye, EyeOff, Zap, Chrome, BookOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { validateForm, validators } from '../utils/validation';
 
 const ROLES = [
   { value: 'student', label: 'Student', desc: 'Looking for placement opportunities' },
@@ -29,8 +30,16 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password) return toast.error('Please fill all required fields');
-    if (form.password.length < 6) return toast.error('Password must be at least 6 characters');
+    const errors = validateForm(
+      form,
+      {
+        name: validators.required,
+        email: [validators.required, validators.email],
+        password: [validators.required, validators.minLength(6)],
+        department: (value) => ((form.role === 'student' || form.role === 'faculty') ? validators.required(value) : null),
+      }
+    );
+    if (Object.keys(errors).length) return toast.error(Object.values(errors)[0]);
     setLoading(true);
     try {
       const { profile } = await register(form);

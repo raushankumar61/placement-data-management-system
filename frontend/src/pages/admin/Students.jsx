@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Upload, Download, Trash2, Edit2, Filter, X, ChevronDown } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
+import { TableSkeleton } from '../../components/common/SkeletonLoader';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import toast from 'react-hot-toast';
@@ -233,9 +234,7 @@ export default function AdminStudents() {
           className="glass-card overflow-hidden"
         >
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-blue-electric/30 border-t-blue-electric rounded-full animate-spin" />
-            </div>
+            <TableSkeleton rows={6} cols={7} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
