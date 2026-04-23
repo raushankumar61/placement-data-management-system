@@ -16,6 +16,35 @@ const STATUS_CLASS = {
   unplaced: 'badge-red',
 };
 
+const DEPARTMENT_ALIASES = {
+  'computer science': ['computer science', 'cse', 'cs', 'computer science and engineering'],
+  'information technology': ['information technology', 'it'],
+  'electronics & communication': ['electronics & communication', 'electronics and communication', 'ece', 'ec'],
+  mechanical: ['mechanical', 'mech', 'mechanical engineering'],
+  civil: ['civil', 'civil engineering'],
+  electrical: ['electrical', 'ee', 'electrical engineering'],
+  'artificial intelligence & machine learning': ['artificial intelligence & machine learning', 'ai & ml', 'aiml', 'aiml engineering'],
+  'data science': ['data science'],
+  'aerospace engineering': ['aerospace engineering'],
+  biotechnology: ['biotechnology', 'biotech'],
+  'robotics and automation': ['robotics and automation', 'robotics'],
+};
+
+function normalizeText(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function matchesDepartment(branch, department) {
+  if (!department) return true;
+  const normalizedBranch = normalizeText(branch);
+  const normalizedDepartment = normalizeText(department);
+  const aliases = Object.entries(DEPARTMENT_ALIASES).find(([, values]) => values.includes(normalizedDepartment));
+  if (aliases) {
+    return aliases[1].some((alias) => normalizedBranch.includes(normalizeText(alias)));
+  }
+  return normalizedBranch.includes(normalizedDepartment) || normalizedDepartment.includes(normalizedBranch);
+}
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -76,8 +105,9 @@ export default function FacultyDashboard() {
 
   const deptStudents = useMemo(() => {
     const dept = userProfile?.department;
-    const source = dept ? students.filter((s) => s.branch === dept) : students;
-    return source.map((s) => ({
+    const source = dept ? students.filter((s) => matchesDepartment(s.branch, dept)) : students;
+    const fallback = !source.length && dept ? students : source;
+    return fallback.map((s) => ({
       id: s.id,
       rollNo: s.rollNo || 'N/A',
       name: s.name || 'Student',
@@ -107,6 +137,11 @@ export default function FacultyDashboard() {
     inProcess: deptStudents.filter((s) => s.status === 'in-process').length,
     unplaced: deptStudents.filter((s) => s.status === 'unplaced').length,
   }), [deptStudents]);
+
+  const selectedDepartment = userProfile?.department || 'All Departments';
+  const departmentMatchNote = userProfile?.department && deptStudents.length === students.length
+    ? 'No exact department match found, showing all students.'
+    : null;
 
   const normalizeStatus = (value) => String(value || '').toLowerCase();
 
@@ -180,7 +215,8 @@ export default function FacultyDashboard() {
           className="glass-card p-5 border border-purple-500/20"
           style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,163,255,0.05))' }}>
           <h2 className="font-heading font-bold text-xl text-white">Welcome, {userProfile?.name || 'Faculty'}</h2>
-          <p className="text-white/40 text-sm font-body mt-1">Department: {userProfile?.department || 'Computer Science'}</p>
+          <p className="text-white/40 text-sm font-body mt-1">Department: {selectedDepartment}</p>
+          {departmentMatchNote && <p className="text-gold text-xs font-body mt-1">{departmentMatchNote}</p>}
         </motion.div>
 
         {/* Stats */}
