@@ -1,0 +1,94 @@
+// backend/routes/jobs.js
+const express = require('express');
+const router = express.Router();
+const { v4: uuidv4 } = require('uuid');
+const { db } = require('../config/firebase');
+const { verifyToken } = require('../middleware/auth');
+
+// GET /api/v1/jobs
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    if (!db) {
+      return res.json({
+        jobs: [
+          { id: '1', title: 'SDE', company: 'Google', ctc: '24 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-01', minCGPA: 7.0, openings: 10 },
+          { id: '2', title: 'Data Scientist', company: 'Microsoft', ctc: '18 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-10', minCGPA: 7.5, openings: 5 },
+        ],
+        total: 2,
+      });
+    }
+
+    let query = db.collection('jobs');
+    const { status, type, branch } = req.query;
+
+    if (status) query = query.where('status', '==', status);
+    if (type) query = query.where('type', '==', type);
+
+    const snap = await query.get();
+    let jobs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // Filter by branch eligibility if specified
+    if (branch) {
+      jobs = jobs.filter((j) => !j.branches?.length || j.branches.includes('All') || j.branches.includes(branch));
+    }
+
+    res.json({ jobs, total: jobs.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/v1/jobs/:id
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    if (!db) return res.status(404).json({ error: 'Not found' });
+    const snap = await db.collection('jobs').doc(req.params.id).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Job not found' });
+    res.json({ id: snap.id, ...snap.data() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/v1/jobs
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const payload = {
+      ...req.body,
+      postedBy: req.user.uid,
+      status: 'active',
+      applicants: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
+
+    const ref = await db.collection('jobs').add(payload);
+    res.status(201).json({ id: ref.id, ...payload });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/v1/jobs/:id
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const payload = { ...req.body, updatedAt: new Date().toISOString(), updatedBy: req.user.uid };
+    if (db) await db.collection('jobs').doc(req.params.id).update(payload);
+    res.json({ id: req.params.id, ...payload });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/v1/jobs/:id
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    if (db) await db.collection('jobs').doc(req.params.id).delete();
+    res.json({ success: true, id: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;

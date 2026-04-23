@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isStudent() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+
+    function isRecruiter() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter';
+    }
+
+    function isFaculty() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'faculty';
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Users collection
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Students collection
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isOwner(studentId);
+      allow update: if isAdmin() || isOwner(studentId);
+      allow delete: if isAdmin();
+    }
+
+    // Jobs collection
+    match /jobs/{jobId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isRecruiter();
+      allow update: if isAdmin() || isRecruiter();
+      allow delete: if isAdmin();
+    }
+
+    // Applications collection
+    match /applications/{appId} {
+      allow read: if isAdmin() || isRecruiter() || isFaculty() ||
+        (isStudent() && resource.data.studentId == request.auth.uid);
+      allow create: if isStudent();
+      allow update: if isAdmin() || isRecruiter();
+      allow delete: if isAdmin();
+    }
+
+    // Recruiters collection
+    match /recruiters/{recruiterId} {
+      allow read: if isAuthenticated();
+      allow create: if isRecruiter() || isAdmin();
+      allow update: if isAdmin() || isOwner(recruiterId);
+      allow delete: if isAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAuthenticated(); // to mark as read
+      allow delete: if isAdmin();
+    }
+
+    // Interviews collection
+    match /interviews/{interviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isRecruiter();
+      allow update: if isAdmin() || isRecruiter();
+      allow delete: if isAdmin();
+    }
+  }
+}
