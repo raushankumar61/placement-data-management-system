@@ -95,6 +95,26 @@
     @apply px-6 py-3 rounded-xl font-heading font-semibold border border-white/20 text-white/80 transition-all duration-200 hover:border-blue-electric hover:text-white bg-transparent;
   }
 
+  .tab-chip {
+    @apply px-4 py-2 rounded-xl text-sm font-body border border-white/10 bg-white/5 text-white/75 transition-all duration-200;
+  }
+
+  .tab-chip:hover {
+    @apply border-white/20 bg-white/8 text-white;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  }
+
+  .tab-chip:focus-visible {
+    outline: none;
+    @apply border-blue-electric/50 text-white;
+    box-shadow: 0 0 0 3px rgba(0, 163, 255, 0.16);
+  }
+
+  .tab-chip.active {
+    @apply border-blue-electric/50 bg-blue-electric/15 text-white;
+    box-shadow: 0 10px 28px rgba(0, 163, 255, 0.14);
+  }
+
   .input-field {
     @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-electric/50 focus:bg-white/8 transition-all duration-200;
     font-family: 'DM Sans', sans-serif;

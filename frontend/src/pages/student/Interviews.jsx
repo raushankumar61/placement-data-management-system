@@ -253,11 +253,7 @@ export default function StudentInterviews() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-xl text-sm font-body border transition-all capitalize ${
-              tab === t
-                ? 'border-blue-electric/50 bg-blue-electric/10 text-blue-electric'
-                : 'border-white/10 text-white/40 hover:border-white/20'
-            }`}
+            className={`tab-chip capitalize ${tab === t ? 'active' : ''}`}
           >
             {t} ({t === 'upcoming' ? upcoming.length : completed.length})
           </button>

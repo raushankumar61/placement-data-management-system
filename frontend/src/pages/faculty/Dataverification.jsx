@@ -119,11 +119,7 @@ export default function FacultyDataVerification() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-2 rounded-xl text-xs font-body border transition-all capitalize ${
-                  filter === f
-                    ? 'border-blue-electric/50 bg-blue-electric/10 text-blue-electric'
-                    : 'border-white/10 text-white/40 hover:border-white/20'
-                }`}
+                className={`tab-chip text-xs capitalize ${filter === f ? 'active' : ''}`}
               >
                 {f}
               </button>
