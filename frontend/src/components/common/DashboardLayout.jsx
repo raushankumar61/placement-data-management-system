@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Briefcase, FileText, BarChart3,
   Bell, Building2, LogOut, Menu, X, ChevronRight, Zap,
   UserCircle, Search, BookOpen, Calendar, MessageSquare,
-  Shield, Settings
+  Shield, Settings, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -38,6 +38,7 @@ const NAV_CONFIG = {
     { label: 'Dashboard', icon: LayoutDashboard, path: '/faculty/dashboard' },
     { label: 'Recommendations', icon: BookOpen, path: '/faculty/recommendations' },
     { label: 'Data Verification', icon: Shield, path: '/faculty/verification' },
+    { label: 'Placement Activities', icon: ClipboardList, path: '/faculty/activities' },
   ],
 };
 

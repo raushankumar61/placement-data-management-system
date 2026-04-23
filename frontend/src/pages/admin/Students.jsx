@@ -137,6 +137,10 @@ export default function AdminStudents() {
       interviewExperience,
       suggestions: suggestions.length ? suggestions : autoSuggestions,
       skillsText: Array.isArray(student.skills) ? student.skills.join(', ') : (student.skills || 'N/A'),
+      activityParticipationCount: Number(student.activityParticipationCount || 0),
+      activityMissedCount: Number(student.activityMissedCount || 0),
+      activityWarningsCount: Number(student.activityWarningsCount || 0),
+      placementActivityBlocked: Boolean(student.placementActivityBlocked),
       offerSummary: offersCount
         ? `${offersCount} offer(s) tracked across ${Math.max(1, companies.length)} compan${companies.length === 1 ? 'y' : 'ies'}.`
         : 'No confirmed offers yet. Student is currently in preparation/application stage.',

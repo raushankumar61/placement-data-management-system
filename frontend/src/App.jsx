@@ -38,6 +38,7 @@ import RecruiterInterviewScheduler from './pages/recruiter/InterviewScheduler';
 import FacultyDashboard from './pages/faculty/Dashboard';
 import FacultyRecommendations from './pages/faculty/Recommendations';
 import FacultyDataVerification from './pages/faculty/Dataverification';
+import FacultyPlacementActivities from './pages/faculty/PlacementActivities';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, role, loading } = useAuth();
@@ -124,6 +125,7 @@ function AppRoutes() {
       <Route path="/faculty/dashboard" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDashboard /></ProtectedRoute>} />
       <Route path="/faculty/recommendations" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyRecommendations /></ProtectedRoute>} />
       <Route path="/faculty/verification" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDataVerification /></ProtectedRoute>} />
+      <Route path="/faculty/activities" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyPlacementActivities /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

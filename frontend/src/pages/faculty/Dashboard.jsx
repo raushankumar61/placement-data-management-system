@@ -1,7 +1,7 @@
 // src/pages/faculty/Dashboard.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, AlertCircle, ClipboardList } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
@@ -32,18 +32,20 @@ export default function FacultyDashboard() {
   const [applications, setApplications] = useState([]);
   const [jobsById, setJobsById] = useState({});
   const [interviews, setInterviews] = useState([]);
+  const [placementActivitiesCount, setPlacementActivitiesCount] = useState(0);
   const [pendingVerifications, setPendingVerifications] = useState(0);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, verificationsSnap, appsSnap, jobsSnap, interviewsSnap] = await Promise.all([
+        const [studentsSnap, verificationsSnap, appsSnap, jobsSnap, interviewsSnap, activitiesSnap] = await Promise.all([
           getDocs(collection(db, 'students')),
           getDocs(collection(db, 'verifications')),
           getDocs(collection(db, 'applications')),
           getDocs(collection(db, 'jobs')),
           getDocs(collection(db, 'interviews')),
+          getDocs(collection(db, 'placementActivities')),
         ]);
         const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         const apps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -56,6 +58,7 @@ export default function FacultyDashboard() {
         setApplications(apps);
         setJobsById(jobs);
         setInterviews(interviewData);
+        setPlacementActivitiesCount(activitiesSnap.size || 0);
         setPendingVerifications(
           verificationsSnap.docs.filter((d) => (d.data()?.status || 'pending') === 'pending').length
         );
@@ -64,6 +67,7 @@ export default function FacultyDashboard() {
         setApplications([]);
         setJobsById({});
         setInterviews([]);
+        setPlacementActivitiesCount(0);
         setPendingVerifications(0);
       }
     };
@@ -158,6 +162,10 @@ export default function FacultyDashboard() {
       interviewExperience,
       suggestions: suggestions.length ? suggestions : autoSuggestions,
       skillsText: Array.isArray(student.skills) ? student.skills.join(', ') : (student.skills || 'N/A'),
+      activityParticipationCount: Number(student.activityParticipationCount || 0),
+      activityMissedCount: Number(student.activityMissedCount || 0),
+      activityWarningsCount: Number(student.activityWarningsCount || 0),
+      placementActivityBlocked: Boolean(student.placementActivityBlocked),
       offerSummary: offersCount
         ? `${offersCount} offer(s) tracked across ${Math.max(1, companies.length)} compan${companies.length === 1 ? 'y' : 'ies'}.`
         : 'No confirmed offers yet. Student is currently in preparation/application stage.',
@@ -245,6 +253,7 @@ export default function FacultyDashboard() {
               <p className="text-white/40 text-xs uppercase tracking-wider font-body">Quick Actions</p>
               {[
                 { label: 'Verify Pending Student Data', icon: CheckCircle, color: 'text-green-400', action: () => navigate('/faculty/verification') },
+                { label: 'Placement Activities', icon: ClipboardList, color: 'text-blue-electric', count: placementActivitiesCount, action: () => navigate('/faculty/activities') },
                 {
                   label: 'Students Needing Attention',
                   icon: AlertCircle,

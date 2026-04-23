@@ -40,6 +40,17 @@ export default function StudentInsightsModal({ open, onClose, student, insights 
           <MetricCard label="No. of Offers" value={insights.offersCount} color="text-gold" />
         </div>
 
+        <div className="grid md:grid-cols-4 gap-3 mb-5">
+          <MetricCard label="Activities Participated" value={insights.activityParticipationCount || 0} color="text-green-400" />
+          <MetricCard label="Activities Missed" value={insights.activityMissedCount || 0} color="text-red-400" />
+          <MetricCard label="Warnings" value={insights.activityWarningsCount || 0} color="text-gold" />
+          <MetricCard
+            label="Placement Activity Access"
+            value={insights.placementActivityBlocked ? 'Blocked' : 'Open'}
+            color={insights.placementActivityBlocked ? 'text-red-400' : 'text-blue-electric'}
+          />
+        </div>
+
         <div className="grid md:grid-cols-2 gap-5">
           <div className="space-y-4">
             <div className="glass-card p-4 border border-white/10">
