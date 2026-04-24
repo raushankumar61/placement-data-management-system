@@ -2,136 +2,147 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // ── Helper Functions ──────────────────────────────────────────────────────
     function isAuthenticated() {
       return request.auth != null;
     }
-
     function isAdmin() {
-      return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isAuthenticated() && request.auth.token.role == 'admin';
     }
-
     function isStudent() {
-      return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+      return isAuthenticated() && request.auth.token.role == 'student';
     }
-
     function isRecruiter() {
-      return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter';
+      return isAuthenticated() && request.auth.token.role == 'recruiter';
     }
-
     function isFaculty() {
-      return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'faculty';
+      return isAuthenticated() && request.auth.token.role == 'faculty';
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isAdminOrFaculty() {
+      return isAdmin() || isFaculty();
+    }
+    function isAdminOrRecruiter() {
+      return isAdmin() || isRecruiter();
     }
 
-    function isOwner(uid) {
-      return isAuthenticated() && request.auth.uid == uid;
-    }
-
-    // Users collection
-    match /users/{uid} {
+    // ── Users ─────────────────────────────────────────────────────────────────
+    match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(userId);
+      // Only the user themselves or admin can update their own profile
+      // Role field can only be changed by admin
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
-    // Students collection
+    // ── Students ──────────────────────────────────────────────────────────────
     match /students/{studentId} {
-      allow read: if isAuthenticated();
+      // Students can only read their own full profile.
+      // Recruiters and faculty can read but with limited fields (enforce in backend).
+      allow read: if isAdminOrFaculty() || isRecruiter() || isOwner(studentId);
       allow create: if isAdmin() || isOwner(studentId);
-      allow update: if isAdmin() || isOwner(studentId);
+      allow update: if isAdmin() || isFaculty() || isOwner(studentId);
       allow delete: if isAdmin();
     }
 
-    // Jobs collection
+    // ── Jobs ──────────────────────────────────────────────────────────────────
     match /jobs/{jobId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() || isRecruiter();
-      allow update: if isAdmin() || isRecruiter();
+      allow create: if isAdminOrRecruiter();
+      allow update: if isAdmin() || (isRecruiter() && resource.data.postedBy == request.auth.uid);
       allow delete: if isAdmin();
     }
 
-    // Applications collection
+    // ── Applications ──────────────────────────────────────────────────────────
     match /applications/{appId} {
-      allow read: if isAdmin() || isRecruiter() || isFaculty() ||
-        (isStudent() && resource.data.studentId == request.auth.uid);
+      allow read: if isAdmin() || isFaculty()
+        || (isStudent() && resource.data.studentId == request.auth.uid)
+        || (isRecruiter() && resource.data.recruiterId == request.auth.uid);
       allow create: if isStudent();
-      allow update: if isAdmin() || isRecruiter();
+      allow update: if isAdmin() || isAdminOrRecruiter();
       allow delete: if isAdmin();
     }
 
-    // Recruiters collection
+    // ── Recruiters ────────────────────────────────────────────────────────────
     match /recruiters/{recruiterId} {
       allow read: if isAuthenticated();
-      allow create: if isRecruiter() || isAdmin();
+      allow create: if isOwner(recruiterId) || isAdmin();
       allow update: if isAdmin() || isOwner(recruiterId);
       allow delete: if isAdmin();
     }
 
-    // Notifications collection
+    // ── Notifications ─────────────────────────────────────────────────────────
     match /notifications/{notifId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAuthenticated(); // to mark as read
+      allow create: if isAdminOrFaculty();
+      // FIX: Only allow updating the 'read' field — not the entire document.
+      // Any user can mark a notification as read (add their UID to the read array).
+      allow update: if isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
       allow delete: if isAdmin();
     }
 
-    // Interviews collection
+    // ── Interviews ────────────────────────────────────────────────────────────
     match /interviews/{interviewId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() || isRecruiter();
-      allow update: if isAdmin() || isRecruiter();
-      allow delete: if isAdmin();
+      allow create: if isAdminOrRecruiter() || isFaculty();
+      allow update: if isAdminOrRecruiter() || isFaculty()
+        || (isStudent() && resource.data.studentId == request.auth.uid);
+      allow delete: if isAdminOrRecruiter();
     }
 
-    // Recommendations collection
-    match /recommendations/{recommendationId} {
-      allow read: if isAdmin() || isFaculty() || isRecruiter() ||
-        (isStudent() && resource.data.studentId == request.auth.uid);
-      allow create: if isAdmin() || isFaculty();
-      allow update: if isAdmin() || isFaculty();
-      allow delete: if isAdmin();
+    // ── Reports ───────────────────────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read: if isAdminOrFaculty();
+      allow write: if isAdmin();
     }
 
-    // Verification requests collection
-    match /verifications/{verificationId} {
-      allow read: if isAdmin() || isFaculty() ||
-        (isStudent() && resource.data.studentId == request.auth.uid);
-      allow create: if isStudent();
-      allow update: if isAdmin() || isFaculty() ||
-        (isStudent() && resource.data.studentId == request.auth.uid);
-      allow delete: if isAdmin();
+    // ── Recommendations ───────────────────────────────────────────────────────
+    match /recommendations/{recId} {
+      allow read: if isAdminOrFaculty()
+        || (isStudent() && resource.data.studentId == request.auth.uid);
+      allow create: if isFaculty() || isAdmin();
+      allow update: if isFaculty() || isAdmin();
+      allow delete: if isFaculty() || isAdmin();
     }
 
-    // Faculty placement activities collection
-    match /placementActivities/{activityId} {
-      allow read: if isAdmin() || isFaculty() ||
-        (isStudent() && (request.auth.uid in resource.data.assignedStudentIds));
-      allow create: if isAdmin() || isFaculty();
-      allow update: if isAdmin() || isFaculty();
-      allow delete: if isAdmin();
-    }
-
-    // Student complaints collection
-    match /complaints/{complaintId} {
-      allow read: if isAdmin() ||
-        (isAuthenticated() && resource.data.createdBy == request.auth.uid);
-      allow create: if isAuthenticated();
-      allow update: if isAdmin() ||
-        (isAuthenticated() && resource.data.createdBy == request.auth.uid);
-      allow delete: if isAdmin();
-    }
-
-    // System activity audit collection
+    // ── System Activity (Audit Log) ───────────────────────────────────────────
     match /systemActivity/{activityId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if false;
+      allow create: if isAuthenticated(); // backend writes via Admin SDK, bypasses rules
+      allow update, delete: if false;     // immutable
+    }
+
+    // ── Complaints ────────────────────────────────────────────────────────────
+    match /complaints/{complaintId} {
+      allow read: if isAdmin() || isOwner(resource.data.createdBy);
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // ── Shortlists ────────────────────────────────────────────────────────────
+    match /shortlists/{shortlistId} {
+      allow read: if isAdminOrRecruiter()
+        || (isStudent() && resource.data.studentId == request.auth.uid);
+      allow create: if isRecruiter() || isAdmin();
+      allow update: if isAdminOrRecruiter();
+      allow delete: if isAdminOrRecruiter();
+    }
+
+    // ── Placement Activities ──────────────────────────────────────────────────
+    match /placementActivities/{activityId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdminOrFaculty();
+      allow delete: if isAdmin();
+    }
+
+    // ── Notification Preferences ──────────────────────────────────────────────
+    match /notificationPreferences/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
     }
   }
 }

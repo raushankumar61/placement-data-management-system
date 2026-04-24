@@ -200,9 +200,9 @@ export default function StudentJobBoard() {
         jobId: job.id,
         branch: student?.branch || userProfile?.department || '',
         expectedCTC: job.ctc || '',
-        source: 'Demo Apply',
+        source: 'Campus Drive',
         round: 'Screening',
-        notes: 'Demo application created from the student job board.',
+        notes: '',
       });
       toast.success('Application submitted successfully!');
     } catch (error) {

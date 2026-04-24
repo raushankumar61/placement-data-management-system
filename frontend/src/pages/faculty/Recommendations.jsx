@@ -7,15 +7,9 @@ import toast from 'react-hot-toast';
 import { collection, getDocs, addDoc, orderBy, query } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
-const JOBS = [
-  { id: 1, title: 'SDE', company: 'Google' },
-  { id: 2, title: 'Data Scientist', company: 'Microsoft' },
-  { id: 3, title: 'Product Manager', company: 'Amazon' },
-  { id: 4, title: 'Frontend Developer', company: 'Flipkart' },
-];
-
 export default function FacultyRecommendations() {
   const [students, setStudents] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ studentId: '', jobId: '', reason: '', rating: 5 });
@@ -24,16 +18,20 @@ export default function FacultyRecommendations() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, recsSnap] = await Promise.all([
+        const [studentsSnap, recsSnap, jobsSnap] = await Promise.all([
           getDocs(collection(db, 'students')),
           getDocs(query(collection(db, 'recommendations'), orderBy('createdAt', 'desc'))),
+          getDocs(collection(db, 'jobs')),
         ]);
-        const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setStudents(data);
+        setStudents(studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setRecommendations(recsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setJobs(jobsSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((j) => (j.status || 'active') !== 'closed'));
       } catch {
         setStudents([]);
         setRecommendations([]);
+        setJobs([]);
       }
     };
     load();
@@ -46,7 +44,7 @@ export default function FacultyRecommendations() {
     await new Promise((r) => setTimeout(r, 800));
 
     const student = students.find((s) => s.id === form.studentId);
-    const job = JOBS.find((j) => j.id === parseInt(form.jobId, 10));
+    const job = jobs.find((j) => j.id === form.jobId);
 
     const record = {
       student: student?.name,
@@ -159,7 +157,7 @@ export default function FacultyRecommendations() {
                 <select value={form.jobId} onChange={(e) => setForm({ ...form, jobId: e.target.value })}
                   className="input-field text-sm appearance-none" required>
                   <option value="">Choose a role</option>
-                  {JOBS.map((j) => (
+                  {jobs.map((j) => (
                     <option key={j.id} value={j.id} className="bg-dark-700">
                       {j.title} — {j.company}
                     </option>

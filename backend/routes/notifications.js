@@ -1,51 +1,78 @@
 // backend/routes/notifications.js
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { logActivity } = require('../utils/activityLogger');
 
-// GET /api/v1/notifications  — all authenticated users can read notifications
+// GET /api/v1/notifications  — all authenticated users, scoped by role
 router.get('/', verifyToken, async (req, res) => {
   try {
     if (!db) return res.json({ notifications: [], total: 0 });
-    const snap = await db.collection('notifications')
-      .orderBy('sentAt', 'desc')
-      .limit(50)
-      .get();
-    const notifications = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    let query = db.collection('notifications').orderBy('sentAt', 'desc').limit(50);
+    const snap = await query.get();
+
+    // Filter notifications to those targeting the user's role or 'all'
+    const role = req.user.role;
+    const uid = req.user.uid;
+    const notifications = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((n) => !n.targetRole || n.targetRole === 'all' || n.targetRole === role)
+      .map((n) => ({
+        ...n,
+        isRead: Array.isArray(n.read) ? n.read.includes(uid) : false,
+      }));
+
     res.json({ notifications, total: notifications.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/v1/notifications/send  — admin only can broadcast notifications
-router.post('/send', verifyToken, requireRole('admin'), async (req, res) => {
-  try {
-    const { message, targetRole, type = 'in-app' } = req.body;
+// POST /api/v1/notifications/send  — admin OR faculty can broadcast
+router.post(
+  '/send',
+  verifyToken,
+  requireRole('admin', 'faculty'),
+  [
+    body('message').trim().notEmpty().withMessage('Message is required').isLength({ max: 500 }).withMessage('Message must be under 500 characters'),
+    body('targetRole').optional().isIn(['all', 'student', 'recruiter', 'faculty', 'admin']).withMessage('Invalid targetRole'),
+    body('type').optional().isIn(['in-app', 'email', 'sms']).withMessage('Invalid notification type'),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { message, targetRole, type = 'in-app' } = req.body;
 
-    if (!message) return res.status(400).json({ error: 'Message is required' });
+      const payload = {
+        message,
+        targetRole: targetRole || 'all',
+        type,
+        sentAt: new Date().toISOString(),
+        sentBy: req.user.uid,
+        sentByRole: req.user.role,
+        read: [],
+      };
 
-    const payload = {
-      message,
-      targetRole: targetRole || 'all',
-      type,
-      sentAt: new Date().toISOString(),
-      sentBy: req.user.uid,
-      read: [],
-    };
+      if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
 
-    if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
+      const ref = await db.collection('notifications').add(payload);
 
-    const ref = await db.collection('notifications').add(payload);
-    res.status(201).json({ id: ref.id, ...payload });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      // Audit log
+      logActivity('notification_sent', { targetRole: payload.targetRole, message: payload.message.slice(0, 80) }, req.user.uid);
+
+      res.status(201).json({ id: ref.id, ...payload });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
-});
+);
 
-// PUT /api/v1/notifications/:id/read  — any authenticated user can mark as read
+// PUT /api/v1/notifications/:id/read  — any authenticated user marks their own read
 router.put('/:id/read', verifyToken, async (req, res) => {
   try {
     if (db) {
@@ -58,6 +85,29 @@ router.put('/:id/read', verifyToken, async (req, res) => {
         }
       }
     }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/v1/notifications/:id/read-all  — mark all as read for this user
+router.put('/read-all', verifyToken, async (req, res) => {
+  try {
+    if (!db) return res.json({ success: true });
+    const snap = await db.collection('notifications')
+      .orderBy('sentAt', 'desc')
+      .limit(100)
+      .get();
+
+    const batch = db.batch();
+    snap.docs.forEach((d) => {
+      const readArr = d.data().read || [];
+      if (!readArr.includes(req.user.uid)) {
+        batch.update(d.ref, { read: [...readArr, req.user.uid] });
+      }
+    });
+    await batch.commit();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

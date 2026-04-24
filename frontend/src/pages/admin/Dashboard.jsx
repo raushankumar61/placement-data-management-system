@@ -7,44 +7,57 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
-import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getAdminAnalytics } from '../../services/api';
 
 const COLORS = ['#00A3FF', '#F5A623', '#22C55E', '#A855F7', '#EC4899'];
 
-const placementTrend = [
-  { month: 'Jul', placed: 12, drives: 3 },
-  { month: 'Aug', placed: 28, drives: 7 },
-  { month: 'Sep', placed: 45, drives: 11 },
-  { month: 'Oct', placed: 89, drives: 18 },
-  { month: 'Nov', placed: 134, drives: 25 },
-  { month: 'Dec', placed: 178, drives: 31 },
-  { month: 'Jan', placed: 220, drives: 38 },
-  { month: 'Feb', placed: 265, drives: 42 },
-];
+const ACTIVITY_TYPE_LABELS = {
+  job_posted: 'New job posted',
+  application_submitted: 'Student applied',
+  status_updated: 'Application status updated',
+  recruiter_verified: 'Recruiter verified',
+  role_assigned: 'Role assigned',
+  student_imported: 'Students imported',
+  interview_scheduled: 'Interview scheduled',
+  complaint_filed: 'Complaint filed',
+  complaint_resolved: 'Complaint resolved',
+  notification_sent: 'Notification sent',
+  user_registered: 'New user registered',
+};
 
-const branchData = [
-  { branch: 'CS/IT', placed: 320, total: 350 },
-  { branch: 'ECE', placed: 180, total: 240 },
-  { branch: 'Mech', placed: 95, total: 160 },
-  { branch: 'Civil', placed: 60, total: 120 },
-  { branch: 'EE', placed: 72, total: 100 },
-];
+const ACTIVITY_COLORS = {
+  job_posted: 'text-blue-electric',
+  application_submitted: 'text-gold',
+  status_updated: 'text-green-400',
+  recruiter_verified: 'text-purple-400',
+  complaint_filed: 'text-red-400',
+  complaint_resolved: 'text-green-400',
+  notification_sent: 'text-blue-electric',
+  user_registered: 'text-purple-400',
+  default: 'text-white/50',
+};
 
-const packageDist = [
-  { name: '< 5 LPA', value: 120 },
-  { name: '5-10 LPA', value: 380 },
-  { name: '10-20 LPA', value: 210 },
-  { name: '> 20 LPA', value: 90 },
-];
+const formatActivityText = (a) => {
+  const base = ACTIVITY_TYPE_LABELS[a.type] || a.type;
+  const p = a.payload || {};
+  if (a.type === 'job_posted' && p.title) return `${p.title} at ${p.company || 'company'} posted`;
+  if (a.type === 'application_submitted' && p.company) return `Student applied to ${p.company}`;
+  if (a.type === 'status_updated' && p.newStatus) return `Application marked ${p.newStatus}`;
+  if (a.type === 'notification_sent') return `Notification sent to ${p.targetRole || 'all'}`;
+  if (a.type === 'complaint_filed' && p.title) return `Complaint: "${p.title.slice(0, 40)}..."`;
+  return base;
+};
 
-const recentActivity = [
-  { type: 'placement', text: 'A student placed at Google — 24 LPA', time: '2m ago', color: 'text-green-400' },
-  { type: 'drive', text: 'Microsoft drive posted — 45 eligible students', time: '18m ago', color: 'text-blue-electric' },
-  { type: 'application', text: '12 students applied to Amazon SDE', time: '1h ago', color: 'text-gold' },
-  { type: 'recruiter', text: 'Infosys recruiter account approved', time: '2h ago', color: 'text-purple-400' },
-  { type: 'placement', text: 'A student placed at Meta — 32 LPA', time: '3h ago', color: 'text-green-400' },
-];
+const timeAgo = (iso) => {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+};
 
 function StatCard({ icon: Icon, label, value, sub, color, delay }) {
   return (
@@ -84,29 +97,28 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ students: 0, jobs: 0, placed: 0, companies: 0 });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
-        const [studSnap, jobsSnap, recSnap] = await Promise.all([
-          getDocs(collection(db, 'students')),
-          getDocs(collection(db, 'jobs')),
-          getDocs(collection(db, 'recruiters')),
-        ]);
-        const placedSnap = await getDocs(query(collection(db, 'students'), where('placementStatus', '==', 'placed')));
-        setStats({
-          students: studSnap.size || 1247,
-          jobs: jobsSnap.size || 62,
-          placed: placedSnap.size || 847,
-          companies: recSnap.size || 134,
-        });
+        const { data: res } = await getAdminAnalytics();
+        setData(res);
       } catch {
-        setStats({ students: 1247, jobs: 62, placed: 847, companies: 134 });
+        setData(null);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchStats();
+    fetchData();
   }, []);
+
+  const stats = data?.stats || { students: 0, placed: 0, jobs: 0, companies: 0 };
+  const placementTrend = (data?.placementTrend || []).map((t) => ({ month: t.month?.slice(5) || t.month, placed: t.placed, drives: t.applications }));
+  const branchData = (data?.byBranch || []).slice(0, 6).map((b) => ({ branch: b.branch?.slice(0, 8), placed: b.placed, total: b.total }));
+  const packageDist = data?.packageDist || [];
+  const recentActivity = data?.recentActivity || [];
 
   return (
     <DashboardLayout title="Admin Dashboard">
@@ -213,7 +225,7 @@ export default function AdminDashboard() {
             </ResponsiveContainer>
           </motion.div>
 
-          {/* Recent Activity */}
+          {/* Recent Activity — LIVE from systemActivity collection */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -225,24 +237,30 @@ export default function AdminDashboard() {
               <p className="section-title">Recent Activity</p>
             </div>
             <div className="space-y-4">
-              {recentActivity.map((a, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 + i * 0.08 }}
-                  className="flex gap-3"
-                >
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${a.color}`} />
-                  <div>
-                    <p className="text-white/70 text-xs font-body leading-relaxed">{a.text}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Clock size={10} className="text-white/30" />
-                      <span className="text-white/30 text-xs">{a.time}</span>
+              {recentActivity.length === 0 && !loading && (
+                <p className="text-white/30 text-xs font-body">No activity recorded yet.</p>
+              )}
+              {recentActivity.map((a, i) => {
+                const colorClass = ACTIVITY_COLORS[a.type] || ACTIVITY_COLORS.default;
+                return (
+                  <motion.div
+                    key={a.id || i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.8 + i * 0.08 }}
+                    className="flex gap-3"
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${colorClass}`} />
+                    <div>
+                      <p className="text-white/70 text-xs font-body leading-relaxed">{formatActivityText(a)}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Clock size={10} className="text-white/30" />
+                        <span className="text-white/30 text-xs">{timeAgo(a.createdAt)}</span>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         </div>

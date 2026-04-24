@@ -45,6 +45,7 @@ export const getJobs = (params) => api.get('/jobs', { params });
 export const getJob = (id) => api.get(`/jobs/${id}`);
 export const createJob = (data) => api.post('/jobs', data);
 export const updateJob = (id, data) => api.put(`/jobs/${id}`, data);
+export const closeJob = (id) => api.put(`/jobs/${id}/close`);
 export const deleteJob = (id) => api.delete(`/jobs/${id}`);
 
 // ─── Applications ────────────────────────────────────────────
@@ -56,6 +57,7 @@ export const updateApplicationStatus = (id, status) => api.put(`/applications/${
 export const getRecruiters = () => api.get('/recruiters');
 export const createRecruiter = (data) => api.post('/recruiters', data);
 export const updateRecruiter = (id, data) => api.put(`/recruiters/${id}`, data);
+export const verifyRecruiter = (id, verified) => api.put(`/recruiters/${id}/verify`, { verified });
 
 // ─── Reports ─────────────────────────────────────────────────
 export const getPlacementReport = (params) => api.get('/reports/placement', { params });
@@ -64,16 +66,28 @@ export const getPlacementReport = (params) => api.get('/reports/placement', { pa
 export const sendNotification = (data) => api.post('/notifications/send', data);
 export const getNotifications = () => api.get('/notifications');
 export const markNotificationRead = (id) => api.put(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => api.put('/notifications/read-all');
+
+// ─── Complaints ──────────────────────────────────────────────
+export const getComplaints = () => api.get('/complaints');
+export const createComplaint = (data) => api.post('/complaints', data);
+export const resolveComplaint = (id, data) => api.put(`/complaints/${id}/resolve`, data);
+export const deleteComplaint = (id) => api.delete(`/complaints/${id}`);
+
+// ─── Resume ──────────────────────────────────────────────────
+export const parseResume = (formData) => api.post('/resume/parse', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+});
+
+// ─── Analytics ───────────────────────────────────────────────
+export const getAdminAnalytics = () => api.get('/analytics/admin');
+export const getRecruiterAnalytics = () => api.get('/analytics/recruiter');
+export const getRankedCandidates = (params) => api.get('/analytics/candidates/ranked', { params });
+export const getJobRecommendations = () => api.get('/analytics/recommendations');
 
 // ─── Auth ────────────────────────────────────────────────────
 export const verifyToken = () => api.post('/auth/verify-token');
-
-/**
- * Calls the backend to read the current user's role from Firestore
- * and write it into their Firebase custom claims. The ID token must
- * be refreshed afterward for the role to appear in subsequent tokens.
- * Call this once after registration or first login.
- */
 export const syncClaims = () => api.post('/auth/sync-claims');
+export const setUserRole = (targetUid, role) => api.post('/auth/set-role', { targetUid, role });
 
 export default api;

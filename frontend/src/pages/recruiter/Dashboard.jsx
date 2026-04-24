@@ -1,73 +1,57 @@
 // src/pages/recruiter/Dashboard.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Briefcase, Users, CheckCircle, ArrowRight, Star } from 'lucide-react';
+import { Briefcase, Users, CheckCircle, ArrowRight, TrendingUp, BarChart2 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, FunnelChart, Funnel, LabelList, Cell, PieChart, Pie, Legend,
+} from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getRecruiterAnalytics } from '../../services/api';
+
+const COLORS = ['#00A3FF', '#F5A623', '#A855F7', '#22C55E', '#EC4899'];
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="glass-card p-3 border border-white/10 text-xs font-body">
+      <p className="text-white font-semibold mb-1">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} style={{ color: p.color || '#00A3FF' }}>{p.name}: <strong>{p.value}</strong></p>
+      ))}
+    </div>
+  );
+};
 
 export default function RecruiterDashboard() {
   const { userProfile } = useAuth();
-  const [students, setStudents] = useState([]);
-  const [jobs, setJobs] = useState([]);
-  const [applications, setApplications] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, jobsSnap, appsSnap] = await Promise.all([
-          getDocs(collection(db, 'students')),
-          getDocs(collection(db, 'jobs')),
-          getDocs(collection(db, 'applications')),
-        ]);
-
-        const studentData = studentsSnap.docs.map((d) => {
-          const v = d.data();
-          const skills = Array.isArray(v.skills)
-            ? v.skills
-            : String(v.skills || '').split(',').map((s) => s.trim()).filter(Boolean);
-          return {
-            id: d.id,
-            name: v.name || 'Student',
-            branch: v.branch || 'Unknown',
-            cgpa: Number(v.cgpa || 0),
-            skills,
-            placementStatus: (v.placementStatus || 'unplaced').toLowerCase(),
-          };
-        });
-
-        const jobData = jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const appData = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-        setStudents(studentData);
-        setJobs(jobData);
-        setApplications(appData);
+        const { data } = await getRecruiterAnalytics();
+        setAnalytics(data);
       } catch {
-        setStudents([]);
-        setJobs([]);
-        setApplications([]);
+        // Fallback to mock data if API unavailable
+        setAnalytics({
+          stats: { totalJobs: 0, activeJobs: 0, totalApplications: 0, shortlisted: 0, selected: 0 },
+          applicationFunnel: [],
+          perJobStats: [],
+        });
+      } finally {
+        setLoading(false);
       }
     };
-
     load();
   }, []);
 
-  const recentCandidates = useMemo(
-    () => [...students]
-      .filter((s) => s.placementStatus !== 'placed')
-      .sort((a, b) => b.cgpa - a.cgpa)
-      .slice(0, 5)
-      .map((s) => ({ ...s, status: 'Under Review' })),
-    [students]
-  );
-
-  const totalJobs = jobs.length;
-  const activeJobs = jobs.filter((job) => String(job.status || '').toLowerCase() === 'active').length;
-  const totalApplicants = applications.length;
-  const shortlistedCount = applications.filter((application) => ['shortlisted', 'selected'].includes(String(application.status || '').toLowerCase())).length;
-  const offersCount = applications.filter((application) => String(application.status || '').toLowerCase() === 'selected').length;
+  const stats = analytics?.stats || {};
+  const funnel = analytics?.applicationFunnel || [];
+  const perJob = analytics?.perJobStats || [];
 
   return (
     <DashboardLayout title="Recruiter Dashboard">
@@ -80,68 +64,125 @@ export default function RecruiterDashboard() {
             <div>
               <p className="text-white/60 text-sm font-body">Welcome,</p>
               <h2 className="font-heading font-bold text-2xl text-white">{userProfile?.name || 'Recruiter'}</h2>
-              <p className="text-white/40 text-sm font-body mt-1">You have {activeJobs} active job postings</p>
+              <p className="text-white/40 text-sm font-body mt-1">
+                {loading ? 'Loading your stats...' : `${stats.activeJobs || 0} active job postings · ${stats.totalApplications || 0} total applicants`}
+              </p>
             </div>
             <div className="flex gap-3">
               <Link to="/recruiter/post-job">
                 <button className="btn-primary text-sm py-2.5 flex items-center gap-2">
-                  Post a Job · {activeJobs} Live <ArrowRight size={14} />
+                  Post a Job <ArrowRight size={14} />
                 </button>
               </Link>
               <Link to="/recruiter/candidates">
-                <button className="btn-outline text-sm py-2.5">Browse Candidates · {recentCandidates.length} New</button>
+                <button className="btn-outline text-sm py-2.5">Browse Candidates</button>
               </Link>
             </div>
           </div>
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: 'Jobs Posted', value: totalJobs, color: 'text-blue-electric' },
-            { label: 'Total Applicants', value: totalApplicants, color: 'text-gold' },
-            { label: 'Shortlisted', value: shortlistedCount, color: 'text-purple-400' },
-            { label: 'Offers Made', value: offersCount, color: 'text-green-400' },
+            { label: 'Jobs Posted', value: stats.totalJobs ?? '—', color: 'text-blue-electric' },
+            { label: 'Active Jobs', value: stats.activeJobs ?? '—', color: 'text-green-400' },
+            { label: 'Applicants', value: stats.totalApplications ?? '—', color: 'text-gold' },
+            { label: 'Shortlisted', value: stats.shortlisted ?? '—', color: 'text-purple-400' },
+            { label: 'Selected', value: stats.selected ?? '—', color: 'text-green-400' },
           ].map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08 }} className="glass-card p-4">
+              transition={{ delay: i * 0.07 }} className="glass-card p-4">
               <p className="text-white/40 text-xs font-body mb-1">{s.label}</p>
               <p className={`font-heading font-bold text-2xl ${s.color}`}>{s.value}</p>
             </motion.div>
           ))}
         </div>
 
-        {/* Recent Candidates */}
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between mb-5">
-            <p className="section-title">Recent Candidate Activity</p>
-            <Link to="/recruiter/candidates" className="text-blue-electric text-xs font-body hover:underline">
-              View all candidates
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {recentCandidates.map((c, i) => (
-              <motion.div key={c.name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 + i * 0.1 }}
-                className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-electric/20 to-gold/10 flex items-center justify-center border border-white/10">
-                  <span className="font-heading font-bold text-white text-sm">{c.name[0]}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm">{c.name}</p>
-                  <p className="text-white/40 text-xs font-body">{c.branch} · CGPA {c.cgpa}</p>
-                  <div className="flex gap-1 mt-1">
-                    {c.skills.map((s) => <span key={s} className="badge-blue text-xs">{s}</span>)}
-                  </div>
-                </div>
-                <span className={c.status === 'Shortlisted' ? 'badge-blue' : 'badge-gray'}>{c.status}</span>
-              </motion.div>
-            ))}
-            {recentCandidates.length === 0 && (
-              <p className="text-white/40 text-sm font-body">No candidate activity yet.</p>
+        {/* Charts Row */}
+        <div className="grid lg:grid-cols-2 gap-5">
+          {/* Application Funnel */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="glass-card p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <TrendingUp size={16} className="text-blue-electric" />
+              <p className="section-title">Hiring Funnel</p>
+            </div>
+            {funnel.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-white/30 text-sm font-body">
+                No application data yet. Post jobs to see your funnel.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={funnel} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="stage" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} axisLine={false} tickLine={false} width={75} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="count" name="Candidates" radius={[0, 4, 4, 0]}>
+                    {funnel.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             )}
-          </div>
+          </motion.div>
+
+          {/* Per-job applicants */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+            className="glass-card p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <BarChart2 size={16} className="text-gold" />
+              <p className="section-title">Applications per Job</p>
+            </div>
+            {perJob.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-white/30 text-sm font-body">
+                No posted jobs yet.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={perJob.slice(0, 6)} barGap={6}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="title" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="applicants" name="Applicants" fill="#00A3FF" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="shortlisted" name="Shortlisted" fill="#F5A623" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </motion.div>
         </div>
+
+        {/* My Jobs Table */}
+        {perJob.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+            className="glass-card overflow-hidden">
+            <div className="p-5 border-b border-white/5 flex items-center justify-between">
+              <p className="section-title">My Job Postings</p>
+              <Link to="/recruiter/post-job" className="text-blue-electric text-xs font-body hover:underline">+ Post new</Link>
+            </div>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/5">
+                  {['Job Title', 'Company', 'Applicants', 'Shortlisted'].map((h) => (
+                    <th key={h} className="table-header text-left px-5 py-3">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {perJob.map((job, i) => (
+                  <tr key={i} className="table-row">
+                    <td className="px-5 py-3 text-white text-sm font-medium">{job.title}</td>
+                    <td className="px-5 py-3 text-white/50 text-sm font-body">{job.company}</td>
+                    <td className="px-5 py-3 font-mono text-blue-electric">{job.applicants}</td>
+                    <td className="px-5 py-3 font-mono text-gold">{job.shortlisted}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
       </div>
     </DashboardLayout>
   );

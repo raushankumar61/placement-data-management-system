@@ -1,8 +1,11 @@
 // backend/routes/auth.js
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const { admin, db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { logActivity } = require('../utils/activityLogger');
 
 // POST /api/v1/auth/verify-token
 // Returns the user's uid, email, and Firestore profile.
@@ -46,7 +49,16 @@ router.post('/sync-claims', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'No role assigned to this user' });
     }
 
+    // Check if this is a first-time sync (no existing claims)
+    const currentUser = await admin.auth().getUser(uid);
+    const isFirstSync = !currentUser.customClaims?.role;
+
     await admin.auth().setCustomUserClaims(uid, { role });
+
+    if (isFirstSync) {
+      logActivity('user_registered', { role, email: snap.data().email || '' }, uid);
+    }
+
     res.json({ synced: true, role });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -54,33 +66,36 @@ router.post('/sync-claims', verifyToken, async (req, res) => {
 });
 
 // POST /api/v1/auth/set-role  (admin only)
-// Sets a custom claim role on any user. Restricted to admins.
-router.post('/set-role', verifyToken, requireRole('admin'), async (req, res) => {
-  try {
-    const { targetUid, role } = req.body;
-    const validRoles = ['admin', 'student', 'recruiter', 'faculty'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
-    }
-    if (!targetUid) {
-      return res.status(400).json({ error: 'targetUid is required' });
-    }
+router.post(
+  '/set-role',
+  verifyToken,
+  requireRole('admin'),
+  [
+    body('targetUid').notEmpty().withMessage('targetUid is required'),
+    body('role').isIn(['admin', 'student', 'recruiter', 'faculty']).withMessage('Invalid role. Must be one of: admin, student, recruiter, faculty'),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { targetUid, role } = req.body;
 
-    await admin.auth().setCustomUserClaims(targetUid, { role });
+      await admin.auth().setCustomUserClaims(targetUid, { role });
 
-    // Also update the Firestore profile to stay in sync
-    if (db) {
-      await db.collection('users').doc(targetUid).update({
-        role,
-        roleUpdatedAt: new Date().toISOString(),
-        roleUpdatedBy: req.user.uid,
-      });
+      // Also update the Firestore profile to stay in sync
+      if (db) {
+        await db.collection('users').doc(targetUid).update({
+          role,
+          roleUpdatedAt: new Date().toISOString(),
+          roleUpdatedBy: req.user.uid,
+        });
+      }
+
+      logActivity('role_assigned', { targetUid, role }, req.user.uid);
+      res.json({ success: true, message: `Role '${role}' assigned to ${targetUid}` });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    res.json({ success: true, message: `Role '${role}' assigned to ${targetUid}` });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
-});
+);
 
 module.exports = router;

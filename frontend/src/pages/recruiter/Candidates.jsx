@@ -1,19 +1,22 @@
 // src/pages/recruiter/Candidates.jsx
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Download, Filter, Star, ExternalLink } from 'lucide-react';
+import { Search, Download, Star, ExternalLink, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function RecruiterCandidates() {
+  const { user } = useAuth();
   const [candidates, setCandidates] = useState([]);
   const [search, setSearch] = useState('');
   const [minCGPA, setMinCGPA] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [selected, setSelected] = useState(null);
   const [starred, setStarred] = useState({});
+  const [shortlisting, setShortlisting] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -33,6 +36,8 @@ export default function RecruiterCandidates() {
             status: (v.placementStatus || '').toLowerCase() === 'placed' ? 'Placed' : 'Available',
             email: v.email || '',
             rollNo: v.rollNo || '',
+            resumeURL: v.resumeURL || '',
+            linkedin: v.linkedin || '',
           };
         });
         setCandidates(data);
@@ -53,8 +58,36 @@ export default function RecruiterCandidates() {
 
   const toggleStar = (id) => setStarred((prev) => ({ ...prev, [id]: !prev[id] }));
 
-  const shortlist = (candidate) => {
-    toast.success(`${candidate.name} shortlisted!`);
+  // Persist shortlist to Firestore
+  const shortlist = async (candidate) => {
+    if (!user?.uid) { toast.error('Not authenticated'); return; }
+    setShortlisting(candidate.id);
+    try {
+      // Check for duplicate shortlist
+      const existing = await getDocs(
+        query(collection(db, 'shortlists'), where('recruiterId', '==', user.uid), where('studentId', '==', candidate.id))
+      );
+      if (!existing.empty) {
+        toast.error(`${candidate.name} is already in your shortlist`);
+        return;
+      }
+      await addDoc(collection(db, 'shortlists'), {
+        recruiterId: user.uid,
+        studentId: candidate.id,
+        studentName: candidate.name,
+        studentEmail: candidate.email,
+        studentBranch: candidate.branch,
+        studentCgpa: candidate.cgpa,
+        skills: candidate.skills,
+        shortlistedAt: serverTimestamp(),
+        status: 'Shortlisted',
+      });
+      toast.success(`${candidate.name} shortlisted successfully!`);
+    } catch (err) {
+      toast.error('Failed to shortlist: ' + (err.message || 'Unknown error'));
+    } finally {
+      setShortlisting(null);
+    }
   };
 
   return (
@@ -150,12 +183,23 @@ export default function RecruiterCandidates() {
             </div>
 
             <div className="space-y-2">
-              <button onClick={() => shortlist(selected)} className="btn-primary w-full text-sm py-2.5">
-                Shortlist Candidate
+              <button onClick={() => shortlist(selected)} disabled={shortlisting === selected.id}
+                className="btn-primary w-full text-sm py-2.5 flex items-center justify-center gap-2">
+                {shortlisting === selected.id
+                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <CheckCircle size={13} />}
+                {shortlisting === selected.id ? 'Shortlisting...' : 'Shortlist Candidate'}
               </button>
-              <button className="btn-outline w-full text-sm py-2.5 flex items-center justify-center gap-2">
-                <Download size={13} /> Download Resume
-              </button>
+              {selected.resumeURL ? (
+                <a href={selected.resumeURL} target="_blank" rel="noopener noreferrer"
+                  className="btn-outline w-full text-sm py-2.5 flex items-center justify-center gap-2">
+                  <Download size={13} /> Download Resume
+                </a>
+              ) : (
+                <button disabled className="btn-outline w-full text-sm py-2.5 flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">
+                  <Download size={13} /> No Resume Uploaded
+                </button>
+              )}
             </div>
           </motion.div>
         )}

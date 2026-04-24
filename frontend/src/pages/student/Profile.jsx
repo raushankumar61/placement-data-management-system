@@ -1,14 +1,16 @@
 // src/pages/student/Profile.jsx
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, X, Save } from 'lucide-react';
+import { Plus, X, Save, Upload, FileText, Sparkles } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 import toast from 'react-hot-toast';
 import { validateForm, validators } from '../../utils/validation';
 import { fillStudentDefaults } from '../../utils/studentDefaults';
+import { parseResume } from '../../services/api';
 
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'Artificial Intelligence & Machine Learning', 'Data Science'];
 
@@ -56,6 +58,9 @@ export default function StudentProfile() {
   const [newSkill, setNewSkill] = useState('');
   const [newOfferCompany, setNewOfferCompany] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [parsing, setParsing] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) return undefined;
@@ -96,6 +101,66 @@ export default function StudentProfile() {
   };
 
   const removeOfferCompany = (idx) => setForm({ ...form, offerCompanies: form.offerCompanies.filter((_, i) => i !== idx) });
+
+  // ── Resume Upload ───────────────────────────────────────────────────────────
+  const handleResumeUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Only PDF files are supported');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be under 5 MB');
+      return;
+    }
+    setUploading(true);
+    setUploadProgress(0);
+    const storageRef = ref(storage, `resumes/${user.uid}/${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100));
+      },
+      (err) => {
+        toast.error('Upload failed: ' + err.message);
+        setUploading(false);
+      },
+      async () => {
+        try {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          setForm((prev) => ({ ...prev, resumeURL: url }));
+          toast.success('Resume uploaded! Click "Parse Skills" to extract skills automatically.');
+        } catch (err) {
+          toast.error('Could not get download URL');
+        } finally {
+          setUploading(false);
+          setUploadProgress(0);
+        }
+      }
+    );
+  };
+
+  // ── Resume Skill Parsing ─────────────────────────────────────────────────────
+  const handleParseSkills = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { toast.error('Please upload a PDF'); return; }
+    setParsing(true);
+    try {
+      const fd = new FormData();
+      fd.append('resume', file);
+      const { data } = await parseResume(fd);
+      const newSkills = (data.skills || []).filter((s) => !form.skills.includes(s));
+      setForm((prev) => ({ ...prev, skills: [...prev.skills, ...newSkills] }));
+      toast.success(`Extracted ${newSkills.length} skill${newSkills.length !== 1 ? 's' : ''} from your resume!`);
+    } catch {
+      toast.error('Could not parse resume. Try again.');
+    } finally {
+      setParsing(false);
+    }
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -227,7 +292,39 @@ export default function StudentProfile() {
           <div className="grid md:grid-cols-2 gap-4">
             <input value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} className="input-field text-sm" placeholder="LinkedIn URL" />
             <input value={form.github} onChange={(e) => setForm({ ...form, github: e.target.value })} className="input-field text-sm" placeholder="GitHub URL" />
-            <input value={form.resumeURL} onChange={(e) => setForm({ ...form, resumeURL: e.target.value })} className="input-field text-sm md:col-span-2" placeholder="Resume URL" />
+
+            {/* Resume Upload */}
+            <div className="md:col-span-2">
+              <p className="text-white/50 text-xs uppercase tracking-wider font-body mb-2">Resume (PDF)</p>
+              <div className="flex flex-wrap gap-2 items-center">
+                {form.resumeURL && (
+                  <a href={form.resumeURL} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 badge-blue text-xs py-1.5 px-3 hover:bg-blue-electric/20 transition-colors">
+                    <FileText size={12} /> View Current Resume
+                  </a>
+                )}
+                <label className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl border text-xs font-body transition-all ${
+                  uploading ? 'border-blue-electric/50 text-blue-electric' : 'border-white/15 text-white/50 hover:border-white/30 hover:text-white/70'
+                }`}>
+                  <Upload size={13} />
+                  {uploading ? `Uploading ${uploadProgress}%…` : 'Upload PDF'}
+                  <input type="file" accept="application/pdf" className="hidden" onChange={handleResumeUpload} disabled={uploading} />
+                </label>
+                <label className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl border text-xs font-body transition-all ${
+                  parsing ? 'border-gold/50 text-gold' : 'border-white/15 text-white/50 hover:border-gold/30 hover:text-gold'
+                }`}>
+                  <Sparkles size={13} />
+                  {parsing ? 'Extracting skills…' : 'Parse Skills from PDF'}
+                  <input type="file" accept="application/pdf" className="hidden" onChange={handleParseSkills} disabled={parsing} />
+                </label>
+              </div>
+              {uploading && (
+                <div className="mt-2 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-electric rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              )}
+            </div>
+
             <input
               value={Array.isArray(form.projects) ? form.projects.join(', ') : String(form.projects || '')}
               onChange={(e) => setForm({ ...form, projects: normalizeList(e.target.value) })}

@@ -73,15 +73,20 @@ export function AuthProvider({ children }) {
     const uid = result.user.uid;
     const docRef = doc(db, 'users', uid);
     const snap = await getDoc(docRef);
+
+    // ⚠️ FIX: Only create document on FIRST sign-up.
+    // On subsequent logins the existing role must NOT be overwritten.
     if (!snap.exists()) {
       await setDoc(docRef, {
         name: result.user.displayName,
         email: result.user.email,
-        role: selectedRole,
+        role: selectedRole,       // role is only set once at registration
         createdAt: serverTimestamp(),
         photoURL: result.user.photoURL,
       });
     }
+    // If doc exists, leave it untouched — preserving the stored role.
+
     const profile = await fetchUserProfile(uid);
 
     // Sync role to custom claims then refresh token

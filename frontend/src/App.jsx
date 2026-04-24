@@ -20,6 +20,7 @@ import AdminApplications from './pages/admin/Applications';
 import AdminReports from './pages/admin/Reports';
 import AdminNotifications from './pages/admin/Notifications';
 import AdminRecruiters from './pages/admin/Recruiters';
+import AdminComplaints from './pages/admin/Complaints';
 
 // Student
 import StudentDashboard from './pages/student/Dashboard';
@@ -27,10 +28,13 @@ import StudentProfile from './pages/student/Profile';
 import StudentJobBoard from './pages/student/JobBoard';
 import StudentApplications from './pages/student/Applications';
 import StudentInterviews from './pages/student/Interviews';
+import StudentNotifications from './pages/student/Notifications';
+import StudentRecommendations from './pages/student/Recommendations';
 
 // Recruiter
 import RecruiterDashboard from './pages/recruiter/Dashboard';
 import RecruiterPostJob from './pages/recruiter/PostJob';
+import RecruiterMyJobs from './pages/recruiter/MyJobs';
 import RecruiterCandidates from './pages/recruiter/Candidates';
 import RecruiterInterviewScheduler from './pages/recruiter/InterviewScheduler';
 
@@ -39,6 +43,7 @@ import FacultyDashboard from './pages/faculty/Dashboard';
 import FacultyRecommendations from './pages/faculty/Recommendations';
 import FacultyDataVerification from './pages/faculty/Dataverification';
 import FacultyPlacementActivities from './pages/faculty/PlacementActivities';
+import FacultyNotifications from './pages/faculty/Notifications';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, role, loading } = useAuth();
@@ -107,6 +112,7 @@ function AppRoutes() {
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/notifications" element={<ProtectedRoute allowedRoles={['admin']}><AdminNotifications /></ProtectedRoute>} />
       <Route path="/admin/recruiters" element={<ProtectedRoute allowedRoles={['admin']}><AdminRecruiters /></ProtectedRoute>} />
+      <Route path="/admin/complaints" element={<ProtectedRoute allowedRoles={['admin']}><AdminComplaints /></ProtectedRoute>} />
 
       {/* Student */}
       <Route path="/student/dashboard" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />
@@ -114,10 +120,13 @@ function AppRoutes() {
       <Route path="/student/jobs" element={<ProtectedRoute allowedRoles={['student']}><StudentJobBoard /></ProtectedRoute>} />
       <Route path="/student/applications" element={<ProtectedRoute allowedRoles={['student']}><StudentApplications /></ProtectedRoute>} />
       <Route path="/student/interviews" element={<ProtectedRoute allowedRoles={['student']}><StudentInterviewsWrapper /></ProtectedRoute>} />
+      <Route path="/student/notifications" element={<ProtectedRoute allowedRoles={['student']}><StudentNotifications /></ProtectedRoute>} />
+      <Route path="/student/recommendations" element={<ProtectedRoute allowedRoles={['student']}><StudentRecommendations /></ProtectedRoute>} />
 
       {/* Recruiter */}
       <Route path="/recruiter/dashboard" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterDashboard /></ProtectedRoute>} />
       <Route path="/recruiter/post-job" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterPostJob /></ProtectedRoute>} />
+      <Route path="/recruiter/my-jobs" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterMyJobs /></ProtectedRoute>} />
       <Route path="/recruiter/candidates" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterCandidates /></ProtectedRoute>} />
       <Route path="/recruiter/interviews" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterInterviewScheduler /></ProtectedRoute>} />
 
@@ -126,6 +135,7 @@ function AppRoutes() {
       <Route path="/faculty/recommendations" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyRecommendations /></ProtectedRoute>} />
       <Route path="/faculty/verification" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDataVerification /></ProtectedRoute>} />
       <Route path="/faculty/activities" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyPlacementActivities /></ProtectedRoute>} />
+      <Route path="/faculty/notifications" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyNotifications /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

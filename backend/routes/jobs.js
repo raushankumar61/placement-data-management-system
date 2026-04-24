@@ -1,10 +1,13 @@
 // backend/routes/jobs.js
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const validate = require('../middleware/validate');
 const { createJobDefaults } = require('../utils/marketplaceFactory');
+const { logActivity } = require('../utils/activityLogger');
 
 // GET /api/v1/jobs  — all authenticated users can browse jobs
 router.get('/', verifyToken, async (req, res) => {
@@ -28,7 +31,6 @@ router.get('/', verifyToken, async (req, res) => {
     const snap = await query.get();
     let jobs = snap.docs.map((d) => ({ id: d.id, ...createJobDefaults(d.data() || {}, d.id) }));
 
-    // Filter by branch eligibility if specified
     if (branch) {
       jobs = jobs.filter((j) => !j.branches?.length || j.branches.includes('All') || j.branches.includes(branch));
     }
@@ -51,36 +53,107 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/v1/jobs  — admin or recruiter can post jobs
-router.post('/', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
-  try {
-    const payload = createJobDefaults({
-      ...req.body,
-      postedBy: req.user.uid,
-      postedByUid: req.user.uid,
-      postedByName: req.user.name || req.user.displayName || '',
-      status: req.body.status || 'active',
-      applicants: Number(req.body.applicants || 0),
-      createdAt: new Date().toISOString(),
-    }, req.body.title || req.body.company || uuidv4());
+// POST /api/v1/jobs  — admin or verified recruiter can post jobs
+router.post(
+  '/',
+  verifyToken,
+  requireRole('admin', 'recruiter'),
+  [
+    body('title').trim().notEmpty().withMessage('Job title is required').isLength({ max: 200 }),
+    body('description').trim().notEmpty().withMessage('Job description is required').isLength({ max: 5000 }),
+    body('type').optional().isIn(['Full-time', 'Internship', 'PPO', 'Contract']).withMessage('Invalid job type'),
+    body('minCGPA').optional().isFloat({ min: 0, max: 10 }).withMessage('CGPA must be between 0 and 10'),
+    body('openings').optional().isInt({ min: 1 }).withMessage('Openings must be a positive number'),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      // Check recruiter is verified
+      if (req.user.role === 'recruiter' && db) {
+        const recruiterSnap = await db.collection('recruiters').doc(req.user.uid).get();
+        if (recruiterSnap.exists && recruiterSnap.data().verified === false) {
+          return res.status(403).json({
+            error: 'Your recruiter account is pending verification. Please contact the placement admin.',
+          });
+        }
+      }
 
-    if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
+      const payload = createJobDefaults({
+        ...req.body,
+        postedBy: req.user.uid,
+        postedByUid: req.user.uid,
+        postedByName: req.user.name || req.user.displayName || '',
+        status: req.body.status || 'active',
+        applicants: Number(req.body.applicants || 0),
+        createdAt: new Date().toISOString(),
+      }, req.body.title || req.body.company || uuidv4());
 
-    const ref = await db.collection('jobs').add(payload);
-    res.status(201).json({ id: ref.id, ...payload });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
+
+      const ref = await db.collection('jobs').add(payload);
+
+      logActivity('job_posted', { jobId: ref.id, title: payload.title, company: payload.company }, req.user.uid);
+
+      res.status(201).json({ id: ref.id, ...payload });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
-});
+);
 
 // PUT /api/v1/jobs/:id  — admin or the recruiter who posted it
-router.put('/:id', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
+router.put(
+  '/:id',
+  verifyToken,
+  requireRole('admin', 'recruiter'),
+  [
+    body('type').optional().isIn(['Full-time', 'Internship', 'PPO', 'Contract']).withMessage('Invalid job type'),
+    body('minCGPA').optional().isFloat({ min: 0, max: 10 }).withMessage('CGPA must be between 0 and 10'),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const currentSnap = db ? await db.collection('jobs').doc(req.params.id).get() : null;
+      const current = currentSnap?.exists ? currentSnap.data() : {};
+
+      // Recruiters can only edit their own jobs
+      if (req.user.role === 'recruiter' && current.postedBy && current.postedBy !== req.user.uid) {
+        return res.status(403).json({ error: 'You can only edit your own job postings' });
+      }
+
+      const payload = createJobDefaults({
+        ...current,
+        ...req.body,
+        updatedAt: new Date().toISOString(),
+        updatedBy: req.user.uid,
+      }, req.params.id);
+
+      if (db) await db.collection('jobs').doc(req.params.id).update(payload);
+      res.json({ id: req.params.id, ...payload });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// PUT /api/v1/jobs/:id/close  — admin or job owner can close it
+router.put('/:id/close', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
-    const currentSnap = db ? await db.collection('jobs').doc(req.params.id).get() : null;
-    const current = currentSnap?.exists ? currentSnap.data() : {};
-    const payload = createJobDefaults({ ...current, ...req.body, updatedAt: new Date().toISOString(), updatedBy: req.user.uid }, req.params.id);
-    if (db) await db.collection('jobs').doc(req.params.id).update(payload);
-    res.json({ id: req.params.id, ...payload });
+    const snap = db ? await db.collection('jobs').doc(req.params.id).get() : null;
+    const current = snap?.exists ? snap.data() : {};
+
+    if (req.user.role === 'recruiter' && current.postedBy && current.postedBy !== req.user.uid) {
+      return res.status(403).json({ error: 'You can only close your own job postings' });
+    }
+
+    if (db) {
+      await db.collection('jobs').doc(req.params.id).update({
+        status: 'closed',
+        closedAt: new Date().toISOString(),
+        closedBy: req.user.uid,
+      });
+    }
+    res.json({ id: req.params.id, status: 'closed' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

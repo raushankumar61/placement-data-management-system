@@ -1,15 +1,17 @@
 // src/components/common/DashboardLayout.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Briefcase, FileText, BarChart3,
   Bell, Building2, LogOut, Menu, X, ChevronRight, Zap,
   UserCircle, Search, BookOpen, Calendar, MessageSquare,
-  Shield, Settings, ClipboardList
+  Shield, Settings, ClipboardList, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const NAV_CONFIG = {
   admin: [
@@ -20,6 +22,7 @@ const NAV_CONFIG = {
     { label: 'Reports', icon: BarChart3, path: '/admin/reports' },
     { label: 'Notifications', icon: Bell, path: '/admin/notifications' },
     { label: 'Recruiters', icon: Building2, path: '/admin/recruiters' },
+    { label: 'Complaints', icon: MessageSquare, path: '/admin/complaints' },
   ],
   student: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/student/dashboard' },
@@ -27,10 +30,13 @@ const NAV_CONFIG = {
     { label: 'Job Board', icon: Search, path: '/student/jobs' },
     { label: 'Applications', icon: FileText, path: '/student/applications' },
     { label: 'Interviews & Feedback', icon: Calendar, path: '/student/interviews' },
+    { label: 'Notifications', icon: Bell, path: '/student/notifications', badge: true },
+    { label: 'Recommendations', icon: TrendingUp, path: '/student/recommendations' },
   ],
   recruiter: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/recruiter/dashboard' },
     { label: 'Post Job', icon: Briefcase, path: '/recruiter/post-job' },
+    { label: 'My Jobs', icon: ClipboardList, path: '/recruiter/my-jobs' },
     { label: 'Candidates', icon: Users, path: '/recruiter/candidates' },
     { label: 'Interview Scheduler', icon: Calendar, path: '/recruiter/interviews' },
   ],
@@ -39,6 +45,7 @@ const NAV_CONFIG = {
     { label: 'Recommendations', icon: BookOpen, path: '/faculty/recommendations' },
     { label: 'Data Verification', icon: Shield, path: '/faculty/verification' },
     { label: 'Placement Activities', icon: ClipboardList, path: '/faculty/activities' },
+    { label: 'Send Notifications', icon: Bell, path: '/faculty/notifications' },
   ],
 };
 
@@ -59,10 +66,31 @@ const ROLE_COLORS = {
 export default function DashboardLayout({ children, title }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const { userProfile, role, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const { userProfile, role, user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const navItems = NAV_CONFIG[role] || [];
+
+  // Real-time unread notification count for students
+  useEffect(() => {
+    if (!user?.uid || role !== 'student') return;
+    const q = query(
+      collection(db, 'notifications'),
+      orderBy('sentAt', 'desc'),
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const count = snap.docs.filter((d) => {
+        const data = d.data();
+        const forMe = !data.targetUid || data.targetUid === user.uid;
+        const forRole = !data.targetRole || data.targetRole === 'all' || data.targetRole === 'student';
+        const isUnread = !Array.isArray(data.read) || !data.read.includes(user.uid);
+        return forMe && forRole && isUnread;
+      }).length;
+      setUnreadCount(count);
+    }, () => {});
+    return unsub;
+  }, [user?.uid, role]);
 
   const handleLogout = async () => {
     await logout();
@@ -117,6 +145,12 @@ export default function DashboardLayout({ children, title }) {
                 <item.icon size={18} />
                 {sidebarOpen && <span className="text-sm">{item.label}</span>}
                 {sidebarOpen && isActive && <ChevronRight size={14} className="ml-auto opacity-60" />}
+                {/* Unread badge for Notifications */}
+                {sidebarOpen && item.badge && unreadCount > 0 && (
+                  <span className="ml-auto w-5 h-5 rounded-full bg-blue-electric text-white text-xs flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </motion.div>
             </Link>
           );
@@ -194,6 +228,14 @@ export default function DashboardLayout({ children, title }) {
             <h1 className="font-heading font-semibold text-white text-base">{title}</h1>
           </div>
           <div className="ml-auto flex items-center gap-3">
+            {role === 'student' && unreadCount > 0 && (
+              <Link to="/student/notifications" className="relative">
+                <Bell size={18} className="text-white/40 hover:text-blue-electric transition-colors" />
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-electric text-white text-[9px] flex items-center justify-center font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              </Link>
+            )}
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-electric/30 to-gold/20 flex items-center justify-center">
               <span className="text-white font-bold text-xs">
                 {(userProfile?.name || 'U')[0].toUpperCase()}

@@ -4,8 +4,12 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, Plus, X, CheckCircle, User, Video, MapPin } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, getDocs, addDoc, deleteDoc, doc, orderBy, query } from 'firebase/firestore';
+import {
+  collection, getDocs, addDoc, deleteDoc, doc,
+  orderBy, query, serverTimestamp
+} from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 const INITIAL_FORM = {
   studentId: '', role: '', date: '', time: '',
@@ -16,6 +20,7 @@ const INITIAL_FORM = {
 const ROUNDS = ['Technical Round 1', 'Technical Round 2', 'HR Round', 'Managerial Round', 'Final Round'];
 
 export default function RecruiterInterviewScheduler() {
+  const { user, userProfile } = useAuth();
   const [students, setStudents] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -55,9 +60,24 @@ export default function RecruiterInterviewScheduler() {
   }, []);
 
   const shortlistedStudents = useMemo(
-    () => students.filter((s) => s.placementStatus !== 'placed').slice(0, 30),
+    () => students.filter((s) => s.placementStatus !== 'placed').slice(0, 50),
     [students]
   );
+
+  // Compute real stats
+  const stats = useMemo(() => {
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    const thisWeek = scheduled.filter((iv) => {
+      const d = new Date(iv.date);
+      return d >= weekStart && d < weekEnd;
+    }).length;
+    const completed = scheduled.filter((iv) => iv.status === 'completed' || new Date(iv.date) < today).length;
+    return { total: scheduled.length, thisWeek, completed };
+  }, [scheduled]);
 
   const handleSchedule = async (e) => {
     e.preventDefault();
@@ -84,6 +104,21 @@ export default function RecruiterInterviewScheduler() {
     try {
       const ref = await addDoc(collection(db, 'interviews'), newInterview);
       setScheduled((prev) => [{ id: ref.id, ...newInterview }, ...prev]);
+
+      // Send in-app notification to the student
+      if (student?.id) {
+        await addDoc(collection(db, 'notifications'), {
+          message: `Interview scheduled: ${form.round} for ${form.role} on ${form.date} at ${form.time} (${form.mode})${form.link ? ` — ${form.link}` : ''}.`,
+          targetRole: 'student',
+          targetUid: student.id,
+          type: 'interview',
+          sentAt: new Date().toISOString(),
+          sentBy: user?.uid || 'system',
+          read: [],
+          interviewId: ref.id,
+        });
+      }
+
       toast.success(`Interview scheduled for ${student?.name}!`);
       setShowModal(false);
       setForm(INITIAL_FORM);
@@ -110,9 +145,9 @@ export default function RecruiterInterviewScheduler() {
         {/* Summary */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Scheduled', value: scheduled.length, color: 'text-blue-electric' },
-            { label: 'This Week', value: 2, color: 'text-gold' },
-            { label: 'Completed', value: 4, color: 'text-green-400' },
+            { label: 'Scheduled', value: stats.total, color: 'text-blue-electric' },
+            { label: 'This Week', value: stats.thisWeek, color: 'text-gold' },
+            { label: 'Completed', value: stats.completed, color: 'text-green-400' },
           ].map((s) => (
             <div key={s.label} className="glass-card p-4 text-center">
               <p className={`font-heading font-bold text-2xl ${s.color}`}>{s.value}</p>
