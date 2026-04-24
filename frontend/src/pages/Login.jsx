@@ -23,6 +23,7 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    console.log('[Login Flow] 1. Form submitted. Validating inputs...');
     const errors = validateForm(
       { email, password },
       {
@@ -30,13 +31,21 @@ export default function Login() {
         password: [validators.required],
       }
     );
-    if (Object.keys(errors).length) return toast.error(Object.values(errors)[0]);
+    if (Object.keys(errors).length) {
+      console.warn('[Login Flow] Validation failed:', errors);
+      return toast.error(Object.values(errors)[0]);
+    }
+    
     setLoading(true);
+    console.log('[Login Flow] 2. Inputs valid. Calling AuthContext login()...');
     try {
-      const { profile } = await login(email, password);
+      const { profile, user } = await login(email, password);
+      console.log('[Login Flow] 3. Firebase Auth successful! User UID:', user?.uid);
+      console.log('[Login Flow] 4. Profile fetched:', profile);
       toast.success('Welcome back!');
       navigate(getRoleRedirect(profile?.role));
     } catch (err) {
+      console.error('[Login Flow ERROR] Firebase Auth or Profile Fetch Failed:', err);
       toast.error(err.message?.replace('Firebase: ', '') || 'Login failed');
     } finally {
       setLoading(false);

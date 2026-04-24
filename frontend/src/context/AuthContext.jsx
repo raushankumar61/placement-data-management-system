@@ -62,16 +62,22 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
+    console.log('[AuthContext] login() called for:', email);
     const result = await signInWithEmailAndPassword(auth, email, password);
+    console.log('[AuthContext] Firebase auth passed. Fetching profile...');
     const profile = await fetchUserProfile(result.user.uid);
 
     // Sync role to custom claims and refresh the token so the role
     // is available immediately in all subsequent API requests.
     try {
+      console.log('[AuthContext] Calling backend syncClaims()...');
       await syncClaims();
+      console.log('[AuthContext] syncClaims() successful. Refreshing token...');
       await result.user.getIdToken(/* forceRefresh= */ true);
+      console.log('[AuthContext] Token refreshed successfully.');
     } catch (e) {
-      console.warn('syncClaims after login failed:', e.message);
+      console.error('[AuthContext ERROR] syncClaims API call failed:', e);
+      // NOTE: We don't throw here so login still completes, but backend might reject further calls.
     }
 
     return { user: result.user, profile };
