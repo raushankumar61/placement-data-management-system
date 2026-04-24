@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { addDoc, collection, doc, increment, onSnapshot, query, serverTimestamp, setDoc, writeBatch, where } from 'firebase/firestore';
+import { addDoc, collection, doc, increment, onSnapshot, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -159,12 +159,9 @@ export default function StudentJobBoard() {
     try {
       const studentName = student?.name || userProfile?.name || user?.displayName || 'Student';
       const studentEmail = user?.email || userProfile?.email || '';
-      const applicationRef = doc(collection(db, 'applications'));
       const studentRef = doc(db, 'students', user.uid);
-      const jobRef = doc(db, 'jobs', job.id);
-      const batch = writeBatch(db);
 
-      batch.set(applicationRef, {
+      await addDoc(collection(db, 'applications'), {
         studentId: user.uid,
         studentEmail,
         studentName,
@@ -190,8 +187,8 @@ export default function StudentJobBoard() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      batch.update(jobRef, { applicants: increment(1), updatedAt: serverTimestamp() });
-      batch.set(studentRef, {
+
+      await setDoc(studentRef, {
         applicationCount: increment(1),
         latestApplicationCompany: job.company,
         latestApplicationStatus: 'Applied',
@@ -199,8 +196,6 @@ export default function StudentJobBoard() {
         placementStatus: student?.placementStatus === 'placed' ? 'placed' : 'in-process',
         updatedAt: serverTimestamp(),
       }, { merge: true });
-
-      await batch.commit();
       toast.success('Application submitted successfully!');
     } catch {
       toast.error('Unable to submit application');
