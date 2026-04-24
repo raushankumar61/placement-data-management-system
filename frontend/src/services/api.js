@@ -2,7 +2,10 @@
 import axios from 'axios';
 import { auth } from './firebase';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+const envApiBase = String(import.meta.env.VITE_API_URL || '').trim();
+const isDev = import.meta.env.DEV;
+const API_BASE = envApiBase || (isDev ? '/api/v1' : '/api/v1');
+const missingProdApiConfig = !envApiBase && !isDev;
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -11,6 +14,10 @@ const api = axios.create({
 
 // Attach Firebase ID token to every request
 api.interceptors.request.use(async (config) => {
+  if (missingProdApiConfig) {
+    throw new Error('Production API is not configured. Set VITE_API_URL to your deployed backend base URL, for example https://your-backend.example.com/api/v1.');
+  }
+
   const user = auth.currentUser;
   if (user) {
     const token = await user.getIdToken();
@@ -20,7 +27,15 @@ api.interceptors.request.use(async (config) => {
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const contentType = String(res.headers?.['content-type'] || '');
+    if (contentType.includes('text/html')) {
+      return Promise.reject(
+        new Error('API request returned HTML instead of JSON. Check VITE_API_URL or your hosting rewrites for /api/v1.')
+      );
+    }
+    return res;
+  },
   (err) => {
     if (err.response?.status === 401) {
       auth.signOut();

@@ -180,6 +180,15 @@ firebase deploy --only hosting
 6. Set environment variables in Render dashboard
 7. For frontend: New Static Site → Root Dir: `frontend`, Build: `npm run build`, Publish: `dist`
 
+### Vercel Frontend Note
+If you deploy only the `frontend` folder to Vercel, do not rely on the default `/api/v1` base URL in production unless that Vercel project also proxies `/api/*` to a real backend. The frontend-only `vercel.json` should only rewrite non-API routes to `index.html`, and your Vercel project must set:
+
+```bash
+VITE_API_URL=https://YOUR_DEPLOYED_BACKEND/api/v1
+```
+
+Without that variable, requests such as `/api/v1/auth/verify-token` will hit the frontend deployment itself instead of the Express API, which causes login and role sync to fail.
+
 ### Option C — Docker Compose (Self-hosted)
 ```bash
 docker-compose up --build
