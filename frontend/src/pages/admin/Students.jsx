@@ -643,15 +643,7 @@ export default function AdminStudents() {
 
             <div className="p-6 border-t border-white/5 bg-dark-800/50 sticky bottom-0 flex gap-3">
               <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1 text-sm py-2.5">Cancel</button>
-              <button type="button" onClick={() => {
-                const forms = document.querySelectorAll('form');
-                for (let form of forms) {
-                  if (form.onsubmit || form.getAttribute('onsubmit')) {
-                    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-                    break;
-                  }
-                }
-              }} disabled={saving} className="btn-primary flex-1 text-sm py-2.5 flex items-center justify-center gap-2">
+               <button type="button" onClick={(e) => handleSave(e)} disabled={saving} className="btn-primary flex-1 text-sm py-2.5 flex items-center justify-center gap-2">
                 {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (editStudent ? 'Update' : 'Add Student')}
               </button>
             </div>
