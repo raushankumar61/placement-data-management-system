@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Briefcase, FileText, BarChart3,
   Bell, Building2, LogOut, Menu, X, ChevronRight, Zap,
   UserCircle, Search, BookOpen, Calendar, MessageSquare,
-  Shield, Settings, ClipboardList, TrendingUp
+  Shield, Settings, ClipboardList, TrendingUp, GraduationCap, Video
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -30,6 +30,8 @@ const NAV_CONFIG = {
     { label: 'Job Board', icon: Search, path: '/student/jobs' },
     { label: 'Applications', icon: FileText, path: '/student/applications' },
     { label: 'Interviews & Feedback', icon: Calendar, path: '/student/interviews' },
+    { label: 'Mock Interviews', icon: Video, path: '/student/mock-interviews' },
+    { label: 'Alumni Connect', icon: GraduationCap, path: '/student/alumni' },
     { label: 'Notifications', icon: Bell, path: '/student/notifications', badge: true },
     { label: 'Recommendations', icon: TrendingUp, path: '/student/recommendations' },
   ],

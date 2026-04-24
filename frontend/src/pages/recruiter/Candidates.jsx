@@ -1,7 +1,7 @@
 // src/pages/recruiter/Candidates.jsx
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Download, Star, ExternalLink, CheckCircle } from 'lucide-react';
+import { Search, Download, Star, ExternalLink, CheckCircle, Zap } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
@@ -17,6 +17,8 @@ export default function RecruiterCandidates() {
   const [selected, setSelected] = useState(null);
   const [starred, setStarred] = useState({});
   const [shortlisting, setShortlisting] = useState(null);
+  const [autoShortlisting, setAutoShortlisting] = useState(false);
+
 
   useEffect(() => {
     const load = async () => {
@@ -69,7 +71,7 @@ export default function RecruiterCandidates() {
       );
       if (!existing.empty) {
         toast.error(`${candidate.name} is already in your shortlist`);
-        return;
+        throw new Error('Already shortlisted');
       }
       await addDoc(collection(db, 'shortlists'), {
         recruiterId: user.uid,
@@ -84,10 +86,30 @@ export default function RecruiterCandidates() {
       });
       toast.success(`${candidate.name} shortlisted successfully!`);
     } catch (err) {
-      toast.error('Failed to shortlist: ' + (err.message || 'Unknown error'));
+      if (err.message !== 'Already shortlisted') {
+        toast.error('Failed to shortlist: ' + (err.message || 'Unknown error'));
+      }
+      throw err;
     } finally {
       setShortlisting(null);
     }
+  };
+
+  const autoShortlistTop = async () => {
+    if (!filtered.length) { toast.error('No eligible candidates found'); return; }
+    setAutoShortlisting(true);
+    const topCandidates = [...filtered].sort((a, b) => b.cgpa - a.cgpa).slice(0, 10);
+    let successCount = 0;
+    for (const c of topCandidates) {
+      try {
+        await shortlist(c);
+        successCount++;
+      } catch (e) {
+        // ignore duplicate errors silently during bulk operation
+      }
+    }
+    toast.success(`Auto-shortlisted ${successCount} top candidates!`);
+    setAutoShortlisting(false);
   };
 
   return (
@@ -112,7 +134,17 @@ export default function RecruiterCandidates() {
             </select>
           </div>
 
-          <p className="text-white/40 text-xs font-body">{filtered.length} eligible candidates</p>
+          <div className="flex items-center justify-between">
+            <p className="text-white/40 text-xs font-body">{filtered.length} eligible candidates</p>
+            <button 
+              onClick={autoShortlistTop} 
+              disabled={autoShortlisting || filtered.length === 0}
+              className="btn-outline py-1.5 px-3 text-xs flex items-center gap-1.5 border-blue-electric/50 text-blue-electric hover:bg-blue-electric/10"
+            >
+              {autoShortlisting ? <div className="w-3 h-3 border-2 border-blue-electric/30 border-t-blue-electric rounded-full animate-spin" /> : <Zap size={12} />}
+              Auto-Shortlist Top 10
+            </button>
+          </div>
 
           <div className="space-y-3">
             {filtered.map((c, i) => (

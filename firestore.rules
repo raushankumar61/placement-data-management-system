@@ -142,6 +142,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Mock Interviews ───────────────────────────────────────────────────────
+    match /mockInterviews/{interviewId} {
+      allow read: if isAdminOrFaculty()
+        || (isStudent() && resource.data.studentId == request.auth.uid);
+      allow create: if isStudent() || isAdminOrFaculty();
+      allow update: if isAdminOrFaculty() || (isStudent() && resource.data.studentId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
     // ── Placement Activities ──────────────────────────────────────────────────
     match /placementActivities/{activityId} {
       allow read: if isAuthenticated();

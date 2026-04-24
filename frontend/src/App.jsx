@@ -30,6 +30,8 @@ import StudentApplications from './pages/student/Applications';
 import StudentInterviews from './pages/student/Interviews';
 import StudentNotifications from './pages/student/Notifications';
 import StudentRecommendations from './pages/student/Recommendations';
+import StudentAlumni from './pages/student/Alumni';
+import StudentMockInterviews from './pages/student/MockInterviews';
 
 // Recruiter
 import RecruiterDashboard from './pages/recruiter/Dashboard';
@@ -120,6 +122,8 @@ function AppRoutes() {
       <Route path="/student/jobs" element={<ProtectedRoute allowedRoles={['student']}><StudentJobBoard /></ProtectedRoute>} />
       <Route path="/student/applications" element={<ProtectedRoute allowedRoles={['student']}><StudentApplications /></ProtectedRoute>} />
       <Route path="/student/interviews" element={<ProtectedRoute allowedRoles={['student']}><StudentInterviewsWrapper /></ProtectedRoute>} />
+      <Route path="/student/mock-interviews" element={<ProtectedRoute allowedRoles={['student']}><StudentMockInterviews /></ProtectedRoute>} />
+      <Route path="/student/alumni" element={<ProtectedRoute allowedRoles={['student']}><StudentAlumni /></ProtectedRoute>} />
       <Route path="/student/notifications" element={<ProtectedRoute allowedRoles={['student']}><StudentNotifications /></ProtectedRoute>} />
       <Route path="/student/recommendations" element={<ProtectedRoute allowedRoles={['student']}><StudentRecommendations /></ProtectedRoute>} />
 
