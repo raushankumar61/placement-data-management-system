@@ -17,8 +17,23 @@ app.use(morgan('combined'));
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests' });
 app.use('/api/', limiter);
 
+const normalizeOrigin = (value) => String(value || '').trim().replace(/\/+$/, '');
+
+const allowedOrigins = String(
+  process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000'
+)
+  .split(',')
+  .map((origin) => normalizeOrigin(origin))
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow non-browser clients and same-origin calls without Origin header.
+    if (!origin) return callback(null, true);
+    const normalized = normalizeOrigin(origin);
+    if (allowedOrigins.includes(normalized)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
 }));
 
