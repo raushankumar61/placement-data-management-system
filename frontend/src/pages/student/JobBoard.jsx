@@ -4,9 +4,10 @@ import { motion } from 'framer-motion';
 import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, doc, onSnapshot, query, where, addDoc, getDocs, updateDoc, increment } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { createApplication } from '../../services/api';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
@@ -196,53 +197,16 @@ export default function StudentJobBoard() {
 
     setApplying(true);
     try {
-      // 1. Double check existing applications
-      const existing = await getDocs(query(collection(db, 'applications'), where('studentId', '==', user.uid), where('jobId', '==', job.id)));
-      if (!existing.empty) {
-        toast.error('You already applied to this job');
-        return;
-      }
-
-      // 2. Add application
       const payload = {
-        studentId: user.uid,
-        studentEmail: userProfile?.email || user.email || '',
-        studentName: userProfile?.name || user.displayName || '',
         jobId: job.id,
-        company: job.company || '',
-        role: job.title || '',
         branch: student?.branch || userProfile?.department || '',
-        recruiterId: job.recruiterId || '',
-        recruiterName: job.recruiterName || '',
-        expectedCTC: job.ctc || '',
-        source: 'Campus Drive',
-        round: 'Screening',
-        notes: '',
-        status: 'Applied',
-        appliedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
       };
 
-      const ref = await addDoc(collection(db, 'applications'), payload);
-
-      // 3. Increment job applicants count
-      await updateDoc(doc(db, 'jobs', job.id), { applicants: increment(1) });
-
-      // 4. Send in-app notification
-      await addDoc(collection(db, 'notifications'), {
-        message: `You applied to ${payload.role} at ${payload.company}. Status: Applied.`,
-        targetRole: 'student',
-        targetUid: user.uid,
-        type: 'in-app',
-        sentAt: new Date().toISOString(),
-        sentBy: 'system',
-        read: [],
-        applicationId: ref.id,
-      });
+      await createApplication(payload);
 
       toast.success('Application submitted successfully!');
     } catch (error) {
-      toast.error('Unable to submit application');
+      toast.error(error?.response?.data?.error || 'Unable to submit application');
     } finally {
       setApplying(false);
     }

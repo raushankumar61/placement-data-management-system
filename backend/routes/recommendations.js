@@ -21,8 +21,10 @@ router.get('/', verifyToken, async (req, res) => {
       query = query.where('createdBy', '==', req.user.uid);
     }
 
-    const snap = await query.orderBy('createdAt', 'desc').get();
-    const recommendations = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    const snap = await query.get();
+    const recommendations = snap.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
     res.json({ recommendations, total: recommendations.length });
   } catch (err) {
