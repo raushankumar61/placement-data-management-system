@@ -39,6 +39,30 @@ const parseNumber = (value, fallback = 0) => {
   return match ? Number(match[0]) : fallback;
 };
 
+const parsePackageToLpa = (value) => {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return null;
+
+  const amount = parseNumber(text, NaN);
+  if (Number.isNaN(amount)) return null;
+
+  if (text.includes('lpa') || text.includes('lac')) return amount;
+  if (text.includes('k/month') || text.includes('k per month') || text.includes('thousand/month')) {
+    return Number(((amount * 12) / 100).toFixed(2));
+  }
+  if (text.includes('/month') || text.includes('per month')) {
+    // Assume monthly amount in INR and convert to LPA.
+    return Number(((amount * 12) / 100000).toFixed(2));
+  }
+  if (text.includes('pa') || text.includes('per annum')) {
+    // Assume annual amount in INR and convert to LPA.
+    return Number((amount / 100000).toFixed(2));
+  }
+
+  // Default to LPA when no explicit unit is provided.
+  return amount;
+};
+
 const branchMatches = (jobBranches, studentBranch) => {
   const normalizedStudentBranch = canonicalBranch(studentBranch);
   if (!normalizedStudentBranch) return true;
@@ -94,27 +118,41 @@ export default function StudentJobBoard() {
   const displayedJobs = useMemo(() => {
     const studentBranch = student?.branch || userProfile?.department || '';
     const studentCgpa = student?.cgpa == null ? 10 : parseNumber(student?.cgpa, 0);
+    const studentPlacementStatus = normalize(student?.placementStatus);
+    const isPlacedStudent = studentPlacementStatus === 'placed';
+    const studentCurrentPackageLpa = parsePackageToLpa(student?.currentPackage || student?.highestPackage || '');
     const appliedJobIds = new Set(applications.map((application) => application.jobId));
 
     return jobs.map((job) => {
       const minCgpa = parseNumber(job.minCGPA, 0);
+      const jobPackageLpa = parsePackageToLpa(job.ctc || job.stipend || '');
       const isOpen = normalize(job.status) !== 'closed';
       const meetsCgpa = !minCgpa || studentCgpa >= minCgpa;
       const meetsBranch = branchMatches(job.branches, studentBranch);
-      const eligible = isOpen && meetsCgpa && meetsBranch;
+      const meetsPackageRule = !isPlacedStudent
+        || (studentCurrentPackageLpa != null && jobPackageLpa != null && jobPackageLpa > studentCurrentPackageLpa);
+      const eligible = isOpen && meetsCgpa && meetsBranch && meetsPackageRule;
       const reason = !isOpen
         ? 'Job is closed'
         : !meetsCgpa
           ? `CGPA requirement: ${job.minCGPA || minCgpa}`
           : !meetsBranch
             ? `Branch mismatch (${studentBranch || 'N/A'})`
+            : !meetsPackageRule
+              ? isPlacedStudent && studentCurrentPackageLpa == null
+                ? 'Current package not available for comparison'
+                : isPlacedStudent && jobPackageLpa == null
+                  ? 'Job package is not available for comparison'
+                  : `Requires package higher than current (${student?.currentPackage || `${studentCurrentPackageLpa} LPA`})`
             : '';
 
       return {
         ...job,
         minCgpa,
+        jobPackageLpa,
         meetsCgpa,
         meetsBranch,
+        meetsPackageRule,
         isOpen,
         reason,
         eligible,
