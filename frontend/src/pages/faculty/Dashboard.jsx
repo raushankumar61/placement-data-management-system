@@ -91,7 +91,8 @@ export default function FacultyDashboard() {
         setPendingVerifications(
           verificationsSnap.docs.filter((d) => (d.data()?.status || 'pending') === 'pending').length
         );
-      } catch {
+      } catch (error) {
+        console.error('Error loading faculty dashboard data:', error);
         setStudents([]);
         setApplications([]);
         setJobsById({});

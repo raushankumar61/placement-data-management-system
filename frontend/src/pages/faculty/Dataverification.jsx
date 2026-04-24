@@ -34,7 +34,8 @@ export default function FacultyDataVerification() {
         const snap = await getDocs(query(collection(db, 'verifications'), orderBy('submittedAt', 'desc')));
         const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setVerifications(records);
-      } catch {
+      } catch (error) {
+        console.error('Error loading verifications:', error);
         setVerifications([]);
       }
     };
