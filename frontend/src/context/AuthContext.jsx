@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
-import { syncClaims, getMyRecruiterProfile } from '../services/api';
+import { syncClaims, getMyRecruiterProfile, verifyToken as verifySessionToken } from '../services/api';
 import { fillStudentDefaults } from '../utils/studentDefaults';
 
 const AuthContext = createContext(null);
@@ -21,9 +21,34 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (uid) => {
+  const applyResolvedSession = (profile, fallbackRole = null) => {
+    if (profile) {
+      setUserProfile(profile);
+      setRole(profile.role || fallbackRole || null);
+      return profile;
+    }
+
+    setUserProfile(null);
+    setRole(fallbackRole || null);
+    return null;
+  };
+
+  const fetchUserProfile = async (firebaseUser) => {
+    if (!firebaseUser?.uid) {
+      return applyResolvedSession(null);
+    }
+
+    let fallbackRole = null;
+
     try {
-      const docRef = doc(db, 'users', uid);
+      const tokenResult = await firebaseUser.getIdTokenResult();
+      fallbackRole = tokenResult?.claims?.role || null;
+    } catch (err) {
+      console.warn('Unable to read token claims:', err);
+    }
+
+    try {
+      const docRef = doc(db, 'users', firebaseUser.uid);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data();
@@ -36,21 +61,45 @@ export function AuthProvider({ children }) {
             // recruiter doc may not exist yet for new accounts
           }
         }
-        setUserProfile(merged);
-        setRole(merged.role);
-        return merged;
+        return applyResolvedSession(merged, fallbackRole);
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
     }
-    return null;
+
+    try {
+      const { data } = await verifySessionToken();
+      if (data?.profile || data?.role) {
+        const merged = data.profile || {
+          uid: data.uid || firebaseUser.uid,
+          email: data.email || firebaseUser.email || '',
+          role: data.role || fallbackRole || null,
+        };
+        return applyResolvedSession(merged, data.role || fallbackRole);
+      }
+    } catch (err) {
+      console.warn('Backend session verification failed:', err);
+    }
+
+    // Final fallback: keep the user signed in if we at least know the role
+    // from token claims, instead of bouncing them back to /login.
+    if (fallbackRole) {
+      return applyResolvedSession({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        name: firebaseUser.displayName || '',
+        role: fallbackRole,
+      }, fallbackRole);
+    }
+
+    return applyResolvedSession(null);
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        await fetchUserProfile(firebaseUser.uid);
+        await fetchUserProfile(firebaseUser);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -65,7 +114,7 @@ export function AuthProvider({ children }) {
     console.log('[AuthContext] login() called for:', email);
     const result = await signInWithEmailAndPassword(auth, email, password);
     console.log('[AuthContext] Firebase auth passed. Fetching profile...');
-    const profile = await fetchUserProfile(result.user.uid);
+    const profile = await fetchUserProfile(result.user);
 
     // Sync role to custom claims and refresh the token so the role
     // is available immediately in all subsequent API requests.
@@ -102,7 +151,7 @@ export function AuthProvider({ children }) {
     }
     // If doc exists, leave it untouched — preserving the stored role.
 
-    const profile = await fetchUserProfile(uid);
+    const profile = await fetchUserProfile(result.user);
 
     // Sync role to custom claims then refresh token
     try {
@@ -145,7 +194,7 @@ export function AuthProvider({ children }) {
       });
     }
 
-    const profile = await fetchUserProfile(result.user.uid);
+    const profile = await fetchUserProfile(result.user);
 
     // Sync role to custom claims then refresh token so the next API
     // call carries the role in the Bearer token's payload.
@@ -161,7 +210,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => signOut(auth);
 
-  const refreshProfile = () => user && fetchUserProfile(user.uid);
+  const refreshProfile = () => user && fetchUserProfile(user);
 
   return (
     <AuthContext.Provider value={{
