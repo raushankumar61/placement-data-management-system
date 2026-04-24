@@ -69,11 +69,16 @@ function StatCard({ icon: Icon, label, value, sub, color, delay }) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="glass-card p-3 border border-white/10 text-xs font-body">
-      <p className="text-white/60 mb-1">{label}</p>
-      {payload.map((p) => (
-        <p key={p.name} style={{ color: p.color }}>{p.name}: {p.value}</p>
-      ))}
+    <div className="glass-card p-3 border border-white/10 text-xs font-body bg-dark-800/95 shadow-lg rounded-lg">
+      <p className="text-white font-semibold mb-2">{label}</p>
+      {payload.map((p) => {
+        const displayColor = p.color === '#00A3FF' ? '#00D9FF' : p.color === '#F5A623' ? '#FFB84D' : '#22C55E';
+        return (
+          <p key={p.name} style={{ color: displayColor }} className="font-medium">
+            {p.name}: <span className="font-bold">{p.value}</span>
+          </p>
+        );
+      })}
     </div>
   );
 };

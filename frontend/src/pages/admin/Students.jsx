@@ -443,21 +443,21 @@ export default function AdminStudents() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="glass-card w-full max-w-lg p-6 border border-white/10"
+            className="glass-card w-full max-w-lg border border-white/10 my-8 flex flex-col max-h-[90vh]"
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between p-6 border-b border-white/5 sticky top-0 z-10 bg-dark-800/80 backdrop-blur">
               <h2 className="section-title">{editStudent ? 'Edit Student' : 'Add Student'}</h2>
               <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white">
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4 overflow-y-auto flex-1 p-6 pr-5 pb-32">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Full Name *</label>
@@ -639,13 +639,22 @@ export default function AdminStudents() {
                   className="input-field text-sm resize-none" rows={4} placeholder="Suggestion 1\nSuggestion 2" />
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1 text-sm py-2.5">Cancel</button>
-                <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm py-2.5 flex items-center justify-center gap-2">
-                  {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (editStudent ? 'Update' : 'Add Student')}
-                </button>
-              </div>
             </form>
+
+            <div className="p-6 border-t border-white/5 bg-dark-800/50 sticky bottom-0 flex gap-3">
+              <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1 text-sm py-2.5">Cancel</button>
+              <button type="button" onClick={() => {
+                const forms = document.querySelectorAll('form');
+                for (let form of forms) {
+                  if (form.onsubmit || form.getAttribute('onsubmit')) {
+                    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                    break;
+                  }
+                }
+              }} disabled={saving} className="btn-primary flex-1 text-sm py-2.5 flex items-center justify-center gap-2">
+                {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (editStudent ? 'Update' : 'Add Student')}
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
