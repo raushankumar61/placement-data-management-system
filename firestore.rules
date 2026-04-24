@@ -87,5 +87,51 @@ service cloud.firestore {
       allow update: if isAdmin() || isRecruiter();
       allow delete: if isAdmin();
     }
+
+    // Recommendations collection
+    match /recommendations/{recommendationId} {
+      allow read: if isAdmin() || isFaculty() || isRecruiter() ||
+        (isStudent() && resource.data.studentId == request.auth.uid);
+      allow create: if isAdmin() || isFaculty();
+      allow update: if isAdmin() || isFaculty();
+      allow delete: if isAdmin();
+    }
+
+    // Verification requests collection
+    match /verifications/{verificationId} {
+      allow read: if isAdmin() || isFaculty() ||
+        (isStudent() && resource.data.studentId == request.auth.uid);
+      allow create: if isStudent();
+      allow update: if isAdmin() || isFaculty() ||
+        (isStudent() && resource.data.studentId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Faculty placement activities collection
+    match /placementActivities/{activityId} {
+      allow read: if isAdmin() || isFaculty() ||
+        (isStudent() && (request.auth.uid in resource.data.assignedStudentIds));
+      allow create: if isAdmin() || isFaculty();
+      allow update: if isAdmin() || isFaculty();
+      allow delete: if isAdmin();
+    }
+
+    // Student complaints collection
+    match /complaints/{complaintId} {
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.createdBy == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() ||
+        (isAuthenticated() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // System activity audit collection
+    match /systemActivity/{activityId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
   }
 }

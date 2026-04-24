@@ -4,10 +4,13 @@ import { motion } from 'framer-motion';
 import { Briefcase, Send } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
+import { createJob } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const BRANCHES = ['All', 'Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical'];
 
 export default function RecruiterPostJob() {
+  const { user, userProfile } = useAuth();
   const [form, setForm] = useState({
     title: '', location: '', ctc: '', type: 'Full-time', minCGPA: '',
     branches: [], skills: '', description: '', deadline: '', openings: '', process: ''
@@ -23,10 +26,27 @@ export default function RecruiterPostJob() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    toast.success('Job posted successfully!');
-    setForm({ title: '', location: '', ctc: '', type: 'Full-time', minCGPA: '', branches: [], skills: '', description: '', deadline: '', openings: '', process: '' });
-    setSubmitting(false);
+
+    try {
+      await createJob({
+        ...form,
+        company: userProfile?.companyName || userProfile?.name || 'Recruiter Company',
+        recruiterName: userProfile?.name || user?.displayName || 'Recruiter',
+        recruiterEmail: userProfile?.email || user?.email || '',
+        postedBy: user?.uid || '',
+        skills: String(form.skills || '').split(',').map((item) => item.trim()).filter(Boolean),
+        openings: Number(form.openings || 0),
+        minCGPA: String(form.minCGPA || ''),
+        status: 'active',
+      });
+
+      toast.success('Job posted successfully!');
+      setForm({ title: '', location: '', ctc: '', type: 'Full-time', minCGPA: '', branches: [], skills: '', description: '', deadline: '', openings: '', process: '' });
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Failed to post job');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

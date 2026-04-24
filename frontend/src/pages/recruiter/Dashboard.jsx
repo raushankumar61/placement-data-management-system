@@ -11,12 +11,19 @@ import { db } from '../../services/firebase';
 export default function RecruiterDashboard() {
   const { userProfile } = useAuth();
   const [students, setStudents] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [applications, setApplications] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDocs(collection(db, 'students'));
-        const data = snap.docs.map((d) => {
+        const [studentsSnap, jobsSnap, appsSnap] = await Promise.all([
+          getDocs(collection(db, 'students')),
+          getDocs(collection(db, 'jobs')),
+          getDocs(collection(db, 'applications')),
+        ]);
+
+        const studentData = studentsSnap.docs.map((d) => {
           const v = d.data();
           const skills = Array.isArray(v.skills)
             ? v.skills
@@ -30,9 +37,17 @@ export default function RecruiterDashboard() {
             placementStatus: (v.placementStatus || 'unplaced').toLowerCase(),
           };
         });
-        setStudents(data);
+
+        const jobData = jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const appData = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        setStudents(studentData);
+        setJobs(jobData);
+        setApplications(appData);
       } catch {
         setStudents([]);
+        setJobs([]);
+        setApplications([]);
       }
     };
 
@@ -48,6 +63,12 @@ export default function RecruiterDashboard() {
     [students]
   );
 
+  const totalJobs = jobs.length;
+  const activeJobs = jobs.filter((job) => String(job.status || '').toLowerCase() === 'active').length;
+  const totalApplicants = applications.length;
+  const shortlistedCount = applications.filter((application) => ['shortlisted', 'selected'].includes(String(application.status || '').toLowerCase())).length;
+  const offersCount = applications.filter((application) => String(application.status || '').toLowerCase() === 'selected').length;
+
   return (
     <DashboardLayout title="Recruiter Dashboard">
       <div className="space-y-5">
@@ -59,16 +80,16 @@ export default function RecruiterDashboard() {
             <div>
               <p className="text-white/60 text-sm font-body">Welcome,</p>
               <h2 className="font-heading font-bold text-2xl text-white">{userProfile?.name || 'Recruiter'}</h2>
-              <p className="text-white/40 text-sm font-body mt-1">You have 3 active job postings</p>
+              <p className="text-white/40 text-sm font-body mt-1">You have {activeJobs} active job postings</p>
             </div>
             <div className="flex gap-3">
               <Link to="/recruiter/post-job">
                 <button className="btn-primary text-sm py-2.5 flex items-center gap-2">
-                  Post a Job · 3 Live <ArrowRight size={14} />
+                  Post a Job · {activeJobs} Live <ArrowRight size={14} />
                 </button>
               </Link>
               <Link to="/recruiter/candidates">
-                <button className="btn-outline text-sm py-2.5">Browse Candidates · 5 New</button>
+                <button className="btn-outline text-sm py-2.5">Browse Candidates · {recentCandidates.length} New</button>
               </Link>
             </div>
           </div>
@@ -77,10 +98,10 @@ export default function RecruiterDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Jobs Posted', value: 3, color: 'text-blue-electric' },
-            { label: 'Total Applicants', value: 187, color: 'text-gold' },
-            { label: 'Shortlisted', value: 24, color: 'text-purple-400' },
-            { label: 'Offers Made', value: 8, color: 'text-green-400' },
+            { label: 'Jobs Posted', value: totalJobs, color: 'text-blue-electric' },
+            { label: 'Total Applicants', value: totalApplicants, color: 'text-gold' },
+            { label: 'Shortlisted', value: shortlistedCount, color: 'text-purple-400' },
+            { label: 'Offers Made', value: offersCount, color: 'text-green-400' },
           ].map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }} className="glass-card p-4">
