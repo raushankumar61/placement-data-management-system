@@ -5,7 +5,7 @@ import { Plus, Search, Upload, Download, Trash2, Edit2, Filter, X, ChevronDown }
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, setDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { bulkImportStudents } from '../../services/api';
 import { fillStudentDefaults } from '../../utils/studentDefaults';
@@ -224,16 +224,27 @@ export default function AdminStudents() {
         updatedAt: serverTimestamp(),
       };
       if (editStudent?.id) {
-        await updateDoc(doc(db, 'students', editStudent.id), payload);
+        await setDoc(doc(db, 'students', editStudent.id), payload, { merge: true });
         try {
-          await updateDoc(doc(db, 'users', editStudent.id), {
+          await setDoc(doc(db, 'users', editStudent.id), {
             name: payload.name,
+            email: payload.email,
             branch: payload.branch,
+            department: payload.branch,
             phone: payload.phone || '',
-          });
+            rollNo: payload.rollNo,
+            usn: payload.usn,
+            placementStatus: payload.placementStatus,
+            cgpa: payload.cgpa,
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
         } catch {
           // Some imported student docs may not have a matching users doc.
         }
+        setStudents((prev) => prev.map((student) => (
+          student.id === editStudent.id ? { ...student, ...payload } : student
+        )));
+        setSelectedStudent((current) => (current && current.id === editStudent.id ? { ...current, ...payload } : current));
         toast.success('Student updated');
       } else {
         await addDoc(collection(db, 'students'), { ...payload, createdAt: serverTimestamp() });
