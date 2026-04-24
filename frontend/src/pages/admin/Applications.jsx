@@ -32,6 +32,8 @@ export default function AdminApplications() {
           const j = jobMap.get(a.jobId) || {};
           return {
             id: d.id,
+            studentId: a.studentId || '',
+            jobId: a.jobId || '',
             student: s.name || 'Student',
             rollNo: s.rollNo || 'N/A',
             company: j.company || 'N/A',
@@ -40,6 +42,12 @@ export default function AdminApplications() {
             status: a.status || 'Applied',
             appliedAt: (a.appliedAt || '').slice(0, 10) || 'N/A',
             cgpa: Number(s.cgpa || 0),
+            source: a.source || 'Campus Drive',
+            round: a.round || 'Screening',
+            interviewDate: (a.interviewDate || '').slice(0, 10) || 'N/A',
+            recruiterName: j.recruiterName || a.recruiterName || 'N/A',
+            expectedCTC: a.expectedCTC || j.ctc || 'N/A',
+            feedback: a.feedback || 'Pending',
           };
         });
         setApplications(records);
@@ -58,8 +66,49 @@ export default function AdminApplications() {
 
   const updateStatus = async (id, status) => {
     try {
+      const current = applications.find((a) => a.id === id);
       await updateDoc(doc(db, 'applications', id), { status, updatedAt: new Date().toISOString() });
-      setApplications((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
+
+      const updatedApplications = applications.map((a) => (a.id === id ? { ...a, status } : a));
+      setApplications(updatedApplications);
+
+      if (current?.studentId) {
+        const studentApps = updatedApplications.filter((a) => a.studentId === current.studentId);
+        const shortlistedCount = studentApps.filter((a) => ['Shortlisted', 'Selected'].includes(a.status)).length;
+        const selectedApps = studentApps.filter((a) => a.status === 'Selected');
+        const selectedCompanies = Array.from(new Set(selectedApps.map((a) => a.company).filter(Boolean)));
+        const selectedPackages = selectedApps.map((a) => {
+          const text = String(a.expectedCTC || '').match(/(\d+(?:\.\d+)?)/);
+          return text ? Number(text[1]) : null;
+        }).filter((value) => value != null);
+
+        const studentPayload = {
+          applicationCount: studentApps.length,
+          shortlistedCount,
+          selectedCount: selectedApps.length,
+          rejectedCount: studentApps.filter((a) => a.status === 'Rejected').length,
+          latestApplicationCompany: current.company,
+          latestApplicationStatus: status,
+          applicationSources: Array.from(new Set(studentApps.map((a) => a.source).filter(Boolean))),
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (selectedApps.length || status === 'Selected') {
+          studentPayload.placementStatus = 'placed';
+          studentPayload.companyPlaced = selectedCompanies[0] || current.company;
+          if (selectedPackages.length) {
+            const topPackage = Math.max(...selectedPackages);
+            studentPayload.currentPackage = `${topPackage} LPA`;
+            studentPayload.highestPackage = `${topPackage} LPA`;
+          }
+          studentPayload.offersCount = selectedApps.length;
+          studentPayload.offerCompanies = selectedCompanies;
+        } else if (shortlistedCount && status !== 'Rejected') {
+          studentPayload.placementStatus = 'in-process';
+        }
+
+        await updateDoc(doc(db, 'students', current.studentId), studentPayload);
+      }
     } catch {
       toast.error('Failed to update application status');
     }
@@ -104,7 +153,7 @@ export default function AdminApplications() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Student', 'Roll No', 'Company', 'Role', 'Branch', 'CGPA', 'Applied', 'Status', 'Action'].map((h) => (
+                  {['Student', 'Roll No', 'Company', 'Role', 'Source', 'Round', 'CGPA', 'Applied', 'Status', 'Action'].map((h) => (
                     <th key={h} className="table-header text-left px-4 py-3">{h}</th>
                   ))}
                 </tr>
@@ -117,7 +166,8 @@ export default function AdminApplications() {
                     <td className="px-4 py-3 font-mono text-xs text-white/50">{app.rollNo}</td>
                     <td className="px-4 py-3 text-white/70 text-sm font-body">{app.company}</td>
                     <td className="px-4 py-3 text-white/60 text-xs font-body">{app.role}</td>
-                    <td className="px-4 py-3 text-white/60 text-xs font-body">{app.branch}</td>
+                    <td className="px-4 py-3 text-white/60 text-xs font-body">{app.source}</td>
+                    <td className="px-4 py-3 text-white/60 text-xs font-body">{app.round}</td>
                     <td className="px-4 py-3 font-mono text-sm text-gold">{app.cgpa}</td>
                     <td className="px-4 py-3 text-white/40 text-xs font-body">{app.appliedAt}</td>
                     <td className="px-4 py-3"><span className={STATUS_CLASS[app.status]}>{app.status}</span></td>

@@ -4,6 +4,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { createApplicationDefaults, syncStudentRollup } = require('../utils/marketplaceFactory');
 
 // GET /api/v1/applications  — all authenticated users (scoped by role in query)
 // Students only see their own; admin/recruiter/faculty can filter freely
@@ -24,7 +25,7 @@ router.get('/', verifyToken, async (req, res) => {
     if (status) query = query.where('status', '==', status);
 
     const snap = await query.get();
-    const applications = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const applications = snap.docs.map((d) => ({ id: d.id, ...createApplicationDefaults(d.data() || {}, d.id) }));
     res.json({ applications, total: applications.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -36,13 +37,23 @@ router.post('/', verifyToken, requireRole('student'), async (req, res) => {
   try {
     const { jobId } = req.body;
     const studentId = req.user.uid;
+    const jobSnap = db ? await db.collection('jobs').doc(jobId).get() : null;
+    const job = jobSnap?.exists ? jobSnap.data() : {};
 
-    const payload = {
+    const payload = createApplicationDefaults({
       studentId,
+      studentEmail: req.user.email || '',
+      studentName: req.user.name || req.user.displayName || '',
       jobId,
+      company: job.company || req.body.company || '',
+      role: job.title || req.body.role || '',
+      branch: req.body.branch || '',
+      recruiterId: job.recruiterId || '',
+      recruiterName: job.recruiterName || '',
+      expectedCTC: req.body.expectedCTC || job.ctc || '',
       status: 'Applied',
       appliedAt: new Date().toISOString(),
-    };
+    }, `${studentId}-${jobId}`);
 
     if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
 
@@ -80,8 +91,27 @@ router.put('/:id/status', verifyToken, requireRole('admin', 'recruiter'), async 
       return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
-    const payload = { status, updatedAt: new Date().toISOString(), updatedBy: req.user.uid };
-    if (db) await db.collection('applications').doc(req.params.id).update(payload);
+    const snap = db ? await db.collection('applications').doc(req.params.id).get() : null;
+    const current = snap?.exists ? snap.data() : {};
+    const jobSnap = db && current.jobId ? await db.collection('jobs').doc(current.jobId).get() : null;
+    const job = jobSnap?.exists ? jobSnap.data() : {};
+    const payload = createApplicationDefaults({ ...current, status, updatedAt: new Date().toISOString(), updatedBy: req.user.uid }, req.params.id);
+    if (db) {
+      await db.collection('applications').doc(req.params.id).update(payload);
+
+      if (current.studentId) {
+        const studentRef = db.collection('students').doc(current.studentId);
+        const studentSnap = await studentRef.get();
+        if (studentSnap.exists) {
+          const student = syncStudentRollup({ id: studentSnap.id, ...studentSnap.data() }, [payload], new Map([[current.jobId, job]]));
+          await studentRef.set({
+            ...student,
+            updatedAt: new Date().toISOString(),
+            updatedBy: req.user.uid,
+          }, { merge: true });
+        }
+      }
+    }
 
     res.json({ id: req.params.id, ...payload });
   } catch (err) {

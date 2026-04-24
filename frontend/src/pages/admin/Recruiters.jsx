@@ -21,6 +21,12 @@ export default function AdminRecruiters() {
         phone: d.data().phone || 'N/A',
         website: d.data().website || 'N/A',
         industry: d.data().industry || 'General',
+        location: d.data().location || 'N/A',
+        companySize: d.data().companySize || 'N/A',
+        foundedYear: d.data().foundedYear || 'N/A',
+        hiringRoles: Array.isArray(d.data().hiringRoles)
+          ? d.data().hiringRoles
+          : String(d.data().hiringRoles || '').split(',').map((s) => s.trim()).filter(Boolean),
         verified: Boolean(d.data().verified),
         jobsPosted: Number(d.data().jobsPosted || 0),
         hires: Number(d.data().hires || 0),
@@ -109,12 +115,19 @@ export default function AdminRecruiters() {
                   { icon: Mail, text: r.contactEmail },
                   { icon: Phone, text: r.phone },
                   { icon: Globe, text: r.website },
+                  { icon: Building2, text: r.location },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-center gap-2 text-white/50">
                     <Icon size={12} className="text-white/30" />
                     <span className="text-xs font-body">{text}</span>
                   </div>
                 ))}
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="badge-blue text-xs">{r.industry}</span>
+                <span className="badge-gray text-xs">{r.companySize}</span>
+                <span className="badge-gold text-xs">Founded {r.foundedYear}</span>
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-white/5">
@@ -131,6 +144,14 @@ export default function AdminRecruiters() {
                   {r.verified ? <><XCircle size={12} /> Suspend</> : <><CheckCircle size={12} /> Approve</>}
                 </button>
               </div>
+
+              {!!r.hiringRoles.length && (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {r.hiringRoles.slice(0, 4).map((role) => (
+                    <span key={role} className="badge-blue text-xs">{role}</span>
+                  ))}
+                </div>
+              )}
             </motion.div>
           ))}
         </div>

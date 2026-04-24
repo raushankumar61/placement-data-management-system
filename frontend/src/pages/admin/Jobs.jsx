@@ -11,9 +11,10 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 const INITIAL_FORM = {
-  title: '', company: '', location: '', ctc: '', type: 'Full-time',
-  minCGPA: '', branches: [], skills: '', description: '',
-  deadline: '', openings: '', status: 'active',
+  title: '', company: '', recruiterName: '', recruiterEmail: '', industry: '',
+  location: '', ctc: '', type: 'Full-time', workMode: 'Onsite', experienceLevel: 'Fresher',
+  minCGPA: '', branches: [], skills: '', perks: '', description: '',
+  deadline: '', openings: '', status: 'active', interviewRounds: 2, applyLink: '', postedOnCampus: true,
 };
 
 const JOB_TYPES = ['Full-time', 'Internship', 'PPO', 'Contract'];
@@ -56,7 +57,13 @@ export default function AdminJobs() {
 
   const openModal = (job = null) => {
     setEditJob(job);
-    setForm(job ? { ...job, skills: Array.isArray(job.skills) ? job.skills.join(', ') : (job.skills || ''), branches: job.branches || [] } : INITIAL_FORM);
+    setForm(job ? {
+      ...INITIAL_FORM,
+      ...job,
+      skills: Array.isArray(job.skills) ? job.skills.join(', ') : (job.skills || ''),
+      perks: Array.isArray(job.perks) ? job.perks.join(', ') : (job.perks || ''),
+      branches: job.branches || [],
+    } : INITIAL_FORM);
     setShowModal(true);
   };
 
@@ -67,6 +74,11 @@ export default function AdminJobs() {
       const payload = {
         ...form,
         skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
+        perks: String(form.perks || '').split(',').map((s) => s.trim()).filter(Boolean),
+        minCGPA: String(form.minCGPA || ''),
+        interviewRounds: Number(form.interviewRounds || 0),
+        postedOnCampus: Boolean(form.postedOnCampus),
+        applyLink: form.applyLink || '',
         postedBy: user?.uid,
         updatedAt: serverTimestamp(),
       };
@@ -189,6 +201,12 @@ export default function AdminJobs() {
                   ))}
                 </div>
 
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="badge-blue text-xs">{job.workMode || 'Onsite'}</span>
+                  <span className="badge-gray text-xs">{job.experienceLevel || 'Fresher'}</span>
+                  {job.recruiterName && <span className="badge-gold text-xs truncate max-w-40">{job.recruiterName}</span>}
+                </div>
+
                 <div className="flex items-center justify-between pt-3 border-t border-white/5">
                   <div className="flex gap-1">
                     <span className="badge-blue text-xs">{job.type}</span>
@@ -210,14 +228,14 @@ export default function AdminJobs() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass-card w-full max-w-2xl p-6 border border-white/10 my-4"
+            className="glass-card w-full max-w-2xl border border-white/10 my-4 flex flex-col max-h-[90vh]"
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="section-title">{editJob ? 'Edit Job' : 'Post New Job'}</h2>
               <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4 overflow-y-auto flex-1 pr-2 pb-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Job Title *</label>
@@ -230,9 +248,24 @@ export default function AdminJobs() {
                     className="input-field text-sm" placeholder="Google" required />
                 </div>
                 <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Recruiter Name</label>
+                  <input value={form.recruiterName} onChange={(e) => setForm({ ...form, recruiterName: e.target.value })}
+                    className="input-field text-sm" placeholder="Talent Team" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Recruiter Email</label>
+                  <input type="email" value={form.recruiterEmail} onChange={(e) => setForm({ ...form, recruiterEmail: e.target.value })}
+                    className="input-field text-sm" placeholder="talent@company.com" />
+                </div>
+                <div>
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Location</label>
                   <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
                     className="input-field text-sm" placeholder="Bangalore" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Industry</label>
+                  <input value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                    className="input-field text-sm" placeholder="Technology" />
                 </div>
                 <div>
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">CTC / Stipend</label>
@@ -258,9 +291,33 @@ export default function AdminJobs() {
                     className="input-field text-sm" placeholder="10" />
                 </div>
                 <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Work Mode</label>
+                  <select value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}
+                    className="input-field text-sm appearance-none">
+                    {['Onsite', 'Hybrid', 'Remote'].map((mode) => <option key={mode} value={mode} className="bg-dark-700">{mode}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Experience Level</label>
+                  <select value={form.experienceLevel} onChange={(e) => setForm({ ...form, experienceLevel: e.target.value })}
+                    className="input-field text-sm appearance-none">
+                    {['Fresher', '0-2 years', '2-4 years', '4+ years'].map((level) => <option key={level} value={level} className="bg-dark-700">{level}</option>)}
+                  </select>
+                </div>
+                <div>
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Application Deadline</label>
                   <input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })}
                     className="input-field text-sm" />
+                </div>
+                <div>
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Interview Rounds</label>
+                  <input type="number" min="1" value={form.interviewRounds} onChange={(e) => setForm({ ...form, interviewRounds: e.target.value })}
+                    className="input-field text-sm" placeholder="3" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Apply Link</label>
+                  <input value={form.applyLink} onChange={(e) => setForm({ ...form, applyLink: e.target.value })}
+                    className="input-field text-sm" placeholder="https://careers.company.com/apply" />
                 </div>
               </div>
 
@@ -284,6 +341,12 @@ export default function AdminJobs() {
                 <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Required Skills</label>
                 <input value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })}
                   className="input-field text-sm" placeholder="Python, SQL, Machine Learning" />
+              </div>
+
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Perks</label>
+                <input value={form.perks} onChange={(e) => setForm({ ...form, perks: e.target.value })}
+                  className="input-field text-sm" placeholder="Flexible hours, Learning budget" />
               </div>
 
               <div>

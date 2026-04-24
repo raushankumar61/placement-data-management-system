@@ -202,9 +202,12 @@ export default function StudentJobBoard() {
                 { label: 'Location', value: selected.location },
                 { label: 'CTC', value: selected.ctc },
                 { label: 'Type', value: selected.type },
+                { label: 'Mode', value: selected.workMode || 'Onsite' },
+                { label: 'Experience', value: selected.experienceLevel || 'Fresher' },
                 { label: 'Openings', value: selected.openings },
                 { label: 'Min CGPA', value: selected.minCGPA },
                 { label: 'Deadline', value: deadlineToLabel(selected.deadline) },
+                { label: 'Recruiter', value: selected.recruiterName || selected.company },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-white/40 font-body">{label}</span>
@@ -217,6 +220,21 @@ export default function StudentJobBoard() {
               <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-body">Description</p>
               <p className="text-white/60 text-sm font-body leading-relaxed">{selected.description}</p>
             </div>
+
+            {!!selected.perks?.length && (
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-body">Perks</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selected.perks.map((perk) => <span key={perk} className="badge-blue text-xs">{perk}</span>)}
+                </div>
+              </div>
+            )}
+
+            {selected.applyLink && (
+              <a href={selected.applyLink} target="_blank" rel="noreferrer" className="block text-center btn-outline w-full text-sm py-2.5">
+                Open Apply Link
+              </a>
+            )}
 
             {selected.eligible ? (
               <button

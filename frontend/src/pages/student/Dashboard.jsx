@@ -84,6 +84,8 @@ export default function StudentDashboard() {
         role: job.title || app.role || 'N/A',
         status: getDisplayStatus(app.status),
         date: formatDate(app.appliedAt || app.createdAt),
+        source: app.source || 'Campus Drive',
+        round: app.round || 'Screening',
       };
     }), [applications, jobs]);
 

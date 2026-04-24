@@ -4,6 +4,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { createJobDefaults } = require('../utils/marketplaceFactory');
 
 // GET /api/v1/jobs  — all authenticated users can browse jobs
 router.get('/', verifyToken, async (req, res) => {
@@ -11,8 +12,8 @@ router.get('/', verifyToken, async (req, res) => {
     if (!db) {
       return res.json({
         jobs: [
-          { id: '1', title: 'SDE', company: 'Google', ctc: '24 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-01', minCGPA: 7.0, openings: 10 },
-          { id: '2', title: 'Data Scientist', company: 'Microsoft', ctc: '18 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-10', minCGPA: 7.5, openings: 5 },
+          createJobDefaults({ id: '1', title: 'SDE', company: 'Google', ctc: '24 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-01', minCGPA: 7.0, openings: 10 }, 'job-1'),
+          createJobDefaults({ id: '2', title: 'Data Scientist', company: 'Microsoft', ctc: '18 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-10', minCGPA: 7.5, openings: 5 }, 'job-2'),
         ],
         total: 2,
       });
@@ -25,7 +26,7 @@ router.get('/', verifyToken, async (req, res) => {
     if (type) query = query.where('type', '==', type);
 
     const snap = await query.get();
-    let jobs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let jobs = snap.docs.map((d) => ({ id: d.id, ...createJobDefaults(d.data() || {}, d.id) }));
 
     // Filter by branch eligibility if specified
     if (branch) {
@@ -53,13 +54,15 @@ router.get('/:id', verifyToken, async (req, res) => {
 // POST /api/v1/jobs  — admin or recruiter can post jobs
 router.post('/', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
-    const payload = {
+    const payload = createJobDefaults({
       ...req.body,
       postedBy: req.user.uid,
-      status: 'active',
-      applicants: 0,
+      postedByUid: req.user.uid,
+      postedByName: req.user.name || req.user.displayName || '',
+      status: req.body.status || 'active',
+      applicants: Number(req.body.applicants || 0),
       createdAt: new Date().toISOString(),
-    };
+    }, req.body.title || req.body.company || uuidv4());
 
     if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
 
@@ -73,7 +76,9 @@ router.post('/', verifyToken, requireRole('admin', 'recruiter'), async (req, res
 // PUT /api/v1/jobs/:id  — admin or the recruiter who posted it
 router.put('/:id', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
-    const payload = { ...req.body, updatedAt: new Date().toISOString(), updatedBy: req.user.uid };
+    const currentSnap = db ? await db.collection('jobs').doc(req.params.id).get() : null;
+    const current = currentSnap?.exists ? currentSnap.data() : {};
+    const payload = createJobDefaults({ ...current, ...req.body, updatedAt: new Date().toISOString(), updatedBy: req.user.uid }, req.params.id);
     if (db) await db.collection('jobs').doc(req.params.id).update(payload);
     res.json({ id: req.params.id, ...payload });
   } catch (err) {
