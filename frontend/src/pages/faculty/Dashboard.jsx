@@ -64,6 +64,7 @@ export default function FacultyDashboard() {
   const [placementActivitiesCount, setPlacementActivitiesCount] = useState(0);
   const [pendingVerifications, setPendingVerifications] = useState(0);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -93,6 +94,7 @@ export default function FacultyDashboard() {
         );
       } catch (error) {
         console.error('Error loading faculty dashboard data:', error);
+        setLoadError(error.message);
         setStudents([]);
         setApplications([]);
         setJobsById({});
@@ -103,6 +105,18 @@ export default function FacultyDashboard() {
     };
     load();
   }, []);
+
+  if (loadError) {
+    return (
+      <DashboardLayout title="Faculty Dashboard">
+        <div className="glass-card p-8 border border-red-500/30 text-center">
+          <p className="text-red-400 font-bold text-lg mb-2">Error Loading Dashboard</p>
+          <p className="text-white/60 font-mono text-sm">{loadError}</p>
+          <p className="text-white/40 text-xs mt-4">Please screenshot this and send it back.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const deptStudents = useMemo(() => {
     const dept = userProfile?.department;
