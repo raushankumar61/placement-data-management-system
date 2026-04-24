@@ -1,11 +1,12 @@
 // src/pages/faculty/Recommendations.jsx  (D3)
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Send, X, Plus, CheckCircle } from 'lucide-react';
+import { Star, Send, X, Plus } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, getDocs, addDoc, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { createRecommendation, getRecommendations } from '../../services/api';
 
 export default function FacultyRecommendations() {
   const [students, setStudents] = useState([]);
@@ -20,11 +21,11 @@ export default function FacultyRecommendations() {
       try {
         const [studentsSnap, recsSnap, jobsSnap] = await Promise.all([
           getDocs(collection(db, 'students')),
-          getDocs(query(collection(db, 'recommendations'), orderBy('createdAt', 'desc'))),
+          getRecommendations(),
           getDocs(collection(db, 'jobs')),
         ]);
         setStudents(studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setRecommendations(recsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setRecommendations(recsSnap?.data?.recommendations || []);
         setJobs(jobsSnap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
           .filter((j) => (j.status || 'active') !== 'closed'));
@@ -47,20 +48,15 @@ export default function FacultyRecommendations() {
     const job = jobs.find((j) => j.id === form.jobId);
 
     const record = {
-      student: student?.name,
       studentId: student?.id,
-      role: job?.title,
-      company: job?.company,
+      jobId: job?.id,
       reason: form.reason,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Pending',
       rating: form.rating,
-      createdAt: new Date().toISOString(),
     };
 
     try {
-      const ref = await addDoc(collection(db, 'recommendations'), record);
-      setRecommendations((prev) => [{ id: ref.id, ...record }, ...prev]);
+      const { data } = await createRecommendation(record);
+      setRecommendations((prev) => [data, ...prev]);
       toast.success(`Recommendation sent for ${student?.name}!`);
       setShowModal(false);
       setForm({ studentId: '', jobId: '', reason: '', rating: 5 });

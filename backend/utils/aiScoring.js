@@ -15,6 +15,56 @@ const SKILL_WEIGHT = 40;
 const ACTIVITY_WEIGHT = 15;
 const PROFILE_WEIGHT = 10;
 
+const parseNumber = (value, fallback = 0) => {
+  const match = String(value ?? '').match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : fallback;
+};
+
+const parsePackageToLpa = (value) => {
+  const text = String(value || '').toLowerCase();
+  const amount = parseNumber(text, NaN);
+  if (Number.isNaN(amount)) return null;
+  if (text.includes('lpa') || text.includes('lac')) return amount;
+  if (text.includes('k/month') || text.includes('/month') || text.includes('per month')) return Number(((amount * 12) / 100).toFixed(2));
+  if (text.includes('pa') || text.includes('per annum')) return Number((amount / 100000).toFixed(2));
+  return amount;
+};
+
+const canonical = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+const branchMatches = (jobBranches, studentBranch) => {
+  const student = canonical(studentBranch);
+  if (!student) return true;
+  const branches = Array.isArray(jobBranches) ? jobBranches : [];
+  if (!branches.length || branches.some((branch) => canonical(branch) === 'all')) return true;
+  return branches.some((branch) => {
+    const current = canonical(branch);
+    return current === student || current.includes(student) || student.includes(current);
+  });
+};
+
+const isEligibleForJob = (student = {}, job = {}) => {
+  const cgpa = parseNumber(student.cgpa, 0);
+  const minCgpa = parseNumber(job.minCGPA, 0);
+  if (minCgpa && cgpa < minCgpa) return false;
+
+  const status = String(job.status || '').toLowerCase();
+  if (status === 'closed') return false;
+
+  if (!branchMatches(job.branches, student.branch)) return false;
+
+  const studentStatus = String(student.placementStatus || 'unplaced').toLowerCase();
+  if (studentStatus === 'placed') {
+    const studentPackage = parsePackageToLpa(student.currentPackage || student.highestPackage || '');
+    const jobPackage = parsePackageToLpa(job.ctc || job.stipend || '');
+    if (studentPackage == null || jobPackage == null || jobPackage <= studentPackage) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 /**
  * Score a single student against a job.
  * @param {object} student  - student Firestore document
@@ -99,18 +149,10 @@ const recommendJobsForStudent = (student, jobs) => {
     : String(student.skills || '').split(',').map((s) => s.trim())
   ).map((s) => s.toLowerCase()).filter(Boolean);
 
-  const cgpa = parseFloat(student.cgpa) || 0;
   const branch = String(student.branch || '').toLowerCase();
 
   const scored = jobs
-    .filter((job) => {
-      // Basic eligibility
-      const minCgpa = parseFloat(job.minCGPA) || 0;
-      if (minCgpa && cgpa < minCgpa) return false;
-      const status = String(job.status || '').toLowerCase();
-      if (status === 'closed') return false;
-      return true;
-    })
+    .filter((job) => isEligibleForJob(student, job))
     .map((job) => {
       const jobSkills = (Array.isArray(job.skills)
         ? job.skills

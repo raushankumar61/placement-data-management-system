@@ -4,10 +4,9 @@ import { motion } from 'framer-motion';
 import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where, addDoc, getDocs, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { createApplication } from '../../services/api';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
@@ -118,7 +117,7 @@ export default function StudentJobBoard() {
 
   const displayedJobs = useMemo(() => {
     const studentBranch = student?.branch || userProfile?.department || '';
-    const studentCgpa = student?.cgpa == null ? 10 : parseNumber(student?.cgpa, 0);
+    const studentCgpa = student?.cgpa == null ? 0 : parseNumber(student?.cgpa, 0);
     const studentPlacementStatus = normalize(student?.placementStatus);
     const isPlacedStudent = studentPlacementStatus === 'placed';
     const studentCurrentPackageLpa = parsePackageToLpa(student?.currentPackage || student?.highestPackage || '');
@@ -127,18 +126,19 @@ export default function StudentJobBoard() {
     return jobs.map((job) => {
       const minCgpa = parseNumber(job.minCGPA, 0);
       const jobPackageLpa = parsePackageToLpa(job.ctc || job.stipend || '');
-      const isOpen = normalize(job.status) !== 'closed';
+      const isExpired = job.deadline && new Date(job.deadline) < new Date(new Date().setHours(0,0,0,0));
+      const isOpen = normalize(job.status) !== 'closed' && !isExpired;
       const meetsCgpa = !minCgpa || studentCgpa >= minCgpa;
       const meetsBranch = branchMatches(job.branches, studentBranch);
       const meetsPackageRule = !isPlacedStudent
         || (studentCurrentPackageLpa != null && jobPackageLpa != null && jobPackageLpa > studentCurrentPackageLpa);
       const eligible = isOpen && meetsCgpa && meetsBranch && meetsPackageRule;
       const reason = !isOpen
-        ? 'Job is closed'
+        ? (isExpired ? 'Application deadline has passed' : 'Job is closed')
         : !meetsCgpa
-          ? `CGPA requirement: ${job.minCGPA || minCgpa}`
+          ? `CGPA requirement: ${job.minCGPA || minCgpa} (Your CGPA: ${studentCgpa || 'Not set'})`
           : !meetsBranch
-            ? `Branch mismatch (${studentBranch || 'N/A'})`
+            ? `Branch mismatch (${studentBranch || 'Not set'})`
             : !meetsPackageRule
               ? isPlacedStudent && studentCurrentPackageLpa == null
                 ? 'Current package not available for comparison'
@@ -196,22 +196,53 @@ export default function StudentJobBoard() {
 
     setApplying(true);
     try {
-      await createApplication({
+      // 1. Double check existing applications
+      const existing = await getDocs(query(collection(db, 'applications'), where('studentId', '==', user.uid), where('jobId', '==', job.id)));
+      if (!existing.empty) {
+        toast.error('You already applied to this job');
+        return;
+      }
+
+      // 2. Add application
+      const payload = {
+        studentId: user.uid,
+        studentEmail: userProfile?.email || user.email || '',
+        studentName: userProfile?.name || user.displayName || '',
         jobId: job.id,
+        company: job.company || '',
+        role: job.title || '',
         branch: student?.branch || userProfile?.department || '',
+        recruiterId: job.recruiterId || '',
+        recruiterName: job.recruiterName || '',
         expectedCTC: job.ctc || '',
         source: 'Campus Drive',
         round: 'Screening',
         notes: '',
+        status: 'Applied',
+        appliedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+
+      const ref = await addDoc(collection(db, 'applications'), payload);
+
+      // 3. Increment job applicants count
+      await updateDoc(doc(db, 'jobs', job.id), { applicants: increment(1) });
+
+      // 4. Send in-app notification
+      await addDoc(collection(db, 'notifications'), {
+        message: `You applied to ${payload.role} at ${payload.company}. Status: Applied.`,
+        targetRole: 'student',
+        targetUid: user.uid,
+        type: 'in-app',
+        sentAt: new Date().toISOString(),
+        sentBy: 'system',
+        read: [],
+        applicationId: ref.id,
       });
+
       toast.success('Application submitted successfully!');
     } catch (error) {
-      const message = error?.response?.data?.error || 'Unable to submit application';
-      if (error?.response?.status === 409) {
-        toast.error('You already applied to this job');
-      } else {
-        toast.error(message);
-      }
+      toast.error('Unable to submit application');
     } finally {
       setApplying(false);
     }

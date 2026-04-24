@@ -74,6 +74,10 @@ export const getNotifications = () => api.get('/notifications');
 export const markNotificationRead = (id) => api.put(`/notifications/${id}/read`);
 export const markAllNotificationsRead = () => api.put('/notifications/read-all');
 
+// ─── Recommendations ────────────────────────────────────────
+export const getRecommendations = () => api.get('/recommendations');
+export const createRecommendation = (data) => api.post('/recommendations', data);
+
 // ─── Complaints ──────────────────────────────────────────────
 export const getComplaints = () => api.get('/complaints');
 export const createComplaint = (data) => api.post('/complaints', data);

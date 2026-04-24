@@ -34,6 +34,7 @@ app.use('/api/v1/interviews', require('./routes/interviews'));
 app.use('/api/v1/recruiters', require('./routes/recruiters'));
 app.use('/api/v1/reports', require('./routes/reports'));
 app.use('/api/v1/notifications', require('./routes/notifications'));
+app.use('/api/v1/recommendations', require('./routes/recommendations'));
 app.use('/api/v1/complaints', require('./routes/complaints'));
 app.use('/api/v1/resume', require('./routes/resume'));
 app.use('/api/v1/analytics', require('./routes/analytics'));

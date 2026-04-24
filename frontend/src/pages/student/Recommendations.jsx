@@ -1,12 +1,10 @@
 // src/pages/student/Recommendations.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Briefcase, Zap, MapPin, DollarSign, TrendingUp, BookOpen } from 'lucide-react';
+import { Star, Zap, MapPin, DollarSign, TrendingUp, BookOpen } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { getJobRecommendations } from '../../services/api';
+import { getJobRecommendations, getRecommendations } from '../../services/api';
 import toast from 'react-hot-toast';
 
 export default function StudentRecommendations() {
@@ -22,11 +20,15 @@ export default function StudentRecommendations() {
   // Real-time faculty recommendations
   useEffect(() => {
     if (!user?.uid) return;
-    const q = query(collection(db, 'recommendations'), where('studentId', '==', user.uid));
-    const unsub = onSnapshot(q, (snap) => {
-      setFacultyRecs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setFacultyRecs([]));
-    return unsub;
+    const load = async () => {
+      try {
+        const { data } = await getRecommendations();
+        setFacultyRecs(data.recommendations || []);
+      } catch {
+        setFacultyRecs([]);
+      }
+    };
+    load();
   }, [user?.uid]);
 
   // AI recommendations from backend
