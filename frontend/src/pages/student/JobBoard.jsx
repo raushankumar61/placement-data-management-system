@@ -1,7 +1,7 @@
 // src/pages/student/JobBoard.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, MapPin, DollarSign, Calendar, Briefcase, Filter, ExternalLink } from 'lucide-react';
+import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { addDoc, collection, doc, increment, onSnapshot, query, serverTimestamp, setDoc, writeBatch, where } from 'firebase/firestore';
@@ -10,11 +10,46 @@ import { useAuth } from '../../context/AuthContext';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
+const BRANCH_ALIASES = {
+  cse: 'computer science',
+  cs: 'computer science',
+  'computer science and engineering': 'computer science',
+  'computer engineering': 'computer science',
+  it: 'information technology',
+  ise: 'information technology',
+  ece: 'electronics & communication',
+  'electronics and communication': 'electronics & communication',
+  eee: 'electrical',
+  aiml: 'artificial intelligence & machine learning',
+  ai: 'artificial intelligence & machine learning',
+  ml: 'artificial intelligence & machine learning',
+  ds: 'data science',
+};
+
+const canonicalBranch = (value) => {
+  const base = normalize(value).replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!base) return '';
+  return BRANCH_ALIASES[base] || base;
+};
+
+const parseNumber = (value, fallback = 0) => {
+  const text = String(value ?? '').trim();
+  if (!text) return fallback;
+  const match = text.match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : fallback;
+};
+
 const branchMatches = (jobBranches, studentBranch) => {
-  if (!studentBranch) return true;
+  const normalizedStudentBranch = canonicalBranch(studentBranch);
+  if (!normalizedStudentBranch) return true;
   const branches = Array.isArray(jobBranches) ? jobBranches : [];
   if (!branches.length || branches.some((branch) => normalize(branch) === 'all')) return true;
-  return branches.some((branch) => normalize(branch).includes(normalize(studentBranch)) || normalize(studentBranch).includes(normalize(branch)));
+  return branches.some((branch) => {
+    const normalizedBranch = canonicalBranch(branch);
+    return normalizedBranch === normalizedStudentBranch
+      || normalizedBranch.includes(normalizedStudentBranch)
+      || normalizedStudentBranch.includes(normalizedBranch);
+  });
 };
 
 const deadlineToLabel = (deadline) => {
@@ -58,14 +93,30 @@ export default function StudentJobBoard() {
 
   const displayedJobs = useMemo(() => {
     const studentBranch = student?.branch || userProfile?.department || '';
-    const studentCgpa = student?.cgpa == null ? 10 : Number(student?.cgpa || 0);
+    const studentCgpa = student?.cgpa == null ? 10 : parseNumber(student?.cgpa, 0);
     const appliedJobIds = new Set(applications.map((application) => application.jobId));
 
     return jobs.map((job) => {
-      const minCgpa = Number(job.minCGPA || 0);
-      const eligible = (!minCgpa || studentCgpa >= minCgpa) && branchMatches(job.branches, studentBranch) && normalize(job.status) !== 'closed';
+      const minCgpa = parseNumber(job.minCGPA, 0);
+      const isOpen = normalize(job.status) !== 'closed';
+      const meetsCgpa = !minCgpa || studentCgpa >= minCgpa;
+      const meetsBranch = branchMatches(job.branches, studentBranch);
+      const eligible = isOpen && meetsCgpa && meetsBranch;
+      const reason = !isOpen
+        ? 'Job is closed'
+        : !meetsCgpa
+          ? `CGPA requirement: ${job.minCGPA || minCgpa}`
+          : !meetsBranch
+            ? `Branch mismatch (${studentBranch || 'N/A'})`
+            : '';
+
       return {
         ...job,
+        minCgpa,
+        meetsCgpa,
+        meetsBranch,
+        isOpen,
+        reason,
         eligible,
         applied: appliedJobIds.has(job.id),
       };
@@ -96,6 +147,11 @@ export default function StudentJobBoard() {
 
     if (!user?.uid) {
       toast.error('Please sign in to apply');
+      return;
+    }
+
+    if (!job.eligible) {
+      toast.error(job.reason || 'You are not eligible for this job');
       return;
     }
 
@@ -269,9 +325,9 @@ export default function StudentJobBoard() {
             )}
 
             {selected.applyLink && (
-              <a href={selected.applyLink} target="_blank" rel="noreferrer" className="block text-center btn-outline w-full text-sm py-2.5">
-                Open Apply Link
-              </a>
+              <div className="rounded-xl border border-blue-electric/30 bg-blue-electric/10 text-blue-electric text-xs font-body px-3 py-2.5 text-center">
+                Demo mode enabled: external apply link is disabled. Use Apply Now.
+              </div>
             )}
 
             {selected.eligible ? (
@@ -289,7 +345,7 @@ export default function StudentJobBoard() {
               </button>
             ) : (
               <div className="py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center font-body">
-                Not eligible (CGPA requirement: {selected.minCGPA})
+                Not eligible ({selected.reason || `CGPA requirement: ${selected.minCGPA}`})
               </div>
             )}
           </motion.div>
