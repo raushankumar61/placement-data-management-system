@@ -11,7 +11,11 @@ const { admin } = require('./config/firebase');
 const app = express();
 
 // ── Security Middleware ──────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: false,
+}));
 app.use(compression());
 app.use(morgan('combined'));
 
