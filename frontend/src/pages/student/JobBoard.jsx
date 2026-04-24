@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, MapPin, DollarSign, Calendar, Briefcase, Filter, ExternalLink } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, increment, onSnapshot, query, serverTimestamp, setDoc, writeBatch, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -94,19 +94,57 @@ export default function StudentJobBoard() {
       return;
     }
 
+    if (!user?.uid) {
+      toast.error('Please sign in to apply');
+      return;
+    }
+
     setApplying(true);
     try {
-      await addDoc(collection(db, 'applications'), {
-        studentId: user?.uid,
-        studentEmail: user?.email || userProfile?.email || '',
+      const studentName = student?.name || userProfile?.name || user?.displayName || 'Student';
+      const studentEmail = user?.email || userProfile?.email || '';
+      const applicationRef = doc(collection(db, 'applications'));
+      const studentRef = doc(db, 'students', user.uid);
+      const jobRef = doc(db, 'jobs', job.id);
+      const batch = writeBatch(db);
+
+      batch.set(applicationRef, {
+        studentId: user.uid,
+        studentEmail,
+        studentName,
+        studentBranch: student?.branch || userProfile?.department || '',
+        studentCgpa: student?.cgpa ?? '',
+        studentRollNo: student?.rollNo || '',
+        studentUsn: student?.usn || '',
         jobId: job.id,
         company: job.company,
         role: job.title,
+        recruiterId: job.recruiterId || '',
+        recruiterName: job.recruiterName || job.company || '',
+        source: 'Demo Apply',
+        round: 'Screening',
+        interviewDate: '',
+        expectedCTC: job.ctc || '',
+        offeredCTC: '',
+        notes: 'Demo application created from the student job board.',
+        feedback: '',
+        resumeScore: 100,
         status: 'Applied',
         appliedAt: new Date().toISOString(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      batch.update(jobRef, { applicants: increment(1), updatedAt: serverTimestamp() });
+      batch.set(studentRef, {
+        applicationCount: increment(1),
+        latestApplicationCompany: job.company,
+        latestApplicationStatus: 'Applied',
+        applicationSources: ['Demo Apply'],
+        placementStatus: student?.placementStatus === 'placed' ? 'placed' : 'in-process',
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      await batch.commit();
       toast.success('Application submitted successfully!');
     } catch {
       toast.error('Unable to submit application');
