@@ -6,6 +6,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const { admin } = require('./config/firebase');
 
 const app = express();
 
@@ -57,6 +58,19 @@ app.use('/api/v1/analytics', require('./routes/analytics'));
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '2.0.0' });
+});
+
+// Non-sensitive diagnostics for production auth wiring.
+app.get('/health/auth', (req, res) => {
+  const adminApp = admin.apps?.[0];
+  const configuredProject = process.env.FIREBASE_PROJECT_ID || null;
+  const runtimeProject = adminApp?.options?.projectId || null;
+  res.json({
+    adminInitialized: Boolean(adminApp),
+    configuredProject,
+    runtimeProject,
+    envServiceAccountPresent: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
+  });
 });
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
