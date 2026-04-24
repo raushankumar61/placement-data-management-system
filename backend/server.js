@@ -30,6 +30,7 @@ app.use('/api/v1/auth', require('./routes/auth'));
 app.use('/api/v1/students', require('./routes/students'));
 app.use('/api/v1/jobs', require('./routes/jobs'));
 app.use('/api/v1/applications', require('./routes/applications'));
+app.use('/api/v1/interviews', require('./routes/interviews'));
 app.use('/api/v1/recruiters', require('./routes/recruiters'));
 app.use('/api/v1/reports', require('./routes/reports'));
 app.use('/api/v1/notifications', require('./routes/notifications'));

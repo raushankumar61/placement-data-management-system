@@ -248,11 +248,10 @@ export default function StudentProfile() {
         <div className="glass-card p-5 space-y-4">
           <p className="section-title">Placement Details</p>
           <div className="grid md:grid-cols-3 gap-4">
-            <select value={form.placementStatus} onChange={(e) => setForm({ ...form, placementStatus: e.target.value })} className="input-field text-sm appearance-none">
-              <option value="unplaced" className="bg-dark-700">Unplaced</option>
-              <option value="in-process" className="bg-dark-700">In Process</option>
-              <option value="placed" className="bg-dark-700">Placed</option>
-            </select>
+            <div className="input-field text-sm flex items-center justify-between gap-3 opacity-90">
+              <span className="text-white/50 text-xs uppercase tracking-wider font-body">Placement Status</span>
+              <span className="text-white font-semibold capitalize">{form.placementStatus || 'unplaced'}</span>
+            </div>
             <input value={form.companyPlaced} onChange={(e) => setForm({ ...form, companyPlaced: e.target.value })} className="input-field text-sm" placeholder="Company placed in" />
             <input value={form.currentPackage} onChange={(e) => setForm({ ...form, currentPackage: e.target.value })} className="input-field text-sm" placeholder="Current package (LPA)" />
 

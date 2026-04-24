@@ -10,6 +10,60 @@ const { createApplicationDefaults, syncStudentRollup } = require('../utils/marke
 const { logActivity } = require('../utils/activityLogger');
 const { sendMail, buildStatusUpdateHtml } = require('../utils/emailService');
 
+const parseNumber = (value, fallback = 0) => {
+  const match = String(value ?? '').match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : fallback;
+};
+
+const parsePackageToLpa = (value) => {
+  const text = String(value || '').toLowerCase();
+  const amount = parseNumber(text, NaN);
+  if (Number.isNaN(amount)) return null;
+  if (text.includes('lpa') || text.includes('lac')) return amount;
+  if (text.includes('k/month') || text.includes('/month') || text.includes('per month')) return Number(((amount * 12) / 100).toFixed(2));
+  if (text.includes('pa') || text.includes('per annum')) return Number((amount / 100000).toFixed(2));
+  return amount;
+};
+
+const canonical = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+const branchMatches = (jobBranches, studentBranch) => {
+  const student = canonical(studentBranch);
+  if (!student) return true;
+  const branches = Array.isArray(jobBranches) ? jobBranches : [];
+  if (!branches.length || branches.some((branch) => canonical(branch) === 'all')) return true;
+  return branches.some((branch) => {
+    const current = canonical(branch);
+    return current === student || current.includes(student) || student.includes(current);
+  });
+};
+
+const canApplyToJob = (student = {}, job = {}) => {
+  const cgpa = parseNumber(student.cgpa, 0);
+  const minCgpa = parseNumber(job.minCGPA, 0);
+  const studentStatus = String(student.placementStatus || 'unplaced').toLowerCase();
+  const studentPackage = parsePackageToLpa(student.currentPackage || student.highestPackage || '');
+  const jobPackage = parsePackageToLpa(job.ctc || job.stipend || '');
+
+  if (String(job.status || '').toLowerCase() === 'closed') {
+    return { allowed: false, reason: 'Job is closed' };
+  }
+
+  if (minCgpa && cgpa < minCgpa) {
+    return { allowed: false, reason: `CGPA requirement: ${job.minCGPA || minCgpa}` };
+  }
+
+  if (!branchMatches(job.branches, student.branch)) {
+    return { allowed: false, reason: 'Branch mismatch' };
+  }
+
+  if (studentStatus === 'placed' && (studentPackage == null || jobPackage == null || jobPackage <= studentPackage)) {
+    return { allowed: false, reason: `Requires package higher than current (${student.currentPackage || 'N/A'})` };
+  }
+
+  return { allowed: true };
+};
+
 const recomputeStudentRollup = async (studentId, actorUid) => {
   if (!db || !studentId) return;
 
@@ -74,8 +128,18 @@ router.post(
       const { jobId } = req.body;
       const studentId = req.user.uid;
 
+      const studentSnap = db ? await db.collection('students').doc(studentId).get() : null;
+      const student = studentSnap?.exists ? studentSnap.data() : {};
       const jobSnap = db ? await db.collection('jobs').doc(jobId).get() : null;
-      const job = jobSnap?.exists ? jobSnap.data() : {};
+      if (!jobSnap?.exists) {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+      const job = jobSnap.data();
+
+      const eligibility = canApplyToJob(student, job);
+      if (!eligibility.allowed) {
+        return res.status(403).json({ error: eligibility.reason || 'You are not eligible for this job' });
+      }
 
       const payload = createApplicationDefaults({
         studentId,
@@ -156,6 +220,13 @@ router.put(
 
       const snap = db ? await db.collection('applications').doc(req.params.id).get() : null;
       const current = snap?.exists ? snap.data() : {};
+      const jobSnap = db && current.jobId ? await db.collection('jobs').doc(current.jobId).get() : null;
+      const job = jobSnap?.exists ? jobSnap.data() : {};
+
+      if (req.user.role === 'recruiter' && job.recruiterId && job.recruiterId !== req.user.uid) {
+        return res.status(403).json({ error: 'You can only update applications for your own jobs' });
+      }
+
       const payload = createApplicationDefaults({
         ...current,
         status,

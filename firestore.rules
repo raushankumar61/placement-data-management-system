@@ -76,12 +76,18 @@ service cloud.firestore {
 
     // ── Notifications ─────────────────────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isFaculty()
+        || (isStudent() && (resource.data.targetRole == null || resource.data.targetRole == 'all' || resource.data.targetRole == 'student') && (resource.data.targetUid == null || resource.data.targetUid == request.auth.uid))
+        || (isRecruiter() && (resource.data.targetRole == null || resource.data.targetRole == 'all' || resource.data.targetRole == 'recruiter') && (resource.data.targetUid == null || resource.data.targetUid == request.auth.uid));
       allow create: if isAdminOrFaculty();
-      // FIX: Only allow updating the 'read' field — not the entire document.
-      // Any user can mark a notification as read (add their UID to the read array).
+      // Only allow updating the read list for notifications visible to the caller.
       allow update: if isAuthenticated()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && (
+          isAdmin() || isFaculty()
+          || (isStudent() && (resource.data.targetRole == null || resource.data.targetRole == 'all' || resource.data.targetRole == 'student') && (resource.data.targetUid == null || resource.data.targetUid == request.auth.uid))
+          || (isRecruiter() && (resource.data.targetRole == null || resource.data.targetRole == 'all' || resource.data.targetRole == 'recruiter') && (resource.data.targetUid == null || resource.data.targetUid == request.auth.uid))
+        );
       allow delete: if isAdmin();
     }
 

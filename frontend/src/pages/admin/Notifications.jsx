@@ -4,23 +4,31 @@ import { motion } from 'framer-motion';
 import { Bell, Send, Users, Briefcase, GraduationCap, BookOpen } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { addDoc, collection, onSnapshot, query, serverTimestamp, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { sendNotification, getNotifications } from '../../services/api';
 
-const TARGET_ICONS = { students: GraduationCap, recruiters: Briefcase, faculty: BookOpen, all: Users };
-const TARGET_TOTALS = { students: 320, recruiters: 18, faculty: 12, all: 350 };
+const TARGET_ICONS = { student: GraduationCap, recruiter: Briefcase, faculty: BookOpen, all: Users, admin: Users };
+const TARGET_OPTIONS = [
+  { value: 'student', label: 'Students', count: '320' },
+  { value: 'recruiter', label: 'Recruiters', count: '18' },
+  { value: 'faculty', label: 'Faculty', count: '12' },
+  { value: 'all', label: 'Everyone', count: 'All' },
+];
 
 export default function AdminNotifications() {
-  const [form, setForm] = useState({ message: '', target: 'students', type: 'in-app' });
+  const [form, setForm] = useState({ message: '', targetRole: 'student', type: 'in-app' });
   const [sending, setSending] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'notifications'), orderBy('createdAt', 'desc')), (snap) => {
-      setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setNotifications([]));
-
-    return unsub;
+    const load = async () => {
+      try {
+        const { data } = await getNotifications();
+        setNotifications((data.notifications || []).filter((n) => n.sentByRole === 'admin'));
+      } catch {
+        setNotifications([]);
+      }
+    };
+    load();
   }, []);
 
   const handleSend = async (e) => {
@@ -29,19 +37,10 @@ export default function AdminNotifications() {
 
     setSending(true);
     try {
-      const total = TARGET_TOTALS[form.target] || TARGET_TOTALS.all;
-      const ref = await addDoc(collection(db, 'notifications'), {
-        message: form.message,
-        target: form.target,
-        channel: form.type,
-        sentAt: new Date().toISOString(),
-        read: 0,
-        total,
-        createdAt: serverTimestamp(),
-      });
-      setNotifications((prev) => [{ id: ref.id, message: form.message, target: form.target, sentAt: new Date().toISOString(), read: 0, total }, ...prev]);
+      const { data } = await sendNotification(form);
+      setNotifications((prev) => [data, ...prev]);
       toast.success('Notification sent!');
-      setForm({ ...form, message: '' });
+      setForm({ message: '', targetRole: 'student', type: 'in-app' });
     } catch {
       toast.error('Failed to send notification');
     } finally {
@@ -62,15 +61,10 @@ export default function AdminNotifications() {
               <div>
                 <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Target Audience</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: 'students', label: 'Students', count: '320' },
-                    { value: 'recruiters', label: 'Recruiters', count: '18' },
-                    { value: 'faculty', label: 'Faculty', count: '12' },
-                    { value: 'all', label: 'Everyone', count: 'All' },
-                  ].map((t) => (
-                    <button key={t.value} type="button" onClick={() => setForm({ ...form, target: t.value })}
+                    {TARGET_OPTIONS.map((t) => (
+                      <button key={t.value} type="button" onClick={() => setForm({ ...form, targetRole: t.value })}
                       className={`p-2 rounded-xl border text-xs font-body transition-all flex items-center justify-between gap-2 ${
-                        form.target === t.value
+                          form.targetRole === t.value
                           ? 'border-blue-electric/50 bg-blue-electric/10 text-blue-electric'
                           : 'border-white/10 text-white/40 hover:border-white/20'
                       }`}>
@@ -133,19 +127,13 @@ export default function AdminNotifications() {
                   <div className="flex-1 min-w-0">
                     <p className="text-white/80 text-sm font-body leading-relaxed">{n.message}</p>
                     <div className="flex items-center gap-3 mt-2">
-                      <span className="badge-blue capitalize">{n.target}</span>
+                      <span className="badge-blue capitalize">{n.targetRole || 'all'}</span>
                       <span className="text-white/30 text-xs font-body">{String(n.sentAt || '').replace('T', ' ').slice(0, 16)}</span>
                     </div>
                     <div className="mt-3">
-                      <div className="flex justify-between text-xs font-body mb-1">
-                        <span className="text-white/40">Read rate</span>
-                        <span className="text-white/60">{Number(n.read || 0)}/{Number(n.total || 0)} ({readPct}%)</span>
-                      </div>
-                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${readPct}%` }}
-                          transition={{ delay: 0.3 + i * 0.1, duration: 0.6 }}
-                          className="h-full rounded-full bg-blue-electric" />
-                      </div>
+                      <p className="text-white/40 text-xs font-body">
+                        {Array.isArray(n.read) ? `${n.read.length} read` : 'Unread tracking unavailable'}
+                      </p>
                     </div>
                   </div>
                 </div>

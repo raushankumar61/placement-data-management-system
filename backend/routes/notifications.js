@@ -8,6 +8,16 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { logActivity } = require('../utils/activityLogger');
 
+const isNotificationVisibleToUser = (notification = {}, user = {}) => {
+  const role = user.role;
+  const uid = user.uid;
+  const targetRole = notification.targetRole || 'all';
+  const targetUid = notification.targetUid || null;
+  const roleAllowed = targetRole === 'all' || targetRole === role;
+  const uidAllowed = !targetUid || targetUid === uid;
+  return roleAllowed && uidAllowed;
+};
+
 // GET /api/v1/notifications  — all authenticated users, scoped by role
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -16,12 +26,10 @@ router.get('/', verifyToken, async (req, res) => {
     let query = db.collection('notifications').orderBy('sentAt', 'desc').limit(50);
     const snap = await query.get();
 
-    // Filter notifications to those targeting the user's role or 'all'
-    const role = req.user.role;
     const uid = req.user.uid;
     const notifications = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((n) => !n.targetRole || n.targetRole === 'all' || n.targetRole === role)
+      .filter((n) => isNotificationVisibleToUser(n, req.user))
       .map((n) => ({
         ...n,
         isRead: Array.isArray(n.read) ? n.read.includes(uid) : false,
@@ -79,7 +87,11 @@ router.put('/:id/read', verifyToken, async (req, res) => {
       const ref = db.collection('notifications').doc(req.params.id);
       const snap = await ref.get();
       if (snap.exists) {
-        const read = snap.data().read || [];
+        const current = snap.data() || {};
+        if (!isNotificationVisibleToUser(current, req.user)) {
+          return res.status(403).json({ error: 'Notification not accessible' });
+        }
+        const read = current.read || [];
         if (!read.includes(req.user.uid)) {
           await ref.update({ read: [...read, req.user.uid] });
         }
@@ -102,7 +114,9 @@ router.put('/read-all', verifyToken, async (req, res) => {
 
     const batch = db.batch();
     snap.docs.forEach((d) => {
-      const readArr = d.data().read || [];
+      const current = d.data() || {};
+      if (!isNotificationVisibleToUser(current, req.user)) return;
+      const readArr = current.read || [];
       if (!readArr.includes(req.user.uid)) {
         batch.update(d.ref, { read: [...readArr, req.user.uid] });
       }

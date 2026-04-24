@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
-import { syncClaims } from '../services/api';
+import { syncClaims, getMyRecruiterProfile } from '../services/api';
 import { fillStudentDefaults } from '../utils/studentDefaults';
 
 const AuthContext = createContext(null);
@@ -27,9 +27,18 @@ export function AuthProvider({ children }) {
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data();
-        setUserProfile(data);
-        setRole(data.role);
-        return data;
+        let merged = data;
+        if (data.role === 'recruiter') {
+          try {
+            const { data: recruiterProfile } = await getMyRecruiterProfile();
+            merged = { ...data, ...recruiterProfile };
+          } catch {
+            // recruiter doc may not exist yet for new accounts
+          }
+        }
+        setUserProfile(merged);
+        setRole(merged.role);
+        return merged;
       }
     } catch (err) {
       console.error('Error fetching profile:', err);

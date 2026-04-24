@@ -53,8 +53,14 @@ export const getApplications = (params) => api.get('/applications', { params });
 export const createApplication = (data) => api.post('/applications', data);
 export const updateApplicationStatus = (id, status) => api.put(`/applications/${id}/status`, { status });
 
+// ─── Interviews ──────────────────────────────────────────────
+export const getInterviews = (params) => api.get('/interviews', { params });
+export const createInterview = (data) => api.post('/interviews', data);
+export const deleteInterview = (id) => api.delete(`/interviews/${id}`);
+
 // ─── Recruiters ──────────────────────────────────────────────
 export const getRecruiters = () => api.get('/recruiters');
+export const getMyRecruiterProfile = () => api.get('/recruiters/me');
 export const createRecruiter = (data) => api.post('/recruiters', data);
 export const updateRecruiter = (id, data) => api.put(`/recruiters/${id}`, data);
 export const verifyRecruiter = (id, verified) => api.put(`/recruiters/${id}/verify`, { verified });

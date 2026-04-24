@@ -119,6 +119,7 @@ export default function AdminDashboard() {
   const branchData = (data?.byBranch || []).slice(0, 6).map((b) => ({ branch: b.branch?.slice(0, 8), placed: b.placed, total: b.total }));
   const packageDist = data?.packageDist || [];
   const recentActivity = data?.recentActivity || [];
+  const placementRate = stats.students ? Math.round((stats.placed / stats.students) * 100) : 0;
 
   return (
     <DashboardLayout title="Admin Dashboard">
@@ -126,9 +127,9 @@ export default function AdminDashboard() {
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={Users} label="Total Students" value={stats.students.toLocaleString()} sub="↑ 12% this month" color="bg-blue-electric/20" delay={0} />
-          <StatCard icon={CheckCircle2} label="Students Placed" value={stats.placed.toLocaleString()} sub={`${Math.round(stats.placed / stats.students * 100)}% placement rate`} color="bg-green-500/20" delay={0.1} />
-          <StatCard icon={Briefcase} label="Active Drives" value={stats.jobs} sub="8 closing this week" color="bg-gold/20" delay={0.2} />
-          <StatCard icon={Building2} label="Companies" value={stats.companies} sub="12 new this month" color="bg-purple-500/20" delay={0.3} />
+          <StatCard icon={CheckCircle2} label="Students Placed" value={stats.placed.toLocaleString()} sub={`${placementRate}% placement rate`} color="bg-green-500/20" delay={0.1} />
+          <StatCard icon={Briefcase} label="Active Drives" value={stats.jobs} sub={data ? 'Live job pipeline' : 'Loading live data'} color="bg-gold/20" delay={0.2} />
+          <StatCard icon={Building2} label="Companies" value={stats.companies} sub={data ? 'Live recruiter records' : 'Loading live data'} color="bg-purple-500/20" delay={0.3} />
         </div>
 
         {/* Charts Row 1 */}

@@ -8,7 +8,7 @@ import { db } from '../../services/firebase';
 import { updateApplicationStatus } from '../../services/api';
 import toast from 'react-hot-toast';
 
-const STATUS_CLASS = { Selected: 'badge-green', Shortlisted: 'badge-blue', Applied: 'badge-gray', Rejected: 'badge-red' };
+const STATUS_CLASS = { Selected: 'badge-green', Shortlisted: 'badge-blue', Applied: 'badge-gray', Rejected: 'badge-red', 'In Process': 'badge-gold' };
 
 export default function AdminApplications() {
   const [search, setSearch] = useState('');
@@ -84,12 +84,12 @@ export default function AdminApplications() {
       <div className="space-y-5">
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {['Applied', 'Shortlisted', 'Selected', 'Rejected'].map((s) => (
+          {['Applied', 'Shortlisted', 'In Process', 'Selected', 'Rejected'].map((s) => (
             <div key={s} className="glass-card p-4 text-center cursor-pointer hover:border-white/20 transition-colors border border-white/5"
               onClick={() => setStatusFilter(statusFilter === s ? '' : s)}>
               <p className={`font-heading font-bold text-xl ${
                 s === 'Selected' ? 'text-green-400' : s === 'Rejected' ? 'text-red-400' :
-                s === 'Shortlisted' ? 'text-blue-electric' : 'text-white/70'
+                s === 'Shortlisted' ? 'text-blue-electric' : s === 'In Process' ? 'text-gold' : 'text-white/70'
               }`}>{applications.filter((a) => a.status === s).length}</p>
               <p className="text-white/40 text-xs font-body mt-1">{s}</p>
             </div>
@@ -106,7 +106,7 @@ export default function AdminApplications() {
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
             className="input-field py-2 text-sm w-36 appearance-none">
             <option value="">All Status</option>
-            {['Applied', 'Shortlisted', 'Selected', 'Rejected'].map((s) => (
+            {['Applied', 'Shortlisted', 'In Process', 'Selected', 'Rejected'].map((s) => (
               <option key={s} value={s} className="bg-dark-700">{s}</option>
             ))}
           </select>

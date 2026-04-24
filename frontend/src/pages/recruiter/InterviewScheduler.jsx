@@ -5,11 +5,11 @@ import { Calendar, Clock, Plus, X, CheckCircle, User, Video, MapPin } from 'luci
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import {
-  collection, getDocs, addDoc, deleteDoc, doc,
-  orderBy, query, serverTimestamp
+  collection, getDocs, orderBy, query
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { createInterview, deleteInterview } from '../../services/api';
 
 const INITIAL_FORM = {
   studentId: '', role: '', date: '', time: '',
@@ -89,7 +89,6 @@ export default function RecruiterInterviewScheduler() {
 
     const student = shortlistedStudents.find((s) => s.id === form.studentId);
     const newInterview = {
-      student: student?.name || '',
       studentId: student?.id || '',
       role: form.role,
       date: form.date,
@@ -98,26 +97,14 @@ export default function RecruiterInterviewScheduler() {
       platform: form.mode === 'Online' ? (form.platform || 'Google Meet') : 'Offline',
       round: form.round,
       link: form.mode === 'Online' ? form.link : form.venue,
-      createdAt: new Date().toISOString(),
+      venue: form.mode === 'Online' ? '' : form.venue,
+      instructions: form.instructions,
     };
 
     try {
-      const ref = await addDoc(collection(db, 'interviews'), newInterview);
-      setScheduled((prev) => [{ id: ref.id, ...newInterview }, ...prev]);
-
-      // Send in-app notification to the student
-      if (student?.id) {
-        await addDoc(collection(db, 'notifications'), {
-          message: `Interview scheduled: ${form.round} for ${form.role} on ${form.date} at ${form.time} (${form.mode})${form.link ? ` — ${form.link}` : ''}.`,
-          targetRole: 'student',
-          targetUid: student.id,
-          type: 'interview',
-          sentAt: new Date().toISOString(),
-          sentBy: user?.uid || 'system',
-          read: [],
-          interviewId: ref.id,
-        });
-      }
+      const { data: created } = await createInterview(newInterview);
+      const createdRecord = { id: created?.id || `interview-${Date.now()}`, ...newInterview, ...created };
+      setScheduled((prev) => [createdRecord, ...prev]);
 
       toast.success(`Interview scheduled for ${student?.name}!`);
       setShowModal(false);
@@ -131,7 +118,7 @@ export default function RecruiterInterviewScheduler() {
 
   const cancelInterview = async (id) => {
     try {
-      await deleteDoc(doc(db, 'interviews', id));
+      await deleteInterview(id);
       setScheduled((prev) => prev.filter((s) => s.id !== id));
       toast.success('Interview cancelled');
     } catch {
