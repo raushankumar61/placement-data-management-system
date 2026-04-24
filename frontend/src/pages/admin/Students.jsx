@@ -475,6 +475,11 @@ export default function AdminStudents() {
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="input-field text-sm" placeholder="student@college.edu" required />
               </div>
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Phone</label>
+                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="input-field text-sm" placeholder="9876543210" />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Branch</label>
