@@ -128,7 +128,7 @@ export default function FacultyDashboard() {
       name: s.name || 'Student',
       cgpa: Number(s.cgpa || 0),
       status: (s.placementStatus || 'unplaced').toLowerCase(),
-      company: s.company || '—',
+      company: s.companyPlaced || s.latestApplicationCompany || '—',
     }));
   }, [students, userProfile?.department]);
 
@@ -206,8 +206,8 @@ export default function FacultyDashboard() {
       applicationsCount: studentApps.length,
       offersCount,
       placementsCount,
-      companyText: companies.length ? companies.join(', ') : (student.company || 'N/A'),
-      packageText: packages.length ? packages.join(', ') : (student.ctc || 'N/A'),
+      companyText: companies.length ? companies.join(', ') : (student.companyPlaced || student.latestApplicationCompany || 'N/A'),
+      packageText: packages.length ? packages.join(', ') : (student.highestPackage || student.currentPackage || 'N/A'),
       interviewCount: studentInterviews.length,
       interviewExperience,
       suggestions: suggestions.length ? suggestions : autoSuggestions,
