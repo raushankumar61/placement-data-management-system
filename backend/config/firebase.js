@@ -3,6 +3,23 @@ const path = require('path');
 
 const targetProjectId = process.env.FIREBASE_PROJECT_ID || '';
 
+const tryBuildServiceAccountFromSplitEnv = () => {
+  const project_id = process.env.FIREBASE_PROJECT_ID;
+  const client_email = process.env.FIREBASE_CLIENT_EMAIL;
+  let private_key = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (!project_id || !client_email || !private_key) return null;
+
+  // Vercel environment variables usually store newline as escaped \n
+  private_key = String(private_key).replace(/\\n/g, '\n');
+
+  return {
+    project_id,
+    client_email,
+    private_key,
+  };
+};
+
 const tryParseServiceAccount = () => {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) return null;
@@ -28,15 +45,17 @@ const tryReadServiceAccountFile = () => {
 };
 
 const chooseServiceAccount = () => {
+  const splitEnvAccount = tryBuildServiceAccountFromSplitEnv();
   const envAccount = tryParseServiceAccount();
   const fileAccount = tryReadServiceAccountFile();
 
   if (targetProjectId) {
+    if (splitEnvAccount?.project_id === targetProjectId) return splitEnvAccount;
     if (envAccount?.project_id === targetProjectId) return envAccount;
     if (fileAccount?.project_id === targetProjectId) return fileAccount;
   }
 
-  return envAccount || fileAccount;
+  return splitEnvAccount || envAccount || fileAccount;
 };
 
 if (!admin.apps.length) {
