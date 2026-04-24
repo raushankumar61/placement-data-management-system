@@ -6,6 +6,32 @@ const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { createApplicationDefaults, syncStudentRollup } = require('../utils/marketplaceFactory');
 
+const recomputeStudentRollup = async (studentId, actorUid) => {
+  if (!db || !studentId) return;
+
+  const studentRef = db.collection('students').doc(studentId);
+  const studentSnap = await studentRef.get();
+  if (!studentSnap.exists) return;
+
+  const [appsSnap, jobsSnap] = await Promise.all([
+    db.collection('applications').where('studentId', '==', studentId).get(),
+    db.collection('jobs').get(),
+  ]);
+
+  const applications = appsSnap.docs.map((docSnap) => ({
+    id: docSnap.id,
+    ...createApplicationDefaults(docSnap.data() || {}, docSnap.id),
+  }));
+  const jobsById = new Map(jobsSnap.docs.map((docSnap) => [docSnap.id, docSnap.data() || {}]));
+  const rollup = syncStudentRollup({ id: studentSnap.id, ...studentSnap.data() }, applications, jobsById);
+
+  await studentRef.set({
+    ...rollup,
+    updatedAt: new Date().toISOString(),
+    ...(actorUid ? { updatedBy: actorUid } : {}),
+  }, { merge: true });
+};
+
 // GET /api/v1/applications  — all authenticated users (scoped by role in query)
 // Students only see their own; admin/recruiter/faculty can filter freely
 router.get('/', verifyToken, async (req, res) => {
@@ -36,6 +62,10 @@ router.get('/', verifyToken, async (req, res) => {
 router.post('/', verifyToken, requireRole('student'), async (req, res) => {
   try {
     const { jobId } = req.body;
+    if (!jobId) {
+      return res.status(400).json({ error: 'jobId is required' });
+    }
+
     const studentId = req.user.uid;
     const jobSnap = db ? await db.collection('jobs').doc(jobId).get() : null;
     const job = jobSnap?.exists ? jobSnap.data() : {};
@@ -51,6 +81,9 @@ router.post('/', verifyToken, requireRole('student'), async (req, res) => {
       recruiterId: job.recruiterId || '',
       recruiterName: job.recruiterName || '',
       expectedCTC: req.body.expectedCTC || job.ctc || '',
+      source: req.body.source || '',
+      round: req.body.round || '',
+      notes: req.body.notes || '',
       status: 'Applied',
       appliedAt: new Date().toISOString(),
     }, `${studentId}-${jobId}`);
@@ -71,10 +104,12 @@ router.post('/', verifyToken, requireRole('student'), async (req, res) => {
 
     // Increment applicant count on job
     const jobRef = db.collection('jobs').doc(jobId);
-    const jobSnap = await jobRef.get();
-    if (jobSnap.exists) {
-      await jobRef.update({ applicants: (jobSnap.data().applicants || 0) + 1 });
+    const createdJobSnap = await jobRef.get();
+    if (createdJobSnap.exists) {
+      await jobRef.update({ applicants: (createdJobSnap.data().applicants || 0) + 1 });
     }
+
+    await recomputeStudentRollup(studentId, req.user.uid);
 
     res.status(201).json({ id: ref.id, ...payload });
   } catch (err) {
@@ -93,23 +128,12 @@ router.put('/:id/status', verifyToken, requireRole('admin', 'recruiter'), async 
 
     const snap = db ? await db.collection('applications').doc(req.params.id).get() : null;
     const current = snap?.exists ? snap.data() : {};
-    const jobSnap = db && current.jobId ? await db.collection('jobs').doc(current.jobId).get() : null;
-    const job = jobSnap?.exists ? jobSnap.data() : {};
     const payload = createApplicationDefaults({ ...current, status, updatedAt: new Date().toISOString(), updatedBy: req.user.uid }, req.params.id);
     if (db) {
       await db.collection('applications').doc(req.params.id).update(payload);
 
       if (current.studentId) {
-        const studentRef = db.collection('students').doc(current.studentId);
-        const studentSnap = await studentRef.get();
-        if (studentSnap.exists) {
-          const student = syncStudentRollup({ id: studentSnap.id, ...studentSnap.data() }, [payload], new Map([[current.jobId, job]]));
-          await studentRef.set({
-            ...student,
-            updatedAt: new Date().toISOString(),
-            updatedBy: req.user.uid,
-          }, { merge: true });
-        }
+        await recomputeStudentRollup(current.studentId, req.user.uid);
       }
     }
 

@@ -4,9 +4,10 @@ import { motion } from 'framer-motion';
 import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { addDoc, collection, doc, increment, onSnapshot, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { createApplication } from '../../services/api';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
@@ -195,48 +196,22 @@ export default function StudentJobBoard() {
 
     setApplying(true);
     try {
-      const studentName = student?.name || userProfile?.name || user?.displayName || 'Student';
-      const studentEmail = user?.email || userProfile?.email || '';
-      const studentRef = doc(db, 'students', user.uid);
-
-      await addDoc(collection(db, 'applications'), {
-        studentId: user.uid,
-        studentEmail,
-        studentName,
-        studentBranch: student?.branch || userProfile?.department || '',
-        studentCgpa: student?.cgpa ?? '',
-        studentRollNo: student?.rollNo || '',
-        studentUsn: student?.usn || '',
+      await createApplication({
         jobId: job.id,
-        company: job.company,
-        role: job.title,
-        recruiterId: job.recruiterId || '',
-        recruiterName: job.recruiterName || job.company || '',
+        branch: student?.branch || userProfile?.department || '',
+        expectedCTC: job.ctc || '',
         source: 'Demo Apply',
         round: 'Screening',
-        interviewDate: '',
-        expectedCTC: job.ctc || '',
-        offeredCTC: '',
         notes: 'Demo application created from the student job board.',
-        feedback: '',
-        resumeScore: 100,
-        status: 'Applied',
-        appliedAt: new Date().toISOString(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
-
-      await setDoc(studentRef, {
-        applicationCount: increment(1),
-        latestApplicationCompany: job.company,
-        latestApplicationStatus: 'Applied',
-        applicationSources: ['Demo Apply'],
-        placementStatus: student?.placementStatus === 'placed' ? 'placed' : 'in-process',
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
       toast.success('Application submitted successfully!');
-    } catch {
-      toast.error('Unable to submit application');
+    } catch (error) {
+      const message = error?.response?.data?.error || 'Unable to submit application';
+      if (error?.response?.status === 409) {
+        toast.error('You already applied to this job');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setApplying(false);
     }
