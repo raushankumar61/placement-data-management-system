@@ -11,6 +11,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
 import { syncClaims } from '../services/api';
+import { fillStudentDefaults } from '../utils/studentDefaults';
 
 const AuthContext = createContext(null);
 
@@ -109,39 +110,12 @@ export function AuthProvider({ children }) {
 
     // Create role-specific doc
     if (userRole === 'student') {
-      await setDoc(doc(db, 'students', result.user.uid), {
+      await setDoc(doc(db, 'students', result.user.uid), fillStudentDefaults({
         name,
         email,
-        phone: '',
-        rollNo: '',
-        usn: '',
-        cgpa: 0,
         branch: department || '',
-        skills: [],
-        bio: '',
-        linkedin: '',
-        github: '',
-        projects: [],
-        certificationLinks: [],
-        resumeURL: '',
-        placementReadinessScore: 0,
-        placementStatus: 'unplaced',
-        companyPlaced: '',
-        currentPackage: '',
-        highestPackage: '',
-        offersCount: 0,
-        offerCompanies: [],
-        interviewExperience: '',
-        improvementSuggestions: [],
-        address: '',
-        dateOfBirth: '',
-        gender: '',
-        graduationYear: '',
-        tenthPercentage: '',
-        twelfthPercentage: '',
-        backlogCount: 0,
         createdAt: serverTimestamp(),
-      });
+      }, result.user.uid));
     } else if (userRole === 'recruiter') {
       await setDoc(doc(db, 'recruiters', result.user.uid), {
         companyName: '',

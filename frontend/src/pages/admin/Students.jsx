@@ -8,6 +8,7 @@ import { TableSkeleton } from '../../components/common/SkeletonLoader';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { bulkImportStudents } from '../../services/api';
+import { fillStudentDefaults } from '../../utils/studentDefaults';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
@@ -89,7 +90,7 @@ export default function AdminStudents() {
         getDocs(collection(db, 'jobs')),
         getDocs(collection(db, 'interviews')),
       ]);
-      const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const data = studentsSnap.docs.map((d) => ({ id: d.id, ...fillStudentDefaults(d.data() || {}, d.id) }));
       const apps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const jobs = jobsSnap.docs.reduce((acc, d) => {
         acc[d.id] = d.data();
@@ -194,16 +195,17 @@ export default function AdminStudents() {
 
   const openModal = (student = null) => {
     setEditStudent(student);
-    setForm(student ? {
+    const normalized = student ? fillStudentDefaults(student, student.id) : null;
+    setForm(normalized ? {
       ...INITIAL_FORM,
-      ...student,
-      skills: Array.isArray(student.skills) ? student.skills.join(', ') : String(student.skills || ''),
-      offerCompanies: Array.isArray(student.offerCompanies) ? student.offerCompanies.join(', ') : String(student.offerCompanies || ''),
-      projects: Array.isArray(student.projects) ? student.projects.join(', ') : String(student.projects || ''),
-      certificationLinks: Array.isArray(student.certificationLinks) ? student.certificationLinks.join(', ') : String(student.certificationLinks || ''),
-      improvementSuggestions: Array.isArray(student.improvementSuggestions)
-        ? student.improvementSuggestions.join('\n')
-        : String(student.improvementSuggestions || ''),
+      ...normalized,
+      skills: Array.isArray(normalized.skills) ? normalized.skills.join(', ') : String(normalized.skills || ''),
+      offerCompanies: Array.isArray(normalized.offerCompanies) ? normalized.offerCompanies.join(', ') : String(normalized.offerCompanies || ''),
+      projects: Array.isArray(normalized.projects) ? normalized.projects.join(', ') : String(normalized.projects || ''),
+      certificationLinks: Array.isArray(normalized.certificationLinks) ? normalized.certificationLinks.join(', ') : String(normalized.certificationLinks || ''),
+      improvementSuggestions: Array.isArray(normalized.improvementSuggestions)
+        ? normalized.improvementSuggestions.join('\n')
+        : String(normalized.improvementSuggestions || ''),
     } : INITIAL_FORM);
     setShowModal(true);
   };
@@ -212,17 +214,13 @@ export default function AdminStudents() {
     e.preventDefault();
     setSaving(true);
     try {
+      const normalized = fillStudentDefaults(form, editStudent?.id || form.email || form.rollNo || 'new-student');
       const payload = {
-        ...form,
-        cgpa: Number(form.cgpa || 0),
-        offersCount: Number(form.offersCount || 0),
-        placementReadinessScore: Number(form.placementReadinessScore || 0),
-        backlogCount: Number(form.backlogCount || 0),
-        skills: String(form.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
-        offerCompanies: String(form.offerCompanies || '').split(',').map((s) => s.trim()).filter(Boolean),
-        projects: String(form.projects || '').split(',').map((s) => s.trim()).filter(Boolean),
-        certificationLinks: String(form.certificationLinks || '').split(',').map((s) => s.trim()).filter(Boolean),
-        improvementSuggestions: String(form.improvementSuggestions || '').split('\n').map((s) => s.trim()).filter(Boolean),
+        ...normalized,
+        cgpa: Number(normalized.cgpa || 0),
+        offersCount: Number(normalized.offersCount || 0),
+        placementReadinessScore: Number(normalized.placementReadinessScore || 0),
+        backlogCount: Number(normalized.backlogCount || 0),
         updatedAt: serverTimestamp(),
       };
       if (editStudent?.id) {

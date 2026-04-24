@@ -6,6 +6,7 @@ const XLSX = require('xlsx');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { createSeededRecord } = require('../utils/studentFactory');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -45,13 +46,14 @@ router.get('/:id', verifyToken, requireRole('admin', 'faculty', 'recruiter'), as
 // POST /api/v1/students  — admin only
 router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    if (!db) return res.json({ id: uuidv4(), ...req.body });
+    const payload = createSeededRecord(req.body, req.body.email || req.body.rollNo || uuidv4());
+    if (!db) return res.json({ id: uuidv4(), ...payload });
     const ref = await db.collection('students').add({
-      ...req.body,
+      ...payload,
       createdAt: new Date().toISOString(),
       createdBy: req.user.uid,
     });
-    res.status(201).json({ id: ref.id, ...req.body });
+    res.status(201).json({ id: ref.id, ...payload });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -60,13 +62,16 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
 // PUT /api/v1/students/:id  — admin only
 router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    if (!db) return res.json({ id: req.params.id, ...req.body });
+    const existingSnap = db ? await db.collection('students').doc(req.params.id).get() : null;
+    const existing = existingSnap?.exists ? existingSnap.data() : {};
+    const payload = createSeededRecord({ ...existing, ...req.body }, req.params.id);
+    if (!db) return res.json({ id: req.params.id, ...payload });
     await db.collection('students').doc(req.params.id).update({
-      ...req.body,
+      ...payload,
       updatedAt: new Date().toISOString(),
       updatedBy: req.user.uid,
     });
-    res.json({ id: req.params.id, ...req.body });
+    res.json({ id: req.params.id, ...payload });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -95,7 +100,7 @@ router.post('/bulk-import', verifyToken, requireRole('admin'), upload.single('fi
 
     for (const row of rows) {
       try {
-        const student = {
+        const student = createSeededRecord({
           name: row['Name'] || row['name'] || '',
           email: row['Email'] || row['email'] || '',
           branch: row['Branch'] || row['branch'] || '',
@@ -105,7 +110,7 @@ router.post('/bulk-import', verifyToken, requireRole('admin'), upload.single('fi
           placementStatus: row['Status'] || 'unplaced',
           createdAt: new Date().toISOString(),
           importedBy: req.user.uid,
-        };
+        }, row['Email'] || row['Roll No'] || row['Name'] || uuidv4());
 
         if (db) {
           await db.collection('students').add(student);

@@ -8,6 +8,7 @@ import { doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/fi
 import { db } from '../../services/firebase';
 import toast from 'react-hot-toast';
 import { validateForm, validators } from '../../utils/validation';
+import { fillStudentDefaults } from '../../utils/studentDefaults';
 
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'Artificial Intelligence & Machine Learning', 'Data Science'];
 
@@ -61,19 +62,15 @@ export default function StudentProfile() {
     const studentRef = doc(db, 'students', user.uid);
     const unsub = onSnapshot(studentRef, (snap) => {
       const data = snap.exists() ? snap.data() : {};
-      setForm({
+      const normalized = fillStudentDefaults({
         ...DEFAULT_FORM,
         ...data,
-        name: data.name || userProfile?.name || '',
-        email: data.email || userProfile?.email || user?.email || '',
-        branch: data.branch || userProfile?.branch || userProfile?.department || '',
-        skills: normalizeList(data.skills),
-        offerCompanies: normalizeList(data.offerCompanies),
-        projects: normalizeList(data.projects),
-        certificationLinks: normalizeList(data.certificationLinks),
-        improvementSuggestions: Array.isArray(data.improvementSuggestions)
-          ? data.improvementSuggestions
-          : String(data.improvementSuggestions || '').split('\n').map((s) => s.trim()).filter(Boolean),
+      }, user.uid);
+      setForm({
+        ...normalized,
+        name: normalized.name || userProfile?.name || '',
+        email: normalized.email || userProfile?.email || user?.email || '',
+        branch: normalized.branch || userProfile?.branch || userProfile?.department || '',
       });
     }, () => {
       setForm((prev) => ({ ...prev, name: userProfile?.name || '', email: userProfile?.email || user?.email || '' }));
@@ -117,19 +114,13 @@ export default function StudentProfile() {
 
     setSaving(true);
     try {
+      const normalized = fillStudentDefaults(form, user.uid);
       const payload = {
-        ...form,
-        cgpa: Number(form.cgpa || 0),
-        backlogCount: Number(form.backlogCount || 0),
-        offersCount: Number(form.offersCount || 0),
-        placementReadinessScore: Number(form.placementReadinessScore || 0),
-        skills: normalizeList(form.skills),
-        offerCompanies: normalizeList(form.offerCompanies),
-        projects: normalizeList(form.projects),
-        certificationLinks: normalizeList(form.certificationLinks),
-        improvementSuggestions: Array.isArray(form.improvementSuggestions)
-          ? form.improvementSuggestions
-          : String(form.improvementSuggestions || '').split('\n').map((s) => s.trim()).filter(Boolean),
+        ...normalized,
+        cgpa: Number(normalized.cgpa || 0),
+        backlogCount: Number(normalized.backlogCount || 0),
+        offersCount: Number(normalized.offersCount || 0),
+        placementReadinessScore: Number(normalized.placementReadinessScore || 0),
         updatedAt: serverTimestamp(),
       };
 
