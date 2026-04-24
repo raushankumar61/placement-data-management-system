@@ -58,73 +58,77 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`🚀 PlaceCloud API v2 running on port ${PORT}`);
 
-  // ── Interview Reminder Cron (daily at 8 AM) ────────────────────────────────
-  try {
-    const cron = require('node-cron');
-    const { db } = require('./config/firebase');
-    const { sendMail, buildInterviewReminderHtml } = require('./utils/emailService');
+if (!process.env.VERCEL) {
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 PlaceCloud API v2 running on port ${PORT}`);
 
-    cron.schedule('0 8 * * *', async () => {
-      console.log('[cron] Running interview reminder job...');
-      if (!db) return;
+    // ── Interview Reminder Cron (daily at 8 AM) ────────────────────────────────
+    try {
+      const cron = require('node-cron');
+      const { db } = require('./config/firebase');
+      const { sendMail, buildInterviewReminderHtml } = require('./utils/emailService');
 
-      try {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+      cron.schedule('0 8 * * *', async () => {
+        console.log('[cron] Running interview reminder job...');
+        if (!db) return;
 
-        const snap = await db.collection('interviews')
-          .where('date', '==', tomorrowStr)
-          .get();
+        try {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
-        let sent = 0;
-        for (const doc of snap.docs) {
-          const data = doc.data();
-          if (!data.studentEmail || data.status === 'completed') continue;
+          const snap = await db.collection('interviews')
+            .where('date', '==', tomorrowStr)
+            .get();
 
-          const emailSent = await sendMail({
-            to: data.studentEmail,
-            subject: `🗓️ Interview Tomorrow: ${data.company} — PlaceCloud`,
-            html: buildInterviewReminderHtml({
-              studentName: data.studentName,
-              company: data.company,
-              role: data.role,
-              round: data.round,
-              date: tomorrowStr,
-              time: data.time,
-              mode: data.mode,
-              link: data.link,
-            }),
-          });
+          let sent = 0;
+          for (const doc of snap.docs) {
+            const data = doc.data();
+            if (!data.studentEmail || data.status === 'completed') continue;
 
-          // Also push in-app notification
-          await db.collection('notifications').add({
-            message: `Reminder: Your ${data.round || 'interview'} at ${data.company} is tomorrow at ${data.time || 'the scheduled time'}.`,
-            targetRole: 'student',
-            targetUid: data.studentId,
-            type: 'in-app',
-            sentAt: new Date().toISOString(),
-            sentBy: 'system',
-            read: [],
-            interviewId: doc.id,
-          });
+            const emailSent = await sendMail({
+              to: data.studentEmail,
+              subject: `🗓️ Interview Tomorrow: ${data.company} — PlaceCloud`,
+              html: buildInterviewReminderHtml({
+                studentName: data.studentName,
+                company: data.company,
+                role: data.role,
+                round: data.round,
+                date: tomorrowStr,
+                time: data.time,
+                mode: data.mode,
+                link: data.link,
+              }),
+            });
 
-          if (emailSent) sent++;
+            // Also push in-app notification
+            await db.collection('notifications').add({
+              message: `Reminder: Your ${data.round || 'interview'} at ${data.company} is tomorrow at ${data.time || 'the scheduled time'}.`,
+              targetRole: 'student',
+              targetUid: data.studentId,
+              type: 'in-app',
+              sentAt: new Date().toISOString(),
+              sentBy: 'system',
+              read: [],
+              interviewId: doc.id,
+            });
+
+            if (emailSent) sent++;
+          }
+
+          console.log(`[cron] Sent ${sent} interview reminder emails for ${tomorrowStr}`);
+        } catch (err) {
+          console.error('[cron] Interview reminder error:', err.message);
         }
+      });
 
-        console.log(`[cron] Sent ${sent} interview reminder emails for ${tomorrowStr}`);
-      } catch (err) {
-        console.error('[cron] Interview reminder error:', err.message);
-      }
-    });
-
-    console.log('⏰ Interview reminder cron scheduled (daily 8 AM)');
-  } catch (err) {
-    console.warn('⚠️  Could not start cron scheduler:', err.message);
-  }
-});
+      console.log('⏰ Interview reminder cron scheduled (daily 8 AM)');
+    } catch (err) {
+      console.warn('⚠️  Could not start cron scheduler:', err.message);
+    }
+  });
+}
 
 module.exports = app;
+
