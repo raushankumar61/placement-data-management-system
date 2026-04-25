@@ -15,20 +15,30 @@ const BRANCH_ALIASES = {
   cse: 'computer science',
   cs: 'computer science',
   'computer science and engineering': 'computer science',
+  'computer science engineering': 'computer science',
   'computer engineering': 'computer science',
   it: 'information technology',
   ise: 'information technology',
+  'information science': 'information technology',
+  'information science engineering': 'information technology',
   ece: 'electronics & communication',
   'electronics and communication': 'electronics & communication',
+  'electronics communication engineering': 'electronics & communication',
   eee: 'electrical',
   aiml: 'artificial intelligence & machine learning',
+  'artificial intelligence': 'artificial intelligence & machine learning',
   ai: 'artificial intelligence & machine learning',
   ml: 'artificial intelligence & machine learning',
   ds: 'data science',
 };
 
 const canonicalBranch = (value) => {
-  const base = normalize(value).replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const base = normalize(value)
+    .replace(/engineering/g, '')
+    .replace(/department/g, '')
+    .replace(/[^a-z0-9& ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!base) return '';
   return BRANCH_ALIASES[base] || base;
 };
