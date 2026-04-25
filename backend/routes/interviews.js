@@ -7,21 +7,27 @@ const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { logActivity } = require('../utils/activityLogger');
+const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
 
 // GET /api/v1/interviews - authenticated users can list interviews
 router.get('/', verifyToken, async (req, res) => {
   try {
     if (!db) return res.json({ interviews: [], total: 0 });
 
-    let query = db.collection('interviews');
+    const snap = await db.collection('interviews').orderBy('createdAt', 'desc').get();
+    const interviews = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+
     if (req.user.role === 'student') {
-      query = query.where('studentId', '==', req.user.uid);
-    } else if (req.user.role === 'recruiter') {
-      query = query.where('recruiterId', '==', req.user.uid);
+      const filtered = interviews.filter((interview) => interview.studentId === req.user.uid);
+      return res.json({ interviews: filtered, total: filtered.length });
     }
 
-    const snap = await query.orderBy('createdAt', 'desc').get();
-    const interviews = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    if (req.user.role === 'recruiter') {
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
+      const filtered = interviews.filter((interview) => isOwnedByRecruiter(interview, recruiterScope));
+      return res.json({ interviews: filtered, total: filtered.length });
+    }
+
     res.json({ interviews, total: interviews.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -43,6 +49,7 @@ router.post(
   async (req, res) => {
     try {
       if (!db) return res.status(201).json({ id: uuidv4(), ...req.body });
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
 
       const studentSnap = await db.collection('students').doc(req.body.studentId).get();
       if (!studentSnap.exists) {
@@ -62,7 +69,7 @@ router.post(
         venue: req.body.venue || '',
         instructions: req.body.instructions || '',
         status: 'scheduled',
-        recruiterId: req.user.uid,
+        recruiterId: recruiterScope.primaryRecruiterId || req.user.uid,
         recruiterName: req.user.name || req.user.displayName || '',
         createdAt: new Date().toISOString(),
         createdBy: req.user.uid,
@@ -93,12 +100,13 @@ router.post(
 router.delete('/:id', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
     if (db) {
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
       const snap = await db.collection('interviews').doc(req.params.id).get();
       if (!snap.exists) {
         return res.status(404).json({ error: 'Interview not found' });
       }
       const interview = snap.data();
-      if (req.user.role === 'recruiter' && interview.recruiterId && interview.recruiterId !== req.user.uid) {
+      if (req.user.role === 'recruiter' && !isOwnedByRecruiter(interview, recruiterScope)) {
         return res.status(403).json({ error: 'You can only cancel interviews you created' });
       }
       await db.collection('interviews').doc(req.params.id).delete();

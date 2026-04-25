@@ -4,6 +4,7 @@ const router = express.Router();
 const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { rankStudents, recommendJobsForStudent } = require('../utils/aiScoring');
+const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
 
 // GET /api/v1/analytics/admin  — admin only, full system metrics
 router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
@@ -121,15 +122,17 @@ router.get('/recruiter', verifyToken, requireRole('admin', 'recruiter'), async (
   try {
     if (!db) return res.json({ stats: {}, applicationFunnel: [], topCandidates: [] });
 
-    const uid = req.user.uid;
+    const recruiterScope = await resolveRecruiterScope(db, req.user);
     const [jobsSnap, appsSnap] = await Promise.all([
-      db.collection('jobs').where('postedBy', '==', uid).get(),
+      db.collection('jobs').get(),
       db.collection('applications').get(),
     ]);
 
     const jobs = jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const jobIds = new Set(jobs.map((j) => j.id));
-    const myApps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((a) => jobIds.has(a.jobId));
+    const applications = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const myJobs = jobs.filter((job) => isOwnedByRecruiter(job, recruiterScope));
+    const jobIds = new Set(myJobs.map((job) => job.id));
+    const myApps = applications.filter((application) => jobIds.has(application.jobId) || isOwnedByRecruiter(application, recruiterScope));
 
     // Funnel
     const funnelStages = ['Applied', 'Shortlisted', 'In Process', 'Selected', 'Rejected'];
@@ -139,7 +142,7 @@ router.get('/recruiter', verifyToken, requireRole('admin', 'recruiter'), async (
     }));
 
     // Applications per job
-    const perJob = jobs.map((job) => ({
+    const perJob = myJobs.map((job) => ({
       title: job.title,
       company: job.company,
       applicants: myApps.filter((a) => a.jobId === job.id).length,
@@ -148,8 +151,8 @@ router.get('/recruiter', verifyToken, requireRole('admin', 'recruiter'), async (
 
     res.json({
       stats: {
-        totalJobs: jobs.length,
-        activeJobs: jobs.filter((j) => (j.status || '').toLowerCase() === 'active').length,
+        totalJobs: myJobs.length,
+        activeJobs: myJobs.filter((j) => (j.status || '').toLowerCase() === 'active').length,
         totalApplications: myApps.length,
         shortlisted: myApps.filter((a) => ['shortlisted', 'selected'].includes((a.status || '').toLowerCase())).length,
         selected: myApps.filter((a) => (a.status || '').toLowerCase() === 'selected').length,

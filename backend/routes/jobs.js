@@ -9,6 +9,7 @@ const validate = require('../middleware/validate');
 const { createJobDefaults } = require('../utils/marketplaceFactory');
 const { logActivity } = require('../utils/activityLogger');
 const { branchMatches, normalizeJobBranches } = require('../utils/branchEligibility');
+const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
 
 const sanitizeJobBranches = (branches) => {
   const normalized = normalizeJobBranches(branches);
@@ -72,6 +73,8 @@ router.post(
   validate,
   async (req, res) => {
     try {
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
+
       // Check recruiter is verified
       if (req.user.role === 'recruiter' && db) {
         const recruiterSnap = await db.collection('recruiters').doc(req.user.uid).get();
@@ -82,12 +85,16 @@ router.post(
         }
       }
 
+      const recruiterId = recruiterScope.primaryRecruiterId || req.user.uid;
       const payload = createJobDefaults({
         ...req.body,
         branches: sanitizeJobBranches(req.body.branches),
-        postedBy: req.user.uid,
+        recruiterId,
+        postedBy: recruiterId,
         postedByUid: req.user.uid,
         postedByName: req.user.name || req.user.displayName || '',
+        recruiterEmail: req.user.email || '',
+        recruiterName: req.user.name || req.user.displayName || req.body.company || '',
         status: req.body.status || 'active',
         applicants: Number(req.body.applicants || 0),
         createdAt: new Date().toISOString(),
@@ -118,6 +125,7 @@ router.put(
   validate,
   async (req, res) => {
     try {
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
       const currentSnap = db ? await db.collection('jobs').doc(req.params.id).get() : null;
       const current = currentSnap?.exists ? currentSnap.data() : {};
       const nextBranches = Object.prototype.hasOwnProperty.call(req.body, 'branches')
@@ -125,14 +133,19 @@ router.put(
         : current.branches;
 
       // Recruiters can only edit their own jobs
-      if (req.user.role === 'recruiter' && current.postedBy && current.postedBy !== req.user.uid) {
+      if (req.user.role === 'recruiter' && !isOwnedByRecruiter(current, recruiterScope)) {
         return res.status(403).json({ error: 'You can only edit your own job postings' });
       }
+
+      const recruiterId = current.recruiterId || current.postedBy || current.postedByUid || recruiterScope.primaryRecruiterId || req.user.uid;
 
       const payload = createJobDefaults({
         ...current,
         ...req.body,
         branches: nextBranches,
+        recruiterId,
+        postedBy: current.postedBy || recruiterId,
+        postedByUid: current.postedByUid || req.user.uid,
         updatedAt: new Date().toISOString(),
         updatedBy: req.user.uid,
       }, req.params.id);
@@ -148,10 +161,11 @@ router.put(
 // PUT /api/v1/jobs/:id/close  — admin or job owner can close it
 router.put('/:id/close', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
   try {
+    const recruiterScope = await resolveRecruiterScope(db, req.user);
     const snap = db ? await db.collection('jobs').doc(req.params.id).get() : null;
     const current = snap?.exists ? snap.data() : {};
 
-    if (req.user.role === 'recruiter' && current.postedBy && current.postedBy !== req.user.uid) {
+    if (req.user.role === 'recruiter' && !isOwnedByRecruiter(current, recruiterScope)) {
       return res.status(403).json({ error: 'You can only close your own job postings' });
     }
 

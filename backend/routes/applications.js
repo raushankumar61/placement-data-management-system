@@ -9,6 +9,7 @@ const validate = require('../middleware/validate');
 const { createApplicationDefaults, syncStudentRollup } = require('../utils/marketplaceFactory');
 const { logActivity } = require('../utils/activityLogger');
 const { sendMail, buildStatusUpdateHtml } = require('../utils/emailService');
+const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
 const { branchMatches } = require('../utils/branchEligibility');
 
 const parseNumber = (value, fallback = 0) => {
@@ -214,13 +215,14 @@ router.put(
   async (req, res) => {
     try {
       const { status } = req.body;
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
 
       const snap = db ? await db.collection('applications').doc(req.params.id).get() : null;
       const current = snap?.exists ? snap.data() : {};
       const jobSnap = db && current.jobId ? await db.collection('jobs').doc(current.jobId).get() : null;
       const job = jobSnap?.exists ? jobSnap.data() : {};
 
-      if (req.user.role === 'recruiter' && job.recruiterId && job.recruiterId !== req.user.uid) {
+      if (req.user.role === 'recruiter' && !isOwnedByRecruiter(job, recruiterScope)) {
         return res.status(403).json({ error: 'You can only update applications for your own jobs' });
       }
 
