@@ -38,33 +38,37 @@ export function AuthProvider({ children }) {
       return applyResolvedSession(null);
     }
 
-    let fallbackRole = null;
-
-    try {
-      const tokenResult = await firebaseUser.getIdTokenResult();
-      fallbackRole = tokenResult?.claims?.role || null;
-    } catch (err) {
+    const tokenPromise = firebaseUser.getIdTokenResult().catch((err) => {
       console.warn('Unable to read token claims:', err);
-    }
+      return null;
+    });
 
-    try {
-      const docRef = doc(db, 'users', firebaseUser.uid);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        let merged = data;
-        if (data.role === 'recruiter') {
-          try {
-            const { data: recruiterProfile } = await getMyRecruiterProfile();
-            merged = { ...data, ...recruiterProfile };
-          } catch {
-            // recruiter doc may not exist yet for new accounts
-          }
-        }
-        return applyResolvedSession(merged, fallbackRole);
-      }
-    } catch (err) {
+    const userDocPromise = getDoc(doc(db, 'users', firebaseUser.uid)).catch((err) => {
       console.error('Error fetching profile:', err);
+      return null;
+    });
+
+    const [tokenResult, userSnap] = await Promise.all([tokenPromise, userDocPromise]);
+    const fallbackRole = tokenResult?.claims?.role || null;
+
+    if (userSnap?.exists()) {
+      const data = userSnap.data();
+      const merged = { ...data };
+      const resolved = applyResolvedSession(merged, fallbackRole);
+
+      if (data.role === 'recruiter') {
+        getMyRecruiterProfile()
+          .then(({ data: recruiterProfile }) => {
+            if (recruiterProfile) {
+              setUserProfile((current) => ({ ...current, ...recruiterProfile }));
+            }
+          })
+          .catch(() => {
+            // Recruiter profile enrichment is best-effort; keep the session usable.
+          });
+      }
+
+      return resolved;
     }
 
     try {

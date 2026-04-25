@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const NAV_CONFIG = {
@@ -80,6 +80,7 @@ export default function DashboardLayout({ children, title }) {
     const q = query(
       collection(db, 'notifications'),
       orderBy('sentAt', 'desc'),
+      limit(100),
     );
     const unsub = onSnapshot(q, (snap) => {
       const count = snap.docs.filter((d) => {

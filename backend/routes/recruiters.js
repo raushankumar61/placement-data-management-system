@@ -8,6 +8,7 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { createRecruiterDefaults } = require('../utils/marketplaceFactory');
 const { logActivity } = require('../utils/activityLogger');
+const { resolveRecruiterScope } = require('../utils/recruiterOwnership');
 
 // GET /api/v1/recruiters  — admin only
 router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
@@ -25,9 +26,13 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
 router.get('/me', verifyToken, requireRole('recruiter'), async (req, res) => {
   try {
     if (!db) return res.json({});
-    const snap = await db.collection('recruiters').doc(req.user.uid).get();
-    if (!snap.exists) return res.status(404).json({ error: 'Recruiter profile not found' });
-    res.json({ id: snap.id, ...snap.data() });
+
+    const scope = await resolveRecruiterScope(db, req.user);
+    const [uidDoc, ...otherDocs] = scope.recruiterDocs || [];
+    const profile = uidDoc || otherDocs[0] || null;
+
+    if (!profile) return res.status(404).json({ error: 'Recruiter profile not found' });
+    res.json({ id: profile.id, ...profile });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
