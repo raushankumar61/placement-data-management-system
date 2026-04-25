@@ -58,6 +58,8 @@ app.use('/api/v1/recommendations', require('./routes/recommendations'));
 app.use('/api/v1/complaints', require('./routes/complaints'));
 app.use('/api/v1/resume', require('./routes/resume'));
 app.use('/api/v1/analytics', require('./routes/analytics'));
+app.use('/api/v1/mock-interviews', require('./routes/mockInterviews'));
+app.use('/api/v1/alumni', require('./routes/alumni'));
 
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
@@ -167,4 +169,3 @@ if (!process.env.VERCEL) {
 }
 
 module.exports = app;
-

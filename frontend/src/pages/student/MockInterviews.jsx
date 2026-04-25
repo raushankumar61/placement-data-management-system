@@ -3,9 +3,8 @@ import { motion } from 'framer-motion';
 import { Video, Calendar, Clock, Plus, X, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { createMockInterview, getMockInterviews } from '../../services/api';
 
 export default function StudentMockInterviews() {
   const { user, userProfile } = useAuth();
@@ -19,10 +18,8 @@ export default function StudentMockInterviews() {
     const fetchRequests = async () => {
       if (!user?.uid) return;
       try {
-        const q = query(collection(db, 'mockInterviews'), where('studentId', '==', user.uid));
-        const snap = await getDocs(q);
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-        setRequests(data);
+        const { data } = await getMockInterviews();
+        setRequests(data.requests || []);
       } catch (err) {
         toast.error('Failed to load mock interview requests');
       } finally {
@@ -38,17 +35,14 @@ export default function StudentMockInterviews() {
     setSubmitting(true);
     try {
       const payload = {
-        studentId: user.uid,
         studentName: userProfile?.name || 'Student',
-        studentBranch: userProfile?.department || '',
+        studentBranch: userProfile?.branch || userProfile?.department || '',
         domain: form.domain,
         topic: form.topic,
         notes: form.notes,
-        status: 'Pending',
-        createdAt: serverTimestamp(),
       };
-      const docRef = await addDoc(collection(db, 'mockInterviews'), payload);
-      setRequests([{ id: docRef.id, ...payload, createdAt: { toMillis: () => Date.now() } }, ...requests]);
+      const { data } = await createMockInterview(payload);
+      setRequests((prev) => [{ ...data }, ...prev]);
       toast.success('Mock interview requested successfully!');
       setShowModal(false);
       setForm({ domain: 'Technical', topic: '', notes: '' });

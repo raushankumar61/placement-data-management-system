@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Building2, ExternalLink, MessageSquare, Mail } from 'lucide-react';
+import { Search, Building2, ExternalLink, Mail } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getAlumni } from '../../services/api';
 
 export default function StudentAlumni() {
   const [alumni, setAlumni] = useState([]);
@@ -15,10 +14,8 @@ export default function StudentAlumni() {
   useEffect(() => {
     const fetchAlumni = async () => {
       try {
-        const q = query(collection(db, 'students'), where('placementStatus', '==', 'placed'));
-        const snap = await getDocs(q);
-        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setAlumni(data);
+        const { data } = await getAlumni();
+        setAlumni(data.alumni || []);
       } catch (error) {
         toast.error('Failed to load alumni directory');
       } finally {
