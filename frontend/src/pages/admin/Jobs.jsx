@@ -31,6 +31,9 @@ const DEMO_JOBS = [
 export default function AdminJobs() {
   const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editJob, setEditJob] = useState(null);
@@ -51,10 +54,16 @@ export default function AdminJobs() {
     fetch();
   }, []);
 
-  const filtered = jobs.filter((j) =>
-    j.title?.toLowerCase().includes(search.toLowerCase()) ||
-    j.company?.toLowerCase().includes(search.toLowerCase())
-  );
+  const branchOptions = [...new Set(jobs.flatMap((job) => (Array.isArray(job.branches) ? job.branches : [job.branches])).filter(Boolean))].filter((branch) => branch !== 'All');
+
+  const filtered = jobs.filter((j) => {
+    const matchSearch = !search || j.title?.toLowerCase().includes(search.toLowerCase()) || j.company?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = !statusFilter || j.status === statusFilter;
+    const matchType = !typeFilter || j.type === typeFilter;
+    const branches = Array.isArray(j.branches) ? j.branches : [j.branches].filter(Boolean);
+    const matchBranch = !branchFilter || branches.includes('All') || branches.some((branch) => String(branch).toLowerCase() === branchFilter.toLowerCase());
+    return matchSearch && matchStatus && matchType && matchBranch;
+  });
 
   const openModal = (job = null) => {
     setEditJob(job);
@@ -126,15 +135,47 @@ export default function AdminJobs() {
       <div className="space-y-5">
         {/* Toolbar */}
         <div className="flex gap-3 items-center justify-between flex-wrap">
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-            <input
-              type="text"
-              placeholder="Search jobs..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field pl-9 py-2 text-sm w-60"
-            />
+          <div className="flex flex-wrap gap-3 items-center flex-1">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+              <input
+                type="text"
+                placeholder="Search jobs..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input-field pl-9 py-2 text-sm w-60"
+              />
+            </div>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-32 appearance-none">
+              <option value="">All Status</option>
+              <option value="active" className="bg-dark-700">Active</option>
+              <option value="closed" className="bg-dark-700">Closed</option>
+            </select>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
+              <option value="">All Types</option>
+              {JOB_TYPES.map((type) => (
+                <option key={type} value={type} className="bg-dark-700">{type}</option>
+              ))}
+            </select>
+            <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none">
+              <option value="">All Branches</option>
+              {branchOptions.map((branch) => (
+                <option key={branch} value={branch} className="bg-dark-700">{branch}</option>
+              ))}
+            </select>
+            {(search || statusFilter || typeFilter || branchFilter) && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('');
+                  setTypeFilter('');
+                  setBranchFilter('');
+                }}
+                className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body"
+              >
+                <X size={14} /> Clear
+              </button>
+            )}
           </div>
           <button onClick={() => openModal()} className="btn-primary text-sm py-2 px-4 flex items-center gap-2">
             <Plus size={14} /> Post Job · {jobs.filter((j) => j.status === 'active').length} Active

@@ -75,6 +75,8 @@ export default function AdminStudents() {
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [minCgpaFilter, setMinCgpaFilter] = useState('');
+  const [hasOfferFilter, setHasOfferFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editStudent, setEditStudent] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -190,8 +192,15 @@ export default function AdminStudents() {
     );
     if (branchFilter) result = result.filter((s) => s.branch === branchFilter);
     if (statusFilter) result = result.filter((s) => s.placementStatus === statusFilter);
+    if (minCgpaFilter) result = result.filter((s) => Number(s.cgpa || 0) >= Number(minCgpaFilter));
+    if (hasOfferFilter) {
+      result = result.filter((s) => {
+        const offers = Number(s.offersCount || 0);
+        return hasOfferFilter === 'yes' ? offers > 0 : offers === 0;
+      });
+    }
     setFiltered(result);
-  }, [search, branchFilter, statusFilter, students]);
+  }, [search, branchFilter, statusFilter, minCgpaFilter, hasOfferFilter, students]);
 
   const openModal = (student = null) => {
     setEditStudent(student);
@@ -338,8 +347,23 @@ export default function AdminStudents() {
               <option value="unplaced" className="bg-dark-700">Unplaced</option>
               <option value="in-process" className="bg-dark-700">In Process</option>
             </select>
-            {(search || branchFilter || statusFilter) && (
-              <button onClick={() => { setSearch(''); setBranchFilter(''); setStatusFilter(''); }}
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="10"
+              value={minCgpaFilter}
+              onChange={(e) => setMinCgpaFilter(e.target.value)}
+              placeholder="Min CGPA"
+              className="input-field py-2 text-sm w-28"
+            />
+            <select value={hasOfferFilter} onChange={(e) => setHasOfferFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
+              <option value="">All Offers</option>
+              <option value="yes" className="bg-dark-700">Has Offers</option>
+              <option value="no" className="bg-dark-700">No Offers</option>
+            </select>
+            {(search || branchFilter || statusFilter || minCgpaFilter || hasOfferFilter) && (
+              <button onClick={() => { setSearch(''); setBranchFilter(''); setStatusFilter(''); setMinCgpaFilter(''); setHasOfferFilter(''); }}
                 className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body">
                 <X size={14} /> Clear
               </button>

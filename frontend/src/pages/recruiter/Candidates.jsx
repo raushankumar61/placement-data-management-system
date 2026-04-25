@@ -1,7 +1,7 @@
 // src/pages/recruiter/Candidates.jsx
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Download, Star, ExternalLink, CheckCircle, Zap } from 'lucide-react';
+import { Search, Download, Star, ExternalLink, CheckCircle, Zap, X } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
@@ -13,7 +13,9 @@ export default function RecruiterCandidates() {
   const [candidates, setCandidates] = useState([]);
   const [search, setSearch] = useState('');
   const [minCGPA, setMinCGPA] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
+  const [skillFilter, setSkillFilter] = useState('');
   const [selected, setSelected] = useState(null);
   const [starred, setStarred] = useState({});
   const [shortlisting, setShortlisting] = useState(null);
@@ -55,8 +57,12 @@ export default function RecruiterCandidates() {
     const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()));
     const matchCGPA = !minCGPA || c.cgpa >= parseFloat(minCGPA);
     const matchBranch = !branchFilter || c.branch === branchFilter;
-    return matchSearch && matchCGPA && matchBranch && c.status !== 'Placed';
+    const matchStatus = !statusFilter || c.status === statusFilter;
+    const matchSkill = !skillFilter || c.skills.some((skill) => skill.toLowerCase().includes(skillFilter.toLowerCase()));
+    return matchSearch && matchCGPA && matchBranch && matchStatus && matchSkill;
   });
+
+  const availableSkills = [...new Set(candidates.flatMap((candidate) => candidate.skills || []))].sort((a, b) => a.localeCompare(b));
 
   const toggleStar = (id) => setStarred((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -125,6 +131,11 @@ export default function RecruiterCandidates() {
             </div>
             <input type="number" placeholder="Min CGPA" value={minCGPA} step="0.1" min="0" max="10"
               onChange={(e) => setMinCGPA(e.target.value)} className="input-field py-2 text-sm w-28" />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
+              <option value="">All Status</option>
+              <option value="Available" className="bg-dark-700">Available</option>
+              <option value="Placed" className="bg-dark-700">Placed</option>
+            </select>
             <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}
               className="input-field py-2 text-sm w-44 appearance-none">
               <option value="">All Branches</option>
@@ -132,6 +143,26 @@ export default function RecruiterCandidates() {
                 <option key={b} value={b} className="bg-dark-700">{b}</option>
               ))}
             </select>
+            <select value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none">
+              <option value="">All Skills</option>
+              {availableSkills.slice(0, 30).map((skill) => (
+                <option key={skill} value={skill} className="bg-dark-700">{skill}</option>
+              ))}
+            </select>
+            {(search || minCGPA || statusFilter || branchFilter || skillFilter) && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setMinCGPA('');
+                  setStatusFilter('');
+                  setBranchFilter('');
+                  setSkillFilter('');
+                }}
+                className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body"
+              >
+                <X size={14} /> Reset
+              </button>
+            )}
           </div>
 
           <div className="flex items-center justify-between">

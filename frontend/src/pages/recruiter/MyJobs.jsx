@@ -12,6 +12,7 @@ import { db } from '../../services/firebase';
 import { updateJob, closeJob } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+import { branchMatches } from '../../utils/branchEligibility';
 
 const BRANCHES = ['All', 'Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical'];
 const STATUS_BADGE = { active: 'badge-green', closed: 'badge-red', draft: 'badge-gray' };
@@ -22,6 +23,8 @@ export default function RecruiterMyJobs() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
   const [editing, setEditing] = useState(null);      // job being edited
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(null);
@@ -40,8 +43,15 @@ export default function RecruiterMyJobs() {
   const filtered = useMemo(() => jobs.filter((j) => {
     const matchSearch = !search || j.title?.toLowerCase().includes(search.toLowerCase()) || j.company?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = !statusFilter || j.status === statusFilter;
-    return matchSearch && matchStatus;
-  }), [jobs, search, statusFilter]);
+    const matchType = !typeFilter || j.type === typeFilter;
+    const matchBranch = !branchFilter || branchMatches(j.branches, branchFilter);
+    return matchSearch && matchStatus && matchType && matchBranch;
+  }), [jobs, search, statusFilter, typeFilter, branchFilter]);
+
+  const branchOptions = useMemo(() => (
+    [...new Set(jobs.flatMap((job) => (Array.isArray(job.branches) ? job.branches : [job.branches])).filter(Boolean))]
+      .filter((branch) => branch !== 'All')
+  ), [jobs]);
 
   const stats = useMemo(() => ({
     total: jobs.length,
@@ -136,6 +146,31 @@ export default function RecruiterMyJobs() {
             <option value="active">Active</option>
             <option value="closed">Closed</option>
           </select>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
+            <option value="">All Types</option>
+            {['Full-time', 'Internship', 'PPO', 'Contract'].map((type) => (
+              <option key={type} value={type} className="bg-dark-700">{type}</option>
+            ))}
+          </select>
+          <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none">
+            <option value="">All Branches</option>
+            {branchOptions.map((branch) => (
+              <option key={branch} value={branch} className="bg-dark-700">{branch}</option>
+            ))}
+          </select>
+          {(search || statusFilter || typeFilter || branchFilter) && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('');
+                setTypeFilter('');
+                setBranchFilter('');
+              }}
+              className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body"
+            >
+              <X size={14} /> Clear
+            </button>
+          )}
           <Link to="/recruiter/post-job">
             <button className="btn-primary text-sm py-2 px-4 flex items-center gap-2">
               <Plus size={14} /> Post Job

@@ -1,7 +1,7 @@
 // src/pages/faculty/Dashboard.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, CheckCircle, AlertCircle, ClipboardList } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, AlertCircle, ClipboardList, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
@@ -65,6 +65,9 @@ export default function FacultyDashboard() {
   const [pendingVerifications, setPendingVerifications] = useState(0);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentStatusFilter, setStudentStatusFilter] = useState('');
+  const [minCgpaFilter, setMinCgpaFilter] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -132,6 +135,16 @@ export default function FacultyDashboard() {
     }));
   }, [students, userProfile?.department]);
 
+  const filteredDeptStudents = useMemo(() => deptStudents.filter((student) => {
+    const matchSearch = !studentSearch
+      || student.name.toLowerCase().includes(studentSearch.toLowerCase())
+      || student.rollNo.toLowerCase().includes(studentSearch.toLowerCase())
+      || student.company.toLowerCase().includes(studentSearch.toLowerCase());
+    const matchStatus = !studentStatusFilter || student.status === studentStatusFilter;
+    const matchCgpa = !minCgpaFilter || student.cgpa >= Number(minCgpaFilter);
+    return matchSearch && matchStatus && matchCgpa;
+  }), [deptStudents, studentSearch, studentStatusFilter, minCgpaFilter]);
+
   const cgpaDistribution = useMemo(() => {
     const ranges = [
       { range: '< 6.5', min: 0, max: 6.5 },
@@ -142,16 +155,16 @@ export default function FacultyDashboard() {
     ];
     return ranges.map((r) => ({
       range: r.range,
-      count: deptStudents.filter((s) => s.cgpa >= r.min && s.cgpa < r.max).length,
+      count: filteredDeptStudents.filter((s) => s.cgpa >= r.min && s.cgpa < r.max).length,
     }));
-  }, [deptStudents]);
+  }, [filteredDeptStudents]);
 
   const stats = useMemo(() => ({
-    total: deptStudents.length,
-    placed: deptStudents.filter((s) => s.status === 'placed').length,
-    inProcess: deptStudents.filter((s) => s.status === 'in-process').length,
-    unplaced: deptStudents.filter((s) => s.status === 'unplaced').length,
-  }), [deptStudents]);
+    total: filteredDeptStudents.length,
+    placed: filteredDeptStudents.filter((s) => s.status === 'placed').length,
+    inProcess: filteredDeptStudents.filter((s) => s.status === 'in-process').length,
+    unplaced: filteredDeptStudents.filter((s) => s.status === 'unplaced').length,
+  }), [filteredDeptStudents]);
 
   const selectedDepartment = userProfile?.department || 'All Departments';
   const departmentMatchNote = userProfile?.department && deptStudents.length === students.length
@@ -250,6 +263,37 @@ export default function FacultyDashboard() {
           ))}
         </div>
 
+        <div className="flex flex-wrap gap-3 items-center">
+          <input
+            type="text"
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            placeholder="Search students..."
+            className="input-field py-2 text-sm w-56"
+          />
+          <select value={studentStatusFilter} onChange={(e) => setStudentStatusFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
+            <option value="">All Status</option>
+            <option value="placed" className="bg-dark-700">Placed</option>
+            <option value="in-process" className="bg-dark-700">In Process</option>
+            <option value="unplaced" className="bg-dark-700">Unplaced</option>
+          </select>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="10"
+            value={minCgpaFilter}
+            onChange={(e) => setMinCgpaFilter(e.target.value)}
+            placeholder="Min CGPA"
+            className="input-field py-2 text-sm w-32"
+          />
+          {(studentSearch || studentStatusFilter || minCgpaFilter) && (
+            <button onClick={() => { setStudentSearch(''); setStudentStatusFilter(''); setMinCgpaFilter(''); }} className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body">
+              <X size={14} /> Clear
+            </button>
+          )}
+        </div>
+
         <div className="grid lg:grid-cols-5 gap-5">
           {/* Student Table */}
           <div className="lg:col-span-3 glass-card overflow-hidden">
@@ -265,7 +309,7 @@ export default function FacultyDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {deptStudents.slice(0, 10).map((s, i) => (
+                {filteredDeptStudents.slice(0, 10).map((s, i) => (
                   <motion.tr key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 + i * 0.07 }} className="table-row cursor-pointer"
                     onClick={() => setSelectedStudent(s)}>
@@ -276,7 +320,7 @@ export default function FacultyDashboard() {
                     <td className="px-4 py-3 text-white/50 text-sm font-body">{s.company}</td>
                   </motion.tr>
                 ))}
-                {deptStudents.length === 0 && (
+                {filteredDeptStudents.length === 0 && (
                   <tr>
                     <td colSpan="5" className="px-4 py-8 text-center text-white/40 text-sm font-body">No department students found.</td>
                   </tr>

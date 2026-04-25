@@ -15,6 +15,9 @@ export default function FacultyRecommendations() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ studentId: '', jobId: '', reason: '', rating: 5 });
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [ratingFilter, setRatingFilter] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -37,6 +40,14 @@ export default function FacultyRecommendations() {
     };
     load();
   }, []);
+
+  const filteredRecommendations = recommendations.filter((rec) => {
+    const matchSearch = !search || [rec.student, rec.role, rec.company, rec.reason]
+      .some((value) => String(value || '').toLowerCase().includes(search.toLowerCase()));
+    const matchStatus = !statusFilter || rec.status === statusFilter;
+    const matchRating = !ratingFilter || Number(rec.rating || 0) >= Number(ratingFilter);
+    return matchSearch && matchStatus && matchRating;
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -85,8 +96,40 @@ export default function FacultyRecommendations() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex justify-between items-center">
-          <p className="section-title">Recommendations Sent</p>
+        <div className="flex justify-between items-center gap-3 flex-wrap">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search recommendations..."
+                className="input-field pl-4 py-2 text-sm w-64"
+              />
+            </div>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
+              <option value="">All Status</option>
+              <option value="Accepted" className="bg-dark-700">Accepted</option>
+              <option value="Pending" className="bg-dark-700">Pending</option>
+            </select>
+            <select value={ratingFilter} onChange={(e) => setRatingFilter(e.target.value)} className="input-field py-2 text-sm w-32 appearance-none">
+              <option value="">All Ratings</option>
+              <option value="3" className="bg-dark-700">3+</option>
+              <option value="4" className="bg-dark-700">4+</option>
+              <option value="5" className="bg-dark-700">5</option>
+            </select>
+            {(search || statusFilter || ratingFilter) && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('');
+                  setRatingFilter('');
+                }}
+                className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body"
+              >
+                <X size={14} /> Clear
+              </button>
+            )}
+          </div>
           <button onClick={() => setShowModal(true)} className="btn-primary text-sm py-2 px-4 flex items-center gap-2">
             <Plus size={14} /> New Recommendation
           </button>
@@ -94,7 +137,7 @@ export default function FacultyRecommendations() {
 
         {/* List */}
         <div className="space-y-3">
-          {recommendations.map((rec, i) => (
+          {filteredRecommendations.map((rec, i) => (
             <motion.div
               key={rec.id}
               initial={{ opacity: 0, y: 10 }}
@@ -118,6 +161,11 @@ export default function FacultyRecommendations() {
               </div>
             </motion.div>
           ))}
+          {filteredRecommendations.length === 0 && (
+            <div className="glass-card p-8 text-center text-white/40 text-sm font-body border border-white/5">
+              No recommendations match the selected filters.
+            </div>
+          )}
         </div>
       </div>
 
