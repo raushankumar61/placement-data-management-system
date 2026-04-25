@@ -96,6 +96,117 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+const PlacementTrendChart = ({ placementTrend }) => {
+  const [chartType, setChartType] = useState('area');
+
+  const totalPlaced = placementTrend.reduce((sum, t) => sum + (t.placed || 0), 0);
+  const totalDrives = placementTrend.reduce((sum, t) => sum + (t.drives || 0), 0);
+  const avgMonthly = placementTrend.length > 0 ? Math.round(totalPlaced / placementTrend.length) : 0;
+  const peakMonth = placementTrend.reduce((max, t) => (t.placed > max.placed ? t : max), placementTrend[0] || {});
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4 }}
+      className="glass-card p-6 lg:col-span-2"
+    >
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <p className="section-title">Placement Trend</p>
+          <p className="text-white/40 text-xs font-body mt-0.5">Monthly placements & drives — 2024-25</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setChartType('area')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              chartType === 'area'
+                ? 'bg-blue-electric text-white'
+                : 'bg-white/10 text-white/50 hover:bg-white/20'
+            }`}
+          >
+            Area
+          </button>
+          <button
+            onClick={() => setChartType('bar')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              chartType === 'bar'
+                ? 'bg-blue-electric text-white'
+                : 'bg-white/10 text-white/50 hover:bg-white/20'
+            }`}
+          >
+            Bar
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-white/10">
+        <div className="space-y-1">
+          <p className="text-white/50 text-xs font-body">Total Placements</p>
+          <p className="text-2xl font-bold text-blue-electric">{totalPlaced}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-white/50 text-xs font-body">Monthly Average</p>
+          <p className="text-2xl font-bold text-gold">{avgMonthly}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-white/50 text-xs font-body">Total Applications</p>
+          <p className="text-2xl font-bold text-purple-400">{totalDrives}</p>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="mb-4">
+        <ResponsiveContainer width="100%" height={280}>
+          {chartType === 'area' ? (
+            <AreaChart data={placementTrend}>
+              <defs>
+                <linearGradient id="colorPlaced" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00A3FF" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#00A3FF" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorDrives" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#F5A623" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#F5A623" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Area type="monotone" dataKey="placed" name="Placed" stroke="#00A3FF" strokeWidth={2.5} fill="url(#colorPlaced)" />
+              <Area type="monotone" dataKey="drives" name="Applications" stroke="#F5A623" strokeWidth={2.5} fill="url(#colorDrives)" />
+            </AreaChart>
+          ) : (
+            <BarChart data={placementTrend} barGap={8}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Bar dataKey="placed" name="Placed" fill="#00A3FF" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="drives" name="Applications" fill="#F5A623" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+
+      {/* Peak Month Info */}
+      {peakMonth.month && (
+        <div className="pt-4 border-t border-white/10">
+          <p className="text-white/50 text-xs font-body mb-2">Peak Performance</p>
+          <p className="text-sm font-medium text-white">
+            <span className="text-gold">{peakMonth.month}</span> had the highest placements:{' '}
+            <span className="text-blue-electric font-bold">{peakMonth.placed}</span> students placed
+          </p>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -135,40 +246,7 @@ export default function AdminDashboard() {
         {/* Charts Row 1 */}
         <div className="grid lg:grid-cols-3 gap-4">
           {/* Placement Trend */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-card p-5 lg:col-span-2"
-          >
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <p className="section-title">Placement Trend</p>
-                <p className="text-white/40 text-xs font-body mt-0.5">Monthly placements & drives — 2024-25</p>
-              </div>
-              <TrendingUp size={18} className="text-blue-electric" />
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={placementTrend}>
-                <defs>
-                  <linearGradient id="colorPlaced" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00A3FF" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#00A3FF" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorDrives" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F5A623" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#F5A623" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="placed" name="Placed" stroke="#00A3FF" strokeWidth={2} fill="url(#colorPlaced)" />
-                <Area type="monotone" dataKey="drives" name="Drives" stroke="#F5A623" strokeWidth={2} fill="url(#colorDrives)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </motion.div>
+          <PlacementTrendChart placementTrend={placementTrend} />
 
           {/* Package Distribution */}
           <motion.div
