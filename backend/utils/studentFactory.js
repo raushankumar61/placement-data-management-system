@@ -34,6 +34,9 @@ const PROJECTS = ['E-commerce Platform', 'Chat Application', 'Weather App', 'Tas
 const CERTIFICATIONS = ['https://coursera.org/cert/placeholder', 'https://udemy.com/cert/placeholder', 'https://edx.org/cert/placeholder', 'https://aws.amazon.com/cert/placeholder', 'https://google.com/cert/placeholder'];
 const STATUSES = ['unplaced', 'in-process', 'placed'];
 const GENDERS = ['male', 'female', 'other'];
+const EMAIL_DOMAINS = ['students.placecloud.edu', 'campusmail.placecloud.edu', 'mail.placecloud.edu'];
+const RESUME_HOSTS = ['storage.googleapis.com/placecloud-demo-resumes', 'resumes.placecloud.app', 'placecloud-resumes.s3.amazonaws.com'];
+const CERTIFICATION_HOSTS = ['www.coursera.org/account/accomplishments/certificate', 'www.udemy.com/certificate', 'www.credly.com/badges', 'www.edx.org/certificates'];
 
 function hashString(input) {
   const text = String(input || 'student');
@@ -55,6 +58,18 @@ function createRng(seed) {
 
 function pick(rng, values) {
   return values[Math.floor(rng() * values.length)];
+}
+
+function isPlaceholderText(value) {
+  const text = String(value || '').trim().toLowerCase();
+  return !text
+    || text.includes('placeholder')
+    || text.includes('storage.example.com')
+    || text.includes('@student.edu')
+    || text.includes('student.edu')
+    || /^demo\b/.test(text)
+    || /^sample\b/.test(text)
+    || /^test\b/.test(text);
 }
 
 function pickMany(rng, values, min, max) {
@@ -85,10 +100,6 @@ function branchCode(branch) {
 }
 
 function generateName(rng, seed) {
-  if (seed && String(seed).trim()) {
-    const text = String(seed).trim().replace(/[^a-zA-Z ]/g, ' ').split(/\s+/).filter(Boolean);
-    if (text.length >= 2) return `${text[0]} ${text[1]}`;
-  }
   return `${pick(rng, FIRST_NAMES)} ${pick(rng, LAST_NAMES)}`;
 }
 
@@ -116,7 +127,7 @@ function generateEmail(name, seed) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '.')
     .replace(/^\.|\.$/g, '');
-  return `${slug || `student.${seed}`}@student.edu`;
+  return `${slug || `student.${seed}`}@${pick(createRng(`${seed}-email-domain`), EMAIL_DOMAINS)}`;
 }
 
 function generateUrl(type, name, seed) {
@@ -143,16 +154,40 @@ function generateAddress(seed) {
   return `${number} ${pick(createRng(`${seed}-street`), streets)} Street, ${pick(createRng(`${seed}-city`), cities)}, India`;
 }
 
+function generateCertificationLinks(seed, count = 2) {
+  const rng = createRng(`${seed}-cert`);
+  const links = [];
+  while (links.length < count) {
+    const host = pick(rng, CERTIFICATION_HOSTS);
+    const suffix = `${seed}-${links.length + 1}-${Math.abs(hashString(`${seed}-${links.length + 1}`)).toString(36)}`.replace(/[^a-z0-9-]/g, '-');
+    const url = `https://${host}/${suffix}`;
+    if (!links.includes(url)) links.push(url);
+  }
+  return links;
+}
+
+function generateResumeUrl(name, seed) {
+  const slug = String(name || `student-${seed}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const host = pick(createRng(`${seed}-resume-host`), RESUME_HOSTS);
+  return `https://${host}/${slug || `student-${seed}`}-${Math.abs(hashString(`${seed}-resume`)).toString(36)}.pdf`;
+}
+
 function createSeededRecord(student = {}, seed = 'student') {
   const rng = createRng(seed);
-  const name = student.name || generateName(rng, seed);
+  const name = !isPlaceholderText(student.name) ? student.name : generateName(rng, seed);
   const branch = student.branch || pick(rng, BRANCHES);
   const graduationYear = String(student.graduationYear || (2024 + Math.floor(rng() * 3)));
   const placementStatus = student.placementStatus || pick(rng, STATUSES);
   const isPlaced = placementStatus === 'placed';
   const skills = normalizeList(student.skills).length ? normalizeList(student.skills) : pickMany(rng, SKILLS, 4, 8);
   const projects = normalizeList(student.projects).length ? normalizeList(student.projects) : pickMany(rng, PROJECTS, 2, 4);
-  const certifications = normalizeList(student.certificationLinks).length ? normalizeList(student.certificationLinks) : pickMany(rng, CERTIFICATIONS, 1, 3);
+  const existingCertifications = normalizeList(student.certificationLinks);
+  const certifications = existingCertifications.length && !existingCertifications.some((link) => isPlaceholderText(link))
+    ? existingCertifications
+    : generateCertificationLinks(seed, Math.max(1, Math.floor(rng() * 3) + 1));
   const offerCompanies = normalizeList(student.offerCompanies).length ? normalizeList(student.offerCompanies) : (isPlaced ? pickMany(rng, COMPANIES, 1, 4) : []);
   const offersCount = Number(student.offersCount ?? (isPlaced ? Math.max(1, offerCompanies.length) : 0));
   const currentPackage = student.currentPackage || (isPlaced ? String((8 + rng() * 17).toFixed(2)) : '');
@@ -183,7 +218,7 @@ function createSeededRecord(student = {}, seed = 'student') {
   return {
     ...student,
     name,
-    email: student.email || generateEmail(name, seed),
+    email: !isPlaceholderText(student.email) ? student.email : generateEmail(name, seed),
     phone,
     rollNo,
     usn,
@@ -208,7 +243,7 @@ function createSeededRecord(student = {}, seed = 'student') {
     certificationLinks: certifications,
     interviewExperience,
     improvementSuggestions,
-    resumeURL: student.resumeURL || `https://storage.example.com/resumes/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${seed}.pdf`,
+    resumeURL: !isPlaceholderText(student.resumeURL) ? student.resumeURL : generateResumeUrl(name, seed),
     address: student.address || generateAddress(seed),
     dateOfBirth: student.dateOfBirth || generateDateOfBirth(seed),
     gender: student.gender || pick(rng, GENDERS),
