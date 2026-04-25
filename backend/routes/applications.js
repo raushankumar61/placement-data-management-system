@@ -15,6 +15,8 @@ const parseNumber = (value, fallback = 0) => {
   return match ? Number(match[0]) : fallback;
 };
 
+const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
+
 const parsePackageToLpa = (value) => {
   const text = String(value || '').toLowerCase();
   const amount = parseNumber(text, NaN);
@@ -39,17 +41,24 @@ const branchMatches = (jobBranches, studentBranch) => {
 };
 
 const canApplyToJob = (student = {}, job = {}) => {
-  const cgpa = parseNumber(student.cgpa, 0);
+  const cgpa = parseNumber(student.cgpa, NaN);
   const minCgpa = parseNumber(job.minCGPA, 0);
   const studentStatus = String(student.placementStatus || 'unplaced').toLowerCase();
   const studentPackage = parsePackageToLpa(student.currentPackage || student.highestPackage || '');
   const jobPackage = parsePackageToLpa(job.ctc || job.stipend || '');
+  const deadline = job.deadline ? new Date(job.deadline) : null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   if (String(job.status || '').toLowerCase() === 'closed') {
     return { allowed: false, reason: 'Job is closed' };
   }
 
-  if (minCgpa && cgpa < minCgpa) {
+  if (deadline && !Number.isNaN(deadline.getTime()) && deadline < today) {
+    return { allowed: false, reason: 'Application deadline has passed' };
+  }
+
+  if (minCgpa && hasValue(student.cgpa) && !Number.isNaN(cgpa) && cgpa < minCgpa) {
     return { allowed: false, reason: `CGPA requirement: ${job.minCGPA || minCgpa}` };
   }
 
@@ -57,7 +66,7 @@ const canApplyToJob = (student = {}, job = {}) => {
     return { allowed: false, reason: 'Branch mismatch' };
   }
 
-  if (studentStatus === 'placed' && (studentPackage == null || jobPackage == null || jobPackage <= studentPackage)) {
+  if (studentStatus === 'placed' && studentPackage != null && jobPackage != null && jobPackage <= studentPackage) {
     return { allowed: false, reason: `Requires package higher than current (${student.currentPackage || 'N/A'})` };
   }
 

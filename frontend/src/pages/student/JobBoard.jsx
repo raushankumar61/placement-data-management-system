@@ -89,6 +89,8 @@ const displayValue = (value, fallback) => {
   return text || fallback;
 };
 
+const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
+
 const normalizeStudentForEligibility = (student = {}, userProfile = {}, user = null) => ({
   id: student.id || user?.uid || '',
   name: student.name || userProfile?.name || '',
@@ -135,7 +137,7 @@ export default function StudentJobBoard() {
 
   const displayedJobs = useMemo(() => {
     const studentBranch = student?.branch || userProfile?.department || '';
-    const studentCgpa = student?.cgpa == null ? 0 : parseNumber(student?.cgpa, 0);
+    const studentCgpa = parseNumber(student?.cgpa, NaN);
     const studentPlacementStatus = normalize(student?.placementStatus);
     const isPlacedStudent = studentPlacementStatus === 'placed';
     const studentCurrentPackageLpa = parsePackageToLpa(student?.currentPackage || student?.highestPackage || '');
@@ -146,23 +148,21 @@ export default function StudentJobBoard() {
       const jobPackageLpa = parsePackageToLpa(job.ctc || job.stipend || '');
       const isExpired = job.deadline && new Date(job.deadline) < new Date(new Date().setHours(0,0,0,0));
       const isOpen = normalize(job.status) !== 'closed' && !isExpired;
-      const meetsCgpa = !minCgpa || studentCgpa >= minCgpa;
+      const meetsCgpa = !minCgpa || !hasValue(student?.cgpa) || (!Number.isNaN(studentCgpa) && studentCgpa >= minCgpa);
       const meetsBranch = branchMatches(job.branches, studentBranch);
       const meetsPackageRule = !isPlacedStudent
-        || (studentCurrentPackageLpa != null && jobPackageLpa != null && jobPackageLpa > studentCurrentPackageLpa);
+        || studentCurrentPackageLpa == null
+        || jobPackageLpa == null
+        || jobPackageLpa > studentCurrentPackageLpa;
       const eligible = isOpen && meetsCgpa && meetsBranch && meetsPackageRule;
       const reason = !isOpen
         ? (isExpired ? 'Application deadline has passed' : 'Job is closed')
         : !meetsCgpa
-          ? `CGPA requirement: ${job.minCGPA || minCgpa} (Your CGPA: ${studentCgpa || 'Not set'})`
+          ? `CGPA requirement: ${job.minCGPA || minCgpa} (Your CGPA: ${hasValue(student?.cgpa) ? studentCgpa : 'Not set'})`
           : !meetsBranch
             ? `Branch mismatch (${studentBranch || 'Not set'})`
             : !meetsPackageRule
-              ? isPlacedStudent && studentCurrentPackageLpa == null
-                ? 'Current package not available for comparison'
-                : isPlacedStudent && jobPackageLpa == null
-                  ? 'Job package is not available for comparison'
-                  : `Requires package higher than current (${student?.currentPackage || `${studentCurrentPackageLpa} LPA`})`
+              ? `Requires package higher than current (${student?.currentPackage || `${studentCurrentPackageLpa} LPA`})`
             : '';
 
       return {
@@ -192,6 +192,7 @@ export default function StudentJobBoard() {
   }, [applications, jobs, student, userProfile?.department]);
 
   const filtered = displayedJobs.filter((job) => {
+    if (!job.isOpen) return false;
     const title = String(job.title || '').toLowerCase();
     const company = String(job.company || '').toLowerCase();
     const matchSearch = !search || title.includes(search.toLowerCase()) || company.includes(search.toLowerCase());
@@ -244,11 +245,19 @@ export default function StudentJobBoard() {
     }
   };
 
-  const daysLeft = (deadline) => {
-    if (!deadline) return null;
-    const diff = new Date(deadline) - new Date();
-    if (Number.isNaN(diff)) return null;
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  const deadlineBadge = (deadline) => {
+    if (!deadline) return { label: 'TBD', urgent: false };
+    const due = new Date(deadline);
+    if (Number.isNaN(due.getTime())) return { label: 'TBD', urgent: false };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return { label: 'Expired', urgent: true };
+    if (diffDays === 0) return { label: 'Today', urgent: true };
+    return { label: `${diffDays}d left`, urgent: diffDays <= 3 };
   };
 
   return (
@@ -273,6 +282,11 @@ export default function StudentJobBoard() {
           <p className="text-white/40 text-xs font-body">{filtered.filter((job) => job.eligible).length} eligible jobs found</p>
 
           <div className="space-y-3">
+            {!filtered.length && (
+              <div className="glass-card p-6 border border-white/5 text-white/40 text-sm font-body">
+                No active jobs match your filters right now.
+              </div>
+            )}
             {filtered.map((job, i) => (
               <motion.div key={job.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
@@ -303,8 +317,8 @@ export default function StudentJobBoard() {
                       </div>
                       <div className="flex items-center gap-1 text-white/40">
                         <Calendar size={11} />
-                        <span className={`text-xs font-body ${daysLeft(job.deadline) !== null && daysLeft(job.deadline) <= 3 ? 'text-red-400' : ''}`}>
-                          {daysLeft(job.deadline) !== null ? `${daysLeft(job.deadline)}d left` : 'TBD'}
+                        <span className={`text-xs font-body ${deadlineBadge(job.deadline).urgent ? 'text-red-400' : ''}`}>
+                          {deadlineBadge(job.deadline).label}
                         </span>
                       </div>
                     </div>
