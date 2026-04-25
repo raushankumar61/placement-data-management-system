@@ -130,7 +130,7 @@ const fillStudentDefaults = (student = {}, seed = 'student') => {
   const name = student.name || generateName(rng, seed);
   const branch = student.branch || pick(rng, BRANCHES);
   const graduationYear = String(student.graduationYear || (2024 + Math.floor(rng() * 3)));
-  const placementStatus = student.placementStatus || pick(rng, ['unplaced', 'in-process', 'placed']);
+  const placementStatus = student.placementStatus || 'unplaced';
   const isPlaced = placementStatus === 'placed';
   const skills = normalizeList(student.skills).length ? normalizeList(student.skills) : pickMany(rng, SKILLS, 4, 8);
   const projects = normalizeList(student.projects).length ? normalizeList(student.projects) : pickMany(rng, PROJECTS, 2, 4);

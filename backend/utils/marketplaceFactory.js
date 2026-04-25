@@ -54,6 +54,12 @@ const ensureArray = (value, fallback) => {
 
 const cleanSlug = (value) => String(value || 'item').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
+const defaultFutureDeadline = (rng) => {
+  const date = new Date();
+  date.setDate(date.getDate() + 7 + Math.floor(rng() * 45));
+  return date.toISOString().slice(0, 10);
+};
+
 const createJobDefaults = (job = {}, seed = 'job') => {
   const rng = createRng(seed);
   const title = job.title || pick(rng, ROLE_POOL);
@@ -87,7 +93,7 @@ const createJobDefaults = (job = {}, seed = 'job') => {
     applicants,
     applyLink: job.applyLink || `https://careers.${cleanSlug(company)}.com/${cleanSlug(title)}`,
     postedOnCampus: Boolean(job.postedOnCampus ?? (rng() > 0.5)),
-    deadline: job.deadline || `${2025}-${String(Math.floor(rng() * 9) + 1).padStart(2, '0')}-${String(Math.floor(rng() * 25) + 1).padStart(2, '0')}`,
+    deadline: job.deadline || defaultFutureDeadline(rng),
     status: job.status || 'active',
     createdAt: job.createdAt || new Date().toISOString(),
   };

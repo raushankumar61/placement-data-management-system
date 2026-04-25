@@ -9,6 +9,7 @@
     "seed:students": "node scripts/seedStudents.js",
     "backfill:students": "node scripts/backfillStudentData.js",
     "backfill:marketplace": "node scripts/backfillMarketplaceData.js",
+    "backfill:job-deadlines": "node scripts/refreshJobDeadlines.js",
     "seed:marketplace": "node scripts/seedMarketplaceData.js"
   },
   "dependencies": {

@@ -8,7 +8,6 @@ import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { createApplication } from '../../services/api';
-import { fillStudentDefaults } from '../../utils/studentDefaults';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
@@ -90,6 +89,17 @@ const displayValue = (value, fallback) => {
   return text || fallback;
 };
 
+const normalizeStudentForEligibility = (student = {}, userProfile = {}, user = null) => ({
+  id: student.id || user?.uid || '',
+  name: student.name || userProfile?.name || '',
+  email: student.email || userProfile?.email || user?.email || '',
+  branch: student.branch || userProfile?.branch || userProfile?.department || '',
+  cgpa: student.cgpa ?? '',
+  placementStatus: student.placementStatus || 'unplaced',
+  currentPackage: student.currentPackage || '',
+  highestPackage: student.highestPackage || '',
+});
+
 export default function StudentJobBoard() {
   const { user, userProfile } = useAuth();
   const [search, setSearch] = useState('');
@@ -105,12 +115,7 @@ export default function StudentJobBoard() {
 
     const studentUnsub = onSnapshot(doc(db, 'students', user.uid), (snap) => {
       const data = snap.exists() ? { id: snap.id, ...snap.data() } : {};
-      setStudent(fillStudentDefaults({
-        name: userProfile?.name || '',
-        email: userProfile?.email || user?.email || '',
-        branch: userProfile?.branch || userProfile?.department || '',
-        ...data,
-      }, user.uid));
+      setStudent(normalizeStudentForEligibility(data, userProfile, user));
     }, () => setStudent(null));
 
     const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
@@ -225,7 +230,11 @@ export default function StudentJobBoard() {
         branch: student?.branch || userProfile?.department || '',
       };
 
-      await createApplication(payload);
+      const { data } = await createApplication(payload);
+      setApplications((prev) => {
+        if (prev.some((application) => application.id === data.id || application.jobId === job.id)) return prev;
+        return [{ ...data }, ...prev];
+      });
 
       toast.success('Application submitted successfully!');
     } catch (error) {
