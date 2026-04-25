@@ -8,6 +8,12 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { createJobDefaults } = require('../utils/marketplaceFactory');
 const { logActivity } = require('../utils/activityLogger');
+const { branchMatches, normalizeJobBranches } = require('../utils/branchEligibility');
+
+const sanitizeJobBranches = (branches) => {
+  const normalized = normalizeJobBranches(branches);
+  return normalized.length ? normalized : ['All'];
+};
 
 // GET /api/v1/jobs  — all authenticated users can browse jobs
 router.get('/', verifyToken, async (req, res) => {
@@ -31,9 +37,7 @@ router.get('/', verifyToken, async (req, res) => {
     const snap = await query.get();
     let jobs = snap.docs.map((d) => ({ id: d.id, ...createJobDefaults(d.data() || {}, d.id) }));
 
-    if (branch) {
-      jobs = jobs.filter((j) => !j.branches?.length || j.branches.includes('All') || j.branches.includes(branch));
-    }
+    if (branch) jobs = jobs.filter((j) => branchMatches(j.branches, branch));
 
     res.json({ jobs, total: jobs.length });
   } catch (err) {
@@ -80,6 +84,7 @@ router.post(
 
       const payload = createJobDefaults({
         ...req.body,
+        branches: sanitizeJobBranches(req.body.branches),
         postedBy: req.user.uid,
         postedByUid: req.user.uid,
         postedByName: req.user.name || req.user.displayName || '',
@@ -115,6 +120,9 @@ router.put(
     try {
       const currentSnap = db ? await db.collection('jobs').doc(req.params.id).get() : null;
       const current = currentSnap?.exists ? currentSnap.data() : {};
+      const nextBranches = Object.prototype.hasOwnProperty.call(req.body, 'branches')
+        ? sanitizeJobBranches(req.body.branches)
+        : current.branches;
 
       // Recruiters can only edit their own jobs
       if (req.user.role === 'recruiter' && current.postedBy && current.postedBy !== req.user.uid) {
@@ -124,6 +132,7 @@ router.put(
       const payload = createJobDefaults({
         ...current,
         ...req.body,
+        branches: nextBranches,
         updatedAt: new Date().toISOString(),
         updatedBy: req.user.uid,
       }, req.params.id);

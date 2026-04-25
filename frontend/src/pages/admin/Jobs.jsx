@@ -9,6 +9,7 @@ import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { normalizeJobBranches } from '../../utils/branchEligibility';
 
 const INITIAL_FORM = {
   title: '', company: '', recruiterName: '', recruiterEmail: '', industry: '',
@@ -73,6 +74,7 @@ export default function AdminJobs() {
     try {
       const payload = {
         ...form,
+        branches: normalizeJobBranches(form.branches),
         skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
         perks: String(form.perks || '').split(',').map((s) => s.trim()).filter(Boolean),
         minCGPA: String(form.minCGPA || ''),

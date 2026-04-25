@@ -9,6 +9,7 @@ const validate = require('../middleware/validate');
 const { createApplicationDefaults, syncStudentRollup } = require('../utils/marketplaceFactory');
 const { logActivity } = require('../utils/activityLogger');
 const { sendMail, buildStatusUpdateHtml } = require('../utils/emailService');
+const { branchMatches } = require('../utils/branchEligibility');
 
 const parseNumber = (value, fallback = 0) => {
   const match = String(value ?? '').match(/\d+(?:\.\d+)?/);
@@ -25,49 +26,6 @@ const parsePackageToLpa = (value) => {
   if (text.includes('k/month') || text.includes('/month') || text.includes('per month')) return Number(((amount * 12) / 100).toFixed(2));
   if (text.includes('pa') || text.includes('per annum')) return Number((amount / 100000).toFixed(2));
   return amount;
-};
-
-const BRANCH_ALIASES = {
-  cse: 'computer science',
-  cs: 'computer science',
-  'computer science and engineering': 'computer science',
-  'computer science engineering': 'computer science',
-  'computer engineering': 'computer science',
-  it: 'information technology',
-  ise: 'information technology',
-  'information science': 'information technology',
-  'information science engineering': 'information technology',
-  ece: 'electronics & communication',
-  'electronics and communication': 'electronics & communication',
-  'electronics communication engineering': 'electronics & communication',
-  eee: 'electrical',
-  aiml: 'artificial intelligence & machine learning',
-  'artificial intelligence': 'artificial intelligence & machine learning',
-  ai: 'artificial intelligence & machine learning',
-  ml: 'artificial intelligence & machine learning',
-  ds: 'data science',
-};
-
-const canonical = (value) => {
-  const normalized = String(value || '')
-    .toLowerCase()
-    .replace(/engineering/g, '')
-    .replace(/department/g, '')
-    .replace(/[^a-z0-9& ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return BRANCH_ALIASES[normalized] || normalized;
-};
-
-const branchMatches = (jobBranches, studentBranch) => {
-  const student = canonical(studentBranch);
-  if (!student) return true;
-  const branches = Array.isArray(jobBranches) ? jobBranches : [];
-  if (!branches.length || branches.some((branch) => canonical(branch) === 'all')) return true;
-  return branches.some((branch) => {
-    const current = canonical(branch);
-    return current === student || current.includes(student) || student.includes(current);
-  });
 };
 
 const canApplyToJob = (student = {}, job = {}) => {
@@ -187,7 +145,7 @@ router.post(
         jobId,
         company: job.company || req.body.company || '',
         role: job.title || req.body.role || '',
-        branch: req.body.branch || '',
+        branch: student.branch || req.body.branch || '',
         recruiterId: job.recruiterId || '',
         recruiterName: job.recruiterName || '',
         expectedCTC: req.body.expectedCTC || job.ctc || '',

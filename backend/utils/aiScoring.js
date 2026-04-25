@@ -14,6 +14,7 @@ const CGPA_WEIGHT = 35;
 const SKILL_WEIGHT = 40;
 const ACTIVITY_WEIGHT = 15;
 const PROFILE_WEIGHT = 10;
+const { branchMatches } = require('./branchEligibility');
 
 const parseNumber = (value, fallback = 0) => {
   const match = String(value ?? '').match(/\d+(?:\.\d+)?/);
@@ -28,19 +29,6 @@ const parsePackageToLpa = (value) => {
   if (text.includes('k/month') || text.includes('/month') || text.includes('per month')) return Number(((amount * 12) / 100).toFixed(2));
   if (text.includes('pa') || text.includes('per annum')) return Number((amount / 100000).toFixed(2));
   return amount;
-};
-
-const canonical = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim();
-
-const branchMatches = (jobBranches, studentBranch) => {
-  const student = canonical(studentBranch);
-  if (!student) return true;
-  const branches = Array.isArray(jobBranches) ? jobBranches : [];
-  if (!branches.length || branches.some((branch) => canonical(branch) === 'all')) return true;
-  return branches.some((branch) => {
-    const current = canonical(branch);
-    return current === student || current.includes(student) || student.includes(current);
-  });
 };
 
 const isEligibleForJob = (student = {}, job = {}) => {
@@ -170,8 +158,7 @@ const recommendJobsForStudent = (student, jobs) => {
       }
 
       // Branch match bonus (20%)
-      const jobBranches = Array.isArray(job.branches) ? job.branches.map((b) => b.toLowerCase()) : [];
-      if (!jobBranches.length || jobBranches.includes('all') || jobBranches.some((b) => b.includes(branch) || branch.includes(b))) {
+      if (branchMatches(job.branches, branch)) {
         score += 20;
       }
 

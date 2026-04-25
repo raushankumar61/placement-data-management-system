@@ -8,40 +8,9 @@ import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { createApplication } from '../../services/api';
+import { branchMatches } from '../../utils/branchEligibility';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
-
-const BRANCH_ALIASES = {
-  cse: 'computer science',
-  cs: 'computer science',
-  'computer science and engineering': 'computer science',
-  'computer science engineering': 'computer science',
-  'computer engineering': 'computer science',
-  it: 'information technology',
-  ise: 'information technology',
-  'information science': 'information technology',
-  'information science engineering': 'information technology',
-  ece: 'electronics & communication',
-  'electronics and communication': 'electronics & communication',
-  'electronics communication engineering': 'electronics & communication',
-  eee: 'electrical',
-  aiml: 'artificial intelligence & machine learning',
-  'artificial intelligence': 'artificial intelligence & machine learning',
-  ai: 'artificial intelligence & machine learning',
-  ml: 'artificial intelligence & machine learning',
-  ds: 'data science',
-};
-
-const canonicalBranch = (value) => {
-  const base = normalize(value)
-    .replace(/engineering/g, '')
-    .replace(/department/g, '')
-    .replace(/[^a-z0-9& ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!base) return '';
-  return BRANCH_ALIASES[base] || base;
-};
 
 const parseNumber = (value, fallback = 0) => {
   const text = String(value ?? '').trim();
@@ -72,19 +41,6 @@ const parsePackageToLpa = (value) => {
 
   // Default to LPA when no explicit unit is provided.
   return amount;
-};
-
-const branchMatches = (jobBranches, studentBranch) => {
-  const normalizedStudentBranch = canonicalBranch(studentBranch);
-  if (!normalizedStudentBranch) return true;
-  const branches = Array.isArray(jobBranches) ? jobBranches : [];
-  if (!branches.length || branches.some((branch) => normalize(branch) === 'all')) return true;
-  return branches.some((branch) => {
-    const normalizedBranch = canonicalBranch(branch);
-    return normalizedBranch === normalizedStudentBranch
-      || normalizedBranch.includes(normalizedStudentBranch)
-      || normalizedStudentBranch.includes(normalizedBranch);
-  });
 };
 
 const deadlineToLabel = (deadline) => {
