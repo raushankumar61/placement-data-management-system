@@ -3,11 +3,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar, Clock, Monitor, MessageSquare,
-  Star, ChevronDown, ChevronUp, CheckCircle
+  Star, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
+
+const displayValue = (value, fallback) => {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+};
+
+const formatDateLabel = (value) => {
+  if (!value) return 'Date to be announced';
+  if (typeof value === 'string') return value.slice(0, 10) || 'Date to be announced';
+  if (value?.toDate) return value.toDate().toLocaleDateString();
+  if (value instanceof Date) return value.toLocaleDateString();
+  return displayValue(value, 'Date to be announced');
+};
 
 function StarRating({ rating }) {
   return (
@@ -27,6 +40,15 @@ function InterviewCard({ interview }) {
   const [expanded, setExpanded] = useState(false);
   const isUpcoming = String(interview.status || '').toLowerCase() !== 'completed';
   const isPast = !isUpcoming;
+  const company = displayValue(interview.company, 'Hiring Partner');
+  const role = displayValue(interview.role, 'Interview Round');
+  const round = displayValue(interview.round, isUpcoming ? 'Upcoming Round' : 'Completed Round');
+  const time = displayValue(interview.time, 'Time to be announced');
+  const mode = displayValue(interview.mode, 'Mode to be announced');
+  const platform = displayValue(
+    interview.platform,
+    mode === 'Online' ? 'Meeting link will be shared' : 'Venue details will be shared'
+  );
 
   const daysLeft = () => {
     if (!interview.date) return null;
@@ -50,16 +72,16 @@ function InterviewCard({ interview }) {
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-electric/20 to-gold/10 flex items-center justify-center border border-white/10 flex-shrink-0">
-              <span className="font-heading font-bold text-white">{(interview.company || '?')[0]}</span>
+              <span className="font-heading font-bold text-white">{company[0]}</span>
             </div>
             <div>
-              <p className="text-white font-heading font-semibold">{interview.company}</p>
-              <p className="text-white/50 text-sm font-body">{interview.role}</p>
+              <p className="text-white font-heading font-semibold">{company}</p>
+              <p className="text-white/50 text-sm font-body">{role}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <span className={`badge ${isUpcoming ? 'badge-blue' : 'badge-green'}`}>
-              {interview.round}
+              {round}
             </span>
             {isUpcoming && daysLeft() && (
               <span className="badge-gold">{daysLeft()}</span>
@@ -70,21 +92,21 @@ function InterviewCard({ interview }) {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
           <div className="flex items-center gap-2 text-white/50">
             <Calendar size={13} className="text-white/30" />
-            <span className="text-xs font-body">{interview.date}</span>
+            <span className="text-xs font-body">{formatDateLabel(interview.date)}</span>
           </div>
           <div className="flex items-center gap-2 text-white/50">
             <Clock size={13} className="text-white/30" />
-            <span className="text-xs font-body">{interview.time}</span>
+            <span className="text-xs font-body">{time}</span>
           </div>
           <div className="flex items-center gap-2 text-white/50">
             <Monitor size={13} className="text-white/30" />
-            <span className="text-xs font-body">{interview.mode} · {interview.platform}</span>
+            <span className="text-xs font-body">{mode} · {platform}</span>
           </div>
         </div>
 
         {isUpcoming && interview.instructions && (
           <div className="mt-4 p-3 rounded-xl bg-blue-electric/5 border border-blue-electric/20">
-            <p className="text-blue-electric text-xs font-semibold mb-1 font-body">📌 Instructions</p>
+            <p className="text-blue-electric text-xs font-semibold mb-1 font-body">Instructions</p>
             <p className="text-white/60 text-xs font-body leading-relaxed">{interview.instructions}</p>
           </div>
         )}
@@ -118,20 +140,20 @@ function InterviewCard({ interview }) {
         >
           <div className="flex items-center justify-between">
             <p className="text-white font-heading font-semibold">Interview Feedback</p>
-            <StarRating rating={interview.feedback.rating} />
+            <StarRating rating={Number(interview.feedback.rating || 0)} />
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="p-3 rounded-xl bg-green-500/5 border border-green-500/20">
-              <p className="text-green-400 text-xs font-semibold mb-2 font-body">✅ Strengths</p>
+              <p className="text-green-400 text-xs font-semibold mb-2 font-body">Strengths</p>
               <p className="text-white/60 text-sm font-body leading-relaxed">
-                {interview.feedback.strengths}
+                {displayValue(interview.feedback.strengths, 'Strong fundamentals and confident communication.')}
               </p>
             </div>
             <div className="p-3 rounded-xl bg-gold/5 border border-gold/20">
-              <p className="text-gold text-xs font-semibold mb-2 font-body">💡 Areas to Improve</p>
+              <p className="text-gold text-xs font-semibold mb-2 font-body">Areas to Improve</p>
               <p className="text-white/60 text-sm font-body leading-relaxed">
-                {interview.feedback.improvements}
+                {displayValue(interview.feedback.improvements, 'Continue practicing role-specific interview questions and problem solving.')}
               </p>
             </div>
           </div>
@@ -142,12 +164,12 @@ function InterviewCard({ interview }) {
               <p className={`font-semibold text-sm mt-0.5 ${
                 String(interview.feedback.result || '').includes('Selected') ? 'text-green-400' : 'text-blue-electric'
               }`}>
-                {interview.feedback.result}
+                {displayValue(interview.feedback.result, 'Feedback shared')}
               </p>
             </div>
             <div className="text-right">
               <p className="text-white/40 text-xs font-body">Feedback by</p>
-              <p className="text-white/60 text-xs mt-0.5 font-body">{interview.feedback.givenBy}</p>
+              <p className="text-white/60 text-xs mt-0.5 font-body">{displayValue(interview.feedback.givenBy, 'Placement Team')}</p>
             </div>
           </div>
         </motion.div>

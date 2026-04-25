@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Plus, X, Save, Upload, FileText, Sparkles } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import toast from 'react-hot-toast';
@@ -190,7 +190,13 @@ export default function StudentProfile() {
       };
 
       await setDoc(doc(db, 'students', user.uid), payload, { merge: true });
-      await setDoc(doc(db, 'users', user.uid), { name: payload.name, branch: payload.branch, phone: payload.phone }, { merge: true });
+      await setDoc(doc(db, 'users', user.uid), {
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        branch: payload.branch,
+        department: payload.branch,
+      }, { merge: true });
       await refreshProfile();
       toast.success('Profile updated');
     } catch {

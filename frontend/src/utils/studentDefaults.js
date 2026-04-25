@@ -147,7 +147,7 @@ const fillStudentDefaults = (student = {}, seed = 'student') => {
   const backlogCount = Number(student.backlogCount ?? (isPlaced ? 0 : Math.floor(rng() * 3)));
   const phone = student.phone || generatePhone(seed);
   const rollNo = student.rollNo || generateRollNo(branch, graduationYear, seed);
-  const usn = generateUsn(branch, graduationYear, seed);
+  const usn = student.usn || generateUsn(branch, graduationYear, seed);
   const interviewExperience = student.interviewExperience || `Completed ${Math.max(1, Math.floor(rng() * 5) + 1)} rounds with a focus on core concepts, projects, and communication.`;
   const improvementSuggestions = normalizeList(student.improvementSuggestions).length
     ? normalizeList(student.improvementSuggestions)
@@ -190,7 +190,7 @@ const fillStudentDefaults = (student = {}, seed = 'student') => {
     certificationLinks: certifications,
     interviewExperience,
     improvementSuggestions,
-    resumeURL: student.resumeURL || `https://storage.example.com/resumes/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${seed}.pdf`,
+    resumeURL: student.resumeURL || '',
     address: student.address || generateAddress(seed),
     dateOfBirth: student.dateOfBirth || `${1999 + (hashString(`${seed}-dob-year`) % 6)}-${String((hashString(`${seed}-dob-month`) % 12) + 1).padStart(2, '0')}-${String((hashString(`${seed}-dob-day`) % 28) + 1).padStart(2, '0')}`,
     gender: student.gender || pick(rng, GENDERS),

@@ -94,16 +94,18 @@ export default function StudentApplications() {
 
   const records = useMemo(() => applications.map((app) => {
     const job = jobs.find((item) => item.id === app.jobId) || {};
+    const appliedSource = app.appliedAt || app.createdAt;
     return {
       id: app.id,
       company: job.company || app.company || 'N/A',
       role: job.title || app.role || 'N/A',
-      appliedAt: formatDate(app.appliedAt || app.createdAt),
+      appliedAt: formatDate(appliedSource),
+      appliedAtValue: appliedSource,
       ctc: job.ctc || app.ctc || 'N/A',
-      timeline: buildTimeline(app.status, app.appliedAt || app.createdAt),
+      timeline: buildTimeline(app.status, appliedSource),
       overallStatus: buildOverallStatus(app.status),
     };
-  }).sort((a, b) => toMillis(b.appliedAt) - toMillis(a.appliedAt)), [applications, jobs]);
+  }).sort((a, b) => toMillis(b.appliedAtValue) - toMillis(a.appliedAtValue)), [applications, jobs]);
 
   const selected = records.find((app) => app.id === selectedId) || records[0] || null;
 

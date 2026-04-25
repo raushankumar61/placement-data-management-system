@@ -8,6 +8,7 @@ import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { createApplication } from '../../services/api';
+import { fillStudentDefaults } from '../../utils/studentDefaults';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
@@ -84,6 +85,11 @@ const deadlineToLabel = (deadline) => {
   return String(deadline);
 };
 
+const displayValue = (value, fallback) => {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+};
+
 export default function StudentJobBoard() {
   const { user, userProfile } = useAuth();
   const [search, setSearch] = useState('');
@@ -98,7 +104,13 @@ export default function StudentJobBoard() {
     if (!user?.uid) return undefined;
 
     const studentUnsub = onSnapshot(doc(db, 'students', user.uid), (snap) => {
-      setStudent(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+      const data = snap.exists() ? { id: snap.id, ...snap.data() } : {};
+      setStudent(fillStudentDefaults({
+        name: userProfile?.name || '',
+        email: userProfile?.email || user?.email || '',
+        branch: userProfile?.branch || userProfile?.department || '',
+        ...data,
+      }, user.uid));
     }, () => setStudent(null));
 
     const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
@@ -114,7 +126,7 @@ export default function StudentJobBoard() {
       jobsUnsub();
       appsUnsub();
     };
-  }, [user?.uid]);
+  }, [user?.uid, user?.email, userProfile?.name, userProfile?.email, userProfile?.branch, userProfile?.department]);
 
   const displayedJobs = useMemo(() => {
     const studentBranch = student?.branch || userProfile?.department || '';
@@ -150,6 +162,17 @@ export default function StudentJobBoard() {
 
       return {
         ...job,
+        title: displayValue(job.title, 'Campus Opportunity'),
+        company: displayValue(job.company, 'Hiring Partner'),
+        location: displayValue(job.location, 'Location to be announced'),
+        ctc: displayValue(job.ctc || job.stipend, 'Compensation to be announced'),
+        type: displayValue(job.type, 'Full-time'),
+        workMode: displayValue(job.workMode, 'Onsite'),
+        experienceLevel: displayValue(job.experienceLevel, 'Fresher'),
+        openings: displayValue(job.openings, 'TBD'),
+        recruiterName: displayValue(job.recruiterName, displayValue(job.company, 'Hiring Partner')),
+        description: displayValue(job.description, 'Detailed job description will be shared by the recruiter soon.'),
+        perks: Array.isArray(job.perks) ? job.perks.filter(Boolean) : [],
         minCgpa,
         jobPackageLpa,
         meetsCgpa,
@@ -299,12 +322,12 @@ export default function StudentJobBoard() {
                 { label: 'Location', value: selected.location },
                 { label: 'CTC', value: selected.ctc },
                 { label: 'Type', value: selected.type },
-                { label: 'Mode', value: selected.workMode || 'Onsite' },
-                { label: 'Experience', value: selected.experienceLevel || 'Fresher' },
+                { label: 'Mode', value: selected.workMode },
+                { label: 'Experience', value: selected.experienceLevel },
                 { label: 'Openings', value: selected.openings },
-                { label: 'Min CGPA', value: selected.minCGPA },
+                { label: 'Min CGPA', value: selected.minCGPA || 'Not specified' },
                 { label: 'Deadline', value: deadlineToLabel(selected.deadline) },
-                { label: 'Recruiter', value: selected.recruiterName || selected.company },
+                { label: 'Recruiter', value: selected.recruiterName },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-white/40 font-body">{label}</span>

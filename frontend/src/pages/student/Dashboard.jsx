@@ -7,6 +7,7 @@ import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { fillStudentDefaults } from '../../utils/studentDefaults';
 
 const STATUS_CLASS = { Shortlisted: 'badge-blue', Applied: 'badge-gray', Selected: 'badge-green', Rejected: 'badge-red' };
 
@@ -47,7 +48,13 @@ export default function StudentDashboard() {
     if (!user?.uid) return undefined;
 
     const studentUnsub = onSnapshot(doc(db, 'students', user.uid), (snap) => {
-      setStudent(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+      const data = snap.exists() ? { id: snap.id, ...snap.data() } : {};
+      setStudent(fillStudentDefaults({
+        name: userProfile?.name || '',
+        email: userProfile?.email || user?.email || '',
+        branch: userProfile?.branch || userProfile?.department || '',
+        ...data,
+      }, user.uid));
     }, () => setStudent(null));
 
     const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
@@ -68,7 +75,7 @@ export default function StudentDashboard() {
       applicationsUnsub();
       interviewsUnsub();
     };
-  }, [user?.uid]);
+  }, [user?.uid, user?.email, userProfile?.name, userProfile?.email, userProfile?.branch, userProfile?.department]);
 
   const branch = student?.branch || userProfile?.department || '';
   const cgpa = Number(student?.cgpa || 0);

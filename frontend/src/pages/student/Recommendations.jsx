@@ -7,6 +7,11 @@ import { useAuth } from '../../context/AuthContext';
 import { getJobRecommendations, getRecommendations } from '../../services/api';
 import toast from 'react-hot-toast';
 
+const displayValue = (value, fallback) => {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+};
+
 export default function StudentRecommendations() {
   const { user } = useAuth();
 
@@ -188,20 +193,20 @@ export default function StudentRecommendations() {
                       <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
                         <Star size={16} className="text-purple-400" />
                       </div>
-                      <div>
-                        <p className="text-white font-semibold">{rec.role} <span className="text-white/40">at</span> {rec.company}</p>
-                        <p className="text-white/50 text-sm font-body italic mt-0.5">"{rec.reason}"</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          {rec.rating && (
-                            <div className="flex gap-0.5">
-                              {[1, 2, 3, 4, 5].map((r) => (
-                                <Star key={r} size={12} className={r <= rec.rating ? 'text-gold fill-gold' : 'text-white/20'} />
-                              ))}
-                            </div>
-                          )}
-                          <p className="text-white/30 text-xs font-body">{rec.date}</p>
+                        <div>
+                          <p className="text-white font-semibold">{displayValue(rec.role, 'Recommended Role')} <span className="text-white/40">at</span> {displayValue(rec.company, 'Recommended Company')}</p>
+                          <p className="text-white/50 text-sm font-body italic mt-0.5">"{displayValue(rec.reason, 'Your faculty thinks this opportunity aligns well with your current profile.')}"</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            {rec.rating && (
+                              <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map((r) => (
+                                  <Star key={r} size={12} className={r <= rec.rating ? 'text-gold fill-gold' : 'text-white/20'} />
+                                ))}
+                              </div>
+                            )}
+                            <p className="text-white/30 text-xs font-body">{displayValue(rec.date, 'Recently shared')}</p>
+                          </div>
                         </div>
-                      </div>
                     </div>
                     <span className={rec.status === 'Accepted' ? 'badge-green' : rec.status === 'Rejected' ? 'badge-red' : 'badge-gold'}>
                       {rec.status || 'Pending'}
