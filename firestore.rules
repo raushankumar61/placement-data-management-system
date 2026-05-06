@@ -31,10 +31,11 @@ service cloud.firestore {
     // ── Users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && (!('role' in request.resource.data) || request.resource.data.role in ['student', 'recruiter', 'faculty']);
       // Only the user themselves or admin can update their own profile
       // Role field can only be changed by admin
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
       allow delete: if isAdmin();
     }
 
@@ -42,7 +43,7 @@ service cloud.firestore {
     match /students/{studentId} {
       // Students can only read their own full profile.
       // Recruiters and faculty can read but with limited fields (enforce in backend).
-      allow read: if isAdminOrFaculty() || isRecruiter() || isOwner(studentId);
+      allow read: if isAdminOrFaculty() || isOwner(studentId);
       allow create: if isAdmin() || isOwner(studentId);
       allow update: if isAdmin() || isFaculty() || isOwner(studentId);
       allow delete: if isAdmin();
@@ -93,7 +94,9 @@ service cloud.firestore {
 
     // ── Interviews ────────────────────────────────────────────────────────────
     match /interviews/{interviewId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdminOrFaculty()
+        || (isStudent() && resource.data.studentId == request.auth.uid)
+        || (isRecruiter() && resource.data.recruiterId == request.auth.uid);
       allow create: if isAdminOrRecruiter() || isFaculty();
       allow update: if isAdminOrRecruiter() || isFaculty()
         || (isStudent() && resource.data.studentId == request.auth.uid);

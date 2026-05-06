@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { getStudents } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RecruiterCandidates() {
@@ -25,14 +26,13 @@ export default function RecruiterCandidates() {
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDocs(collection(db, 'students'));
-        const data = snap.docs.map((d) => {
-          const v = d.data();
+        const { data } = await getStudents();
+        const candidatesData = (data.students || []).map((v) => {
           const skills = Array.isArray(v.skills)
             ? v.skills
             : String(v.skills || '').split(',').map((s) => s.trim()).filter(Boolean);
           return {
-            id: d.id,
+            id: v.id,
             name: v.name || 'Student',
             branch: v.branch || 'Unknown',
             cgpa: Number(v.cgpa || 0),
@@ -44,7 +44,7 @@ export default function RecruiterCandidates() {
             linkedin: v.linkedin || '',
           };
         });
-        setCandidates(data);
+        setCandidates(candidatesData);
       } catch {
         toast.error('Unable to load candidates');
       }

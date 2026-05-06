@@ -6,6 +6,8 @@ import { Mail, Lock, Eye, EyeOff, Zap, Chrome } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { validateForm, validators } from '../utils/validation';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../services/firebase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,6 +15,9 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
@@ -62,6 +67,25 @@ export default function Login() {
       toast.error('Google sign-in failed');
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    const emailValue = resetEmail.trim() || email.trim();
+    if (!emailValue) {
+      return toast.error('Enter your email first');
+    }
+
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, emailValue);
+      toast.success('Password reset email sent');
+      setResetOpen(false);
+    } catch (err) {
+      toast.error(err.message?.replace('Firebase: ', '') || 'Could not send reset email');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -153,10 +177,49 @@ export default function Login() {
             </div>
 
             <div className="flex justify-end">
-              <a href="#" className="text-blue-electric text-xs font-body hover:text-blue-glow transition-colors">
+              <button
+                type="button"
+                onClick={() => {
+                  setResetEmail(email);
+                  setResetOpen((prev) => !prev);
+                }}
+                className="text-blue-electric text-xs font-body hover:text-blue-glow transition-colors"
+              >
                 Forgot password?
-              </a>
+              </button>
             </div>
+
+            {resetOpen && (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                <p className="text-white/60 text-xs font-body">
+                  We’ll send a password reset link to the email address below.
+                </p>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="input-field text-sm"
+                />
+                <div className="flex items-center gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setResetOpen(false)}
+                    className="text-white/40 text-xs font-body hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePasswordReset}
+                    disabled={resetLoading}
+                    className="btn-outline py-2 px-3 text-xs disabled:opacity-50"
+                  >
+                    {resetLoading ? 'Sending...' : 'Send reset link'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <button
               type="submit"

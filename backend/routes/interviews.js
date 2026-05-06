@@ -8,6 +8,18 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { logActivity } = require('../utils/activityLogger');
 const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
+const { branchMatches } = require('../utils/branchEligibility');
+
+const getFacultyDepartment = async (dbInstance, uid) => {
+  if (!dbInstance || !uid) return '';
+  try {
+    const snap = await dbInstance.collection('users').doc(uid).get();
+    if (!snap.exists) return '';
+    return String(snap.data()?.department || '').trim();
+  } catch {
+    return '';
+  }
+};
 
 // GET /api/v1/interviews - authenticated users can list interviews
 router.get('/', verifyToken, async (req, res) => {
@@ -25,6 +37,22 @@ router.get('/', verifyToken, async (req, res) => {
     if (req.user.role === 'recruiter') {
       const recruiterScope = await resolveRecruiterScope(db, req.user);
       const filtered = interviews.filter((interview) => isOwnedByRecruiter(interview, recruiterScope));
+      return res.json({ interviews: filtered, total: filtered.length });
+    }
+
+    if (req.user.role === 'faculty') {
+      const department = await getFacultyDepartment(db, req.user.uid);
+      if (!department) {
+        return res.json({ interviews: [], total: 0 });
+      }
+
+      const studentSnaps = await db.collection('students').get();
+      const studentById = new Map(studentSnaps.docs.map((docSnap) => [docSnap.id, docSnap.data() || {}]));
+      const filtered = interviews.filter((interview) => {
+        const student = studentById.get(interview.studentId);
+        return student ? branchMatches([department], student.branch) : false;
+      });
+
       return res.json({ interviews: filtered, total: filtered.length });
     }
 

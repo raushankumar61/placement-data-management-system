@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../config/firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const { createSeededRecord } = require('../utils/studentFactory');
 
 // GET /api/v1/alumni
-router.get('/', verifyToken, async (req, res) => {
+router.get('/', verifyToken, requireRole('admin', 'faculty'), async (req, res) => {
   try {
     if (!db) return res.json({ alumni: [], total: 0 });
 

@@ -179,6 +179,13 @@ router.get('/candidates/ranked', verifyToken, requireRole('admin', 'recruiter', 
     const students = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     const job = jobSnap?.exists ? { id: jobSnap.id, ...jobSnap.data() } : null;
 
+    if (req.user.role === 'recruiter') {
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
+      if (!job || !isOwnedByRecruiter(job, recruiterScope)) {
+        return res.status(403).json({ error: 'You can only rank candidates for your own jobs' });
+      }
+    }
+
     const ranked = rankStudents(students, job);
 
     res.json({

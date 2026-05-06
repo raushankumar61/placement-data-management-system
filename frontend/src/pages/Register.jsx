@@ -9,7 +9,6 @@ import { validateForm, validators } from '../utils/validation';
 
 const ROLES = [
   { value: 'student', label: 'Student', desc: 'Looking for placement opportunities' },
-  { value: 'admin', label: 'Placement Officer', desc: 'Manage campus placement drives' },
   { value: 'recruiter', label: 'Recruiter', desc: 'Hire talented candidates' },
   { value: 'faculty', label: 'Faculty / Coordinator', desc: 'Monitor department placements' },
 ];

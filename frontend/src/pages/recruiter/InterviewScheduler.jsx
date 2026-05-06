@@ -4,12 +4,8 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, Plus, X, CheckCircle, User, Video, MapPin } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import {
-  collection, getDocs, orderBy, query
-} from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { createInterview, deleteInterview } from '../../services/api';
+import { createInterview, deleteInterview, getInterviews, getStudents } from '../../services/api';
 
 const INITIAL_FORM = {
   studentId: '', role: '', date: '', time: '',
@@ -30,15 +26,14 @@ export default function RecruiterInterviewScheduler() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, interviewsSnap] = await Promise.all([
-          getDocs(collection(db, 'students')),
-          getDocs(query(collection(db, 'interviews'), orderBy('createdAt', 'desc'))),
+        const [studentsRes, interviewsRes] = await Promise.all([
+          getStudents(),
+          getInterviews(),
         ]);
 
-        const data = studentsSnap.docs.map((d) => {
-          const v = d.data();
+        const data = (studentsRes.data.students || []).map((v) => {
           return {
-            id: d.id,
+            id: v.id,
             name: v.name || 'Student',
             branch: v.branch || 'Unknown',
             cgpa: Number(v.cgpa || 0),
@@ -48,7 +43,7 @@ export default function RecruiterInterviewScheduler() {
         });
         setStudents(data);
 
-        const scheduledData = interviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const scheduledData = interviewsRes.data.interviews || [];
         setScheduled(scheduledData);
       } catch {
         setStudents([]);
