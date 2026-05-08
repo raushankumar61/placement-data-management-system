@@ -51,7 +51,17 @@ const canonicalBranch = (value) => {
     .trim();
 
   if (!normalized) return '';
-  return BRANCH_ALIASES[normalized] || normalized;
+
+  if (BRANCH_ALIASES[normalized]) return BRANCH_ALIASES[normalized];
+
+  const matchedAlias = Object.entries(BRANCH_ALIASES).find(([alias]) => (
+    normalized === alias
+    || normalized.startsWith(`${alias} `)
+    || normalized.endsWith(` ${alias}`)
+    || normalized.includes(` ${alias} `)
+  ));
+
+  return matchedAlias ? matchedAlias[1] : normalized;
 };
 
 const isAllBranches = (value) => {

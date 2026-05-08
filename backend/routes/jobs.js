@@ -30,13 +30,18 @@ router.get('/', verifyToken, async (req, res) => {
     }
 
     let query = db.collection('jobs');
-    const { status, type, branch } = req.query;
+    const { status, type, branch, mine } = req.query;
 
     if (status) query = query.where('status', '==', status);
     if (type) query = query.where('type', '==', type);
 
     const snap = await query.get();
     let jobs = snap.docs.map((d) => ({ id: d.id, ...createJobDefaults(d.data() || {}, d.id) }));
+
+    if (String(mine).toLowerCase() === 'true' && req.user.role === 'recruiter') {
+      const recruiterScope = await resolveRecruiterScope(db, req.user);
+      jobs = jobs.filter((job) => isOwnedByRecruiter(job, recruiterScope));
+    }
 
     if (branch) jobs = jobs.filter((j) => branchMatches(j.branches, branch));
 

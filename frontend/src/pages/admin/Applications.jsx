@@ -3,9 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { updateApplicationStatus } from '../../services/api';
+import { getApplications, getStudents, getJobs, updateApplicationStatus } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const STATUS_CLASS = { Selected: 'badge-green', Shortlisted: 'badge-blue', Applied: 'badge-gray', Rejected: 'badge-red', 'In Process': 'badge-gold' };
@@ -17,27 +15,26 @@ export default function AdminApplications() {
 
   const loadApplications = async () => {
     try {
-      const [appsSnap, studentsSnap, jobsSnap] = await Promise.all([
-        getDocs(collection(db, 'applications')),
-        getDocs(collection(db, 'students')),
-        getDocs(collection(db, 'jobs')),
+      const [appsRes, studentsRes, jobsRes] = await Promise.all([
+        getApplications(),
+        getStudents(),
+        getJobs(),
       ]);
 
-      const studentMap = new Map(studentsSnap.docs.map((d) => [d.id, d.data()]));
-      const jobMap = new Map(jobsSnap.docs.map((d) => [d.id, d.data()]));
+      const studentMap = new Map((studentsRes.data.students || []).map((student) => [student.id, student]));
+      const jobMap = new Map((jobsRes.data.jobs || []).map((job) => [job.id, job]));
 
-      const records = appsSnap.docs.map((d) => {
-        const a = d.data();
+      const records = (appsRes.data.applications || []).map((a) => {
         const s = studentMap.get(a.studentId) || {};
         const j = jobMap.get(a.jobId) || {};
         return {
-          id: d.id,
+          id: a.id,
           studentId: a.studentId || '',
           jobId: a.jobId || '',
           student: s.name || 'Student',
           rollNo: s.rollNo || 'N/A',
-          company: j.company || 'N/A',
-          role: j.title || 'N/A',
+          company: j.company || a.company || 'N/A',
+          role: j.title || a.role || 'N/A',
           branch: s.branch || 'N/A',
           status: a.status || 'Applied',
           appliedAt: (a.appliedAt || '').slice(0, 10) || 'N/A',

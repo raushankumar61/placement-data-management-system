@@ -19,8 +19,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { addDoc, collection, doc, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { createPlacementActivity, getPlacementActivities, getStudents, updatePlacementActivity } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const WARNING_THRESHOLD = 2;
@@ -81,14 +80,13 @@ export default function FacultyPlacementActivities() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, activitiesSnap] = await Promise.all([
-          getDocs(collection(db, 'students')),
-          getDocs(collection(db, 'placementActivities')),
+        const [studentsRes, activitiesRes] = await Promise.all([
+          getStudents(),
+          getPlacementActivities(),
         ]);
 
-        const loadedStudents = studentsSnap.docs.map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data() }));
-        const loadedActivities = activitiesSnap.docs
-          .map((activityDoc) => ({ id: activityDoc.id, ...activityDoc.data() }))
+        const loadedStudents = studentsRes.data?.students || [];
+        const loadedActivities = (activitiesRes.data?.activities || [])
           .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
         setStudents(loadedStudents);
@@ -224,9 +222,9 @@ export default function FacultyPlacementActivities() {
         postedBy: userProfile?.name || 'Faculty',
       };
 
-      const ref = await addDoc(collection(db, 'placementActivities'), payload);
-      setActivities((current) => [{ id: ref.id, ...payload }, ...current]);
-      setSelectedActivity({ id: ref.id, ...payload });
+      const { data } = await createPlacementActivity(payload);
+      setActivities((current) => [{ ...data }, ...current]);
+      setSelectedActivity({ ...data });
       setShowModal(false);
       clearSelection();
       toast.success('Placement activity created');
@@ -247,11 +245,7 @@ export default function FacultyPlacementActivities() {
     setUpdatingAttendance(true);
     try {
       const attendance = { ...(activity.attendance || {}), [studentId]: nextStatus };
-      const activityRef = doc(db, 'placementActivities', activity.id);
-      await updateDoc(activityRef, {
-        attendance,
-        updatedAt: new Date().toISOString(),
-      });
+      await updatePlacementActivity(activity.id, { attendance });
 
       let participationDelta = 0;
       let missedDelta = 0;
@@ -272,16 +266,6 @@ export default function FacultyPlacementActivities() {
       const newMissed = Math.max(0, Number(student.activityMissedCount || 0) + missedDelta);
       const newWarnings = Math.floor(newMissed / WARNING_THRESHOLD);
       const blocked = newMissed >= BLOCK_THRESHOLD;
-
-      await updateDoc(doc(db, 'students', studentId), {
-        activityParticipationCount: newParticipation,
-        activityMissedCount: newMissed,
-        activityWarningsCount: newWarnings,
-        placementActivityBlocked: blocked,
-        lastActivityStatus: nextStatus,
-        latestPlacementActivity: activity.title,
-        activityUpdatedAt: new Date().toISOString(),
-      });
 
       setStudents((current) => current.map((item) => (
         item.id === studentId

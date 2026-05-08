@@ -4,8 +4,7 @@ import { motion } from 'framer-motion';
 import { Building2, CheckCircle, XCircle, Search, Globe, Mail, Phone } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getRecruiters, verifyRecruiter } from '../../services/api';
 
 export default function AdminRecruiters() {
   const [recruiters, setRecruiters] = useState([]);
@@ -13,27 +12,39 @@ export default function AdminRecruiters() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'recruiters'), (snap) => {
-      setRecruiters(snap.docs.map((d) => ({
-        id: d.id,
-        companyName: d.data().companyName || d.data().name || 'Recruiter',
-        contactEmail: d.data().contactEmail || d.data().email || '',
-        phone: d.data().phone || 'N/A',
-        website: d.data().website || 'N/A',
-        industry: d.data().industry || 'General',
-        location: d.data().location || 'N/A',
-        companySize: d.data().companySize || 'N/A',
-        foundedYear: d.data().foundedYear || 'N/A',
-        hiringRoles: Array.isArray(d.data().hiringRoles)
-          ? d.data().hiringRoles
-          : String(d.data().hiringRoles || '').split(',').map((s) => s.trim()).filter(Boolean),
-        verified: Boolean(d.data().verified),
-        jobsPosted: Number(d.data().jobsPosted || 0),
-        hires: Number(d.data().hires || 0),
-      })));
-    }, () => setRecruiters([]));
+    let active = true;
 
-    return unsub;
+    const loadRecruiters = async () => {
+      try {
+        const { data } = await getRecruiters();
+        if (!active) return;
+
+        const records = (data.recruiters || []).map((recruiter) => ({
+          id: recruiter.id,
+          companyName: recruiter.companyName || recruiter.name || 'Recruiter',
+          contactEmail: recruiter.contactEmail || recruiter.email || '',
+          phone: recruiter.phone || 'N/A',
+          website: recruiter.website || 'N/A',
+          industry: recruiter.industry || 'General',
+          location: recruiter.location || 'N/A',
+          companySize: recruiter.companySize || 'N/A',
+          foundedYear: recruiter.foundedYear || 'N/A',
+          hiringRoles: Array.isArray(recruiter.hiringRoles)
+            ? recruiter.hiringRoles
+            : String(recruiter.hiringRoles || '').split(',').map((s) => s.trim()).filter(Boolean),
+          verified: Boolean(recruiter.verified),
+          jobsPosted: Number(recruiter.jobsPosted || 0),
+          hires: Number(recruiter.hires || 0),
+        }));
+
+        setRecruiters(records);
+      } catch {
+        if (active) setRecruiters([]);
+      }
+    };
+
+    loadRecruiters();
+    return () => { active = false; };
   }, []);
 
   const filtered = recruiters.filter((r) => {
@@ -47,7 +58,10 @@ export default function AdminRecruiters() {
     if (!recruiter) return;
 
     try {
-      await updateDoc(doc(db, 'recruiters', id), { verified: !recruiter.verified });
+      await verifyRecruiter(id, !recruiter.verified);
+      setRecruiters((prev) => prev.map((item) => (
+        item.id === id ? { ...item, verified: !item.verified } : item
+      )));
       toast.success(`${recruiter.companyName} ${!recruiter.verified ? 'approved' : 'suspended'}`);
     } catch {
       toast.error('Unable to update recruiter status');

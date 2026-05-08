@@ -7,8 +7,7 @@ import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getApplications, getJobs, getStudents } from '../../services/api';
 
 const OFFER_STATUSES = new Set(['selected', 'offered', 'offer', 'placed']);
 
@@ -81,23 +80,28 @@ export default function AdminReports() {
   const [jobs, setJobs] = useState([]);
 
   useEffect(() => {
-    const studentsUnsub = onSnapshot(collection(db, 'students'), (snap) => {
-      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setStudents([]));
-
-    const applicationsUnsub = onSnapshot(collection(db, 'applications'), (snap) => {
-      setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setApplications([]));
-
-    const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
-      setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setJobs([]));
-
-    return () => {
-      studentsUnsub();
-      applicationsUnsub();
-      jobsUnsub();
+    let active = true;
+    const load = async () => {
+      try {
+        const [studentsRes, applicationsRes, jobsRes] = await Promise.all([
+          getStudents(),
+          getApplications(),
+          getJobs(),
+        ]);
+        if (!active) return;
+        setStudents(studentsRes.data?.students || []);
+        setApplications(applicationsRes.data?.applications || []);
+        setJobs(jobsRes.data?.jobs || []);
+      } catch {
+        if (!active) return;
+        setStudents([]);
+        setApplications([]);
+        setJobs([]);
+      }
     };
+
+    load();
+    return () => { active = false; };
   }, []);
 
   const analytics = useMemo(() => {

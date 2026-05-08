@@ -52,7 +52,17 @@ export const canonicalBranch = (value) => {
     .trim();
 
   if (!base) return '';
-  return BRANCH_ALIASES[base] || base;
+
+  if (BRANCH_ALIASES[base]) return BRANCH_ALIASES[base];
+
+  const matchedAlias = Object.entries(BRANCH_ALIASES).find(([alias]) => (
+    base === alias
+    || base.startsWith(`${alias} `)
+    || base.endsWith(` ${alias}`)
+    || base.includes(` ${alias} `)
+  ));
+
+  return matchedAlias ? matchedAlias[1] : base;
 };
 
 const isAllBranches = (value) => {

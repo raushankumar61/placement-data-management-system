@@ -60,6 +60,7 @@ app.use('/api/v1/resume', require('./routes/resume'));
 app.use('/api/v1/analytics', require('./routes/analytics'));
 app.use('/api/v1/mock-interviews', require('./routes/mockInterviews'));
 app.use('/api/v1/alumni', require('./routes/alumni'));
+app.use('/api/v1/faculty', require('./routes/faculty'));
 
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

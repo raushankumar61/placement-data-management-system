@@ -5,9 +5,8 @@ import { motion } from 'framer-motion';
 import { FileText, Briefcase, CheckCircle, Clock, ArrowRight, Bell } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { fillStudentDefaults } from '../../utils/studentDefaults';
+import { getApplications, getInterviews, getJobs, getStudent } from '../../services/api';
 
 const STATUS_CLASS = { Shortlisted: 'badge-blue', Applied: 'badge-gray', Selected: 'badge-green', Rejected: 'badge-red' };
 
@@ -47,34 +46,44 @@ export default function StudentDashboard() {
   useEffect(() => {
     if (!user?.uid) return undefined;
 
-    const studentUnsub = onSnapshot(doc(db, 'students', user.uid), (snap) => {
-      const data = snap.exists() ? { id: snap.id, ...snap.data() } : {};
-      setStudent(fillStudentDefaults({
-        name: userProfile?.name || '',
-        email: userProfile?.email || user?.email || '',
-        branch: userProfile?.branch || userProfile?.department || '',
-        ...data,
-      }, user.uid));
-    }, () => setStudent(null));
+    let active = true;
 
-    const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
-      setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setJobs([]));
+    const load = async () => {
+      try {
+        const [studentRes, jobsRes, applicationsRes, interviewsRes] = await Promise.all([
+          getStudent(user.uid),
+          getJobs(),
+          getApplications({ studentId: user.uid }),
+          getInterviews({ studentId: user.uid }),
+        ]);
 
-    const applicationsUnsub = onSnapshot(query(collection(db, 'applications'), where('studentId', '==', user.uid)), (snap) => {
-      setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setApplications([]));
+        if (!active) return;
 
-    const interviewsUnsub = onSnapshot(query(collection(db, 'interviews'), where('studentId', '==', user.uid)), (snap) => {
-      setInterviews(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setInterviews([]));
-
-    return () => {
-      studentUnsub();
-      jobsUnsub();
-      applicationsUnsub();
-      interviewsUnsub();
+        const studentData = studentRes.data?.student || studentRes.data || {};
+        setStudent(fillStudentDefaults({
+          name: userProfile?.name || '',
+          email: userProfile?.email || user?.email || '',
+          branch: userProfile?.branch || userProfile?.department || '',
+          ...studentData,
+        }, user.uid));
+        setJobs(jobsRes.data?.jobs || []);
+        setApplications(applicationsRes.data?.applications || []);
+        setInterviews(interviewsRes.data?.interviews || []);
+      } catch {
+        if (!active) return;
+        setStudent(fillStudentDefaults({
+          name: userProfile?.name || '',
+          email: userProfile?.email || user?.email || '',
+          branch: userProfile?.branch || userProfile?.department || '',
+        }, user.uid));
+        setJobs([]);
+        setApplications([]);
+        setInterviews([]);
+      }
     };
+
+    load();
+    return () => { active = false; };
   }, [user?.uid, user?.email, userProfile?.name, userProfile?.email, userProfile?.branch, userProfile?.department]);
 
   const branch = student?.branch || userProfile?.department || '';

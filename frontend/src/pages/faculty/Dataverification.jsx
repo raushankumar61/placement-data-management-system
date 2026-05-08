@@ -4,8 +4,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Eye, AlertCircle, Search } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, getDocs, updateDoc, doc, orderBy, query } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getFacultyVerifications, updateFacultyVerification } from '../../services/api';
 
 const FIELD_COLORS = {
   CGPA: 'badge-gold',
@@ -31,8 +30,8 @@ export default function FacultyDataVerification() {
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDocs(query(collection(db, 'verifications'), orderBy('submittedAt', 'desc')));
-        const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const { data } = await getFacultyVerifications();
+        const records = data.verifications || [];
         setVerifications(records);
       } catch (error) {
         console.error('Error loading verifications:', error);
@@ -54,7 +53,7 @@ export default function FacultyDataVerification() {
 
   const handleApprove = async (id) => {
     try {
-      await updateDoc(doc(db, 'verifications', id), { status: 'approved', comment, reviewedAt: new Date().toISOString() });
+      await updateFacultyVerification(id, { status: 'approved', comment });
       setVerifications((prev) => prev.map((v) =>
         v.id === id ? { ...v, status: 'approved', comment } : v
       ));
@@ -69,7 +68,7 @@ export default function FacultyDataVerification() {
   const handleReject = async (id) => {
     if (!comment.trim()) return toast.error('Please provide a reason for rejection');
     try {
-      await updateDoc(doc(db, 'verifications', id), { status: 'rejected', comment, reviewedAt: new Date().toISOString() });
+      await updateFacultyVerification(id, { status: 'rejected', comment });
       setVerifications((prev) => prev.map((v) =>
         v.id === id ? { ...v, status: 'rejected', comment } : v
       ));

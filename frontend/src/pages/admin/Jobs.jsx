@@ -4,11 +4,9 @@ import { motion } from 'framer-motion';
 import { Plus, Search, Trash2, Edit2, X, Briefcase, Calendar, MapPin, DollarSign, Users } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
+import { createJob, deleteJob, getJobs, updateJob } from '../../services/api';
 import { normalizeJobBranches } from '../../utils/branchEligibility';
 
 const INITIAL_FORM = {
@@ -45,10 +43,12 @@ export default function AdminJobs() {
     const fetch = async () => {
       setLoading(true);
       try {
-        const snap = await getDocs(collection(db, 'jobs'));
-        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setJobs(data.length ? data : DEMO_JOBS);
-      } catch { setJobs(DEMO_JOBS); }
+        const { data } = await getJobs();
+        const jobsList = data.jobs || [];
+        setJobs(jobsList.length ? jobsList : DEMO_JOBS);
+      } catch {
+        setJobs(DEMO_JOBS);
+      }
       finally { setLoading(false); }
     };
     fetch();
@@ -90,17 +90,17 @@ export default function AdminJobs() {
         interviewRounds: Number(form.interviewRounds || 0),
         postedOnCampus: Boolean(form.postedOnCampus),
         applyLink: form.applyLink || '',
-        postedBy: user?.uid,
-        updatedAt: serverTimestamp(),
       };
       if (editJob && !editJob.id.startsWith('d')) {
-        await updateDoc(doc(db, 'jobs', editJob.id), payload);
+        await updateJob(editJob.id, payload);
         toast.success('Job updated');
       } else {
-        await addDoc(collection(db, 'jobs'), { ...payload, createdAt: serverTimestamp(), applicants: 0 });
+        await createJob(payload);
         toast.success('Job posted');
       }
       setShowModal(false);
+      const { data } = await getJobs();
+      setJobs(data.jobs || []);
     } catch {
       if (editJob) {
         setJobs((prev) => prev.map((j) => j.id === editJob.id ? { ...j, ...form } : j));
@@ -115,7 +115,7 @@ export default function AdminJobs() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this job?')) return;
     try {
-      if (!id.startsWith('d') && !id.startsWith('new-')) await deleteDoc(doc(db, 'jobs', id));
+      if (!id.startsWith('d') && !id.startsWith('new-')) await deleteJob(id);
       setJobs((prev) => prev.filter((j) => j.id !== id));
       toast.success('Job deleted');
     } catch {

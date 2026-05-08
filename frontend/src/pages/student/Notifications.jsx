@@ -5,11 +5,10 @@ import { Bell, CheckCheck, BriefcaseIcon, Calendar, Info, Megaphone, Trash2 } fr
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import {
-  collection, query, where, onSnapshot, orderBy,
-  doc, updateDoc, arrayUnion,
-} from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { markAllNotificationsRead } from '../../services/api';
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../../services/api';
 import toast from 'react-hot-toast';
 
 const TYPE_ICON = {
@@ -40,28 +39,23 @@ export default function StudentNotifications() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Listen to notifications targeting 'student' role or 'all' roles
-    const q = query(
-      collection(db, 'notifications'),
-      orderBy('sentAt', 'desc'),
-    );
+    let active = true;
 
-    const unsub = onSnapshot(q, (snap) => {
-      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // Filter: target is 'all' | 'student', or specifically targeted to this uid
-      const relevant = all.filter((n) => {
-        const target = n.targetRole || 'all';
-        const forMe = !n.targetUid || n.targetUid === user.uid;
-        return forMe && (target === 'all' || target === 'student');
-      }).map((n) => ({
-        ...n,
-        isRead: Array.isArray(n.read) ? n.read.includes(user.uid) : false,
-      }));
-      setNotifications(relevant);
-      setLoading(false);
-    }, () => setLoading(false));
+    const loadNotifications = async () => {
+      setLoading(true);
+      try {
+        const { data } = await getNotifications();
+        if (!active) return;
+        setNotifications(data.notifications || []);
+      } catch {
+        if (active) setNotifications([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
-    return unsub;
+    loadNotifications();
+    return () => { active = false; };
   }, [user?.uid]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
@@ -69,9 +63,10 @@ export default function StudentNotifications() {
   const markRead = async (notifId) => {
     if (!user?.uid) return;
     try {
-      await updateDoc(doc(db, 'notifications', notifId), {
-        read: arrayUnion(user.uid),
-      });
+      await markNotificationRead(notifId);
+      setNotifications((prev) => prev.map((n) => (
+        n.id === notifId ? { ...n, isRead: true, read: Array.isArray(n.read) ? [...new Set([...n.read, user.uid])] : [user.uid] } : n
+      )));
     } catch (err) {
       console.warn('Mark read failed:', err.message);
     }
@@ -81,6 +76,7 @@ export default function StudentNotifications() {
     setMarking(true);
     try {
       await markAllNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       toast.success('All notifications marked as read');
     } catch {
       // Fallback: mark each individually

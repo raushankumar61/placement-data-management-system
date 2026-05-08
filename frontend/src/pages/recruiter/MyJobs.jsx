@@ -7,9 +7,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { updateJob, closeJob } from '../../services/api';
+import { closeJob, getJobs, updateJob } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { branchMatches } from '../../utils/branchEligibility';
@@ -32,12 +30,22 @@ export default function RecruiterMyJobs() {
   // Real-time listener for recruiter's own jobs
   useEffect(() => {
     if (!user?.uid) return;
-    const q = query(collection(db, 'jobs'), where('postedBy', '==', user.uid));
-    const unsub = onSnapshot(q, (snap) => {
-      setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    }, () => setLoading(false));
-    return unsub;
+    let active = true;
+
+    const loadJobs = async () => {
+      try {
+        const { data } = await getJobs({ mine: 'true' });
+        if (!active) return;
+        setJobs(data.jobs || []);
+      } catch {
+        if (active) setJobs([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadJobs();
+    return () => { active = false; };
   }, [user?.uid]);
 
   const filtered = useMemo(() => jobs.filter((j) => {

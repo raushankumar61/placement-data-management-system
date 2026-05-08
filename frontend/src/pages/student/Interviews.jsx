@@ -5,8 +5,7 @@ import {
   Calendar, Clock, Monitor, MessageSquare,
   Star, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getInterviews } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const displayValue = (value, fallback) => {
@@ -186,12 +185,21 @@ export default function StudentInterviews() {
   useEffect(() => {
     if (!user?.uid) return undefined;
 
-    const interviewsQuery = query(collection(db, 'interviews'), where('studentId', '==', user.uid));
-    const unsub = onSnapshot(interviewsQuery, (snap) => {
-      setInterviews(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setInterviews([]));
+    let active = true;
 
-    return unsub;
+    const load = async () => {
+      try {
+        const { data } = await getInterviews({ studentId: user.uid });
+        if (!active) return;
+        setInterviews(data.interviews || []);
+      } catch {
+        if (!active) return;
+        setInterviews([]);
+      }
+    };
+
+    load();
+    return () => { active = false; };
   }, [user?.uid]);
 
   const upcoming = useMemo(() => interviews.filter((interview) => String(interview.status || 'upcoming').toLowerCase() !== 'completed'), [interviews]);

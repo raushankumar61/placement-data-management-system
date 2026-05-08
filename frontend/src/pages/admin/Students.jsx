@@ -5,9 +5,7 @@ import { Plus, Search, Upload, Download, Trash2, Edit2, Filter, X, ChevronDown }
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
-import { collection, getDocs, addDoc, setDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { bulkImportStudents } from '../../services/api';
+import { bulkImportStudents, createStudent, deleteStudent, getApplications, getInterviews, getJobs, getStudents, updateStudent } from '../../services/api';
 import { fillStudentDefaults } from '../../utils/studentDefaults';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -86,19 +84,19 @@ export default function AdminStudents() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const [studentsSnap, appsSnap, jobsSnap, interviewsSnap] = await Promise.all([
-        getDocs(collection(db, 'students')),
-        getDocs(collection(db, 'applications')),
-        getDocs(collection(db, 'jobs')),
-        getDocs(collection(db, 'interviews')),
+      const [studentsRes, appsRes, jobsRes, interviewsRes] = await Promise.all([
+        getStudents(),
+        getApplications(),
+        getJobs(),
+        getInterviews(),
       ]);
-      const data = studentsSnap.docs.map((d) => ({ id: d.id, ...fillStudentDefaults(d.data() || {}, d.id) }));
-      const apps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const jobs = jobsSnap.docs.reduce((acc, d) => {
-        acc[d.id] = d.data();
+      const data = (studentsRes.data?.students || []).map((student) => ({ id: student.id, ...fillStudentDefaults(student, student.id) }));
+      const apps = appsRes.data?.applications || [];
+      const jobs = (jobsRes.data?.jobs || []).reduce((acc, job) => {
+        acc[job.id] = job;
         return acc;
       }, {});
-      const interviewsData = interviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const interviewsData = interviewsRes.data?.interviews || [];
       setStudents(data);
       setFiltered(data);
       setApplications(apps);
@@ -230,33 +228,16 @@ export default function AdminStudents() {
         offersCount: Number(normalized.offersCount || 0),
         placementReadinessScore: Number(normalized.placementReadinessScore || 0),
         backlogCount: Number(normalized.backlogCount || 0),
-        updatedAt: serverTimestamp(),
       };
       if (editStudent?.id) {
-        await setDoc(doc(db, 'students', editStudent.id), payload, { merge: true });
-        try {
-          await setDoc(doc(db, 'users', editStudent.id), {
-            name: payload.name,
-            email: payload.email,
-            branch: payload.branch,
-            department: payload.branch,
-            phone: payload.phone || '',
-            rollNo: payload.rollNo,
-            usn: payload.usn,
-            placementStatus: payload.placementStatus,
-            cgpa: payload.cgpa,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
-        } catch {
-          // Some imported student docs may not have a matching users doc.
-        }
+        await updateStudent(editStudent.id, payload);
         setStudents((prev) => prev.map((student) => (
           student.id === editStudent.id ? { ...student, ...payload } : student
         )));
         setSelectedStudent((current) => (current && current.id === editStudent.id ? { ...current, ...payload } : current));
         toast.success('Student updated');
       } else {
-        await addDoc(collection(db, 'students'), { ...payload, createdAt: serverTimestamp() });
+        await createStudent(payload);
         toast.success('Student added');
       }
       setShowModal(false);
@@ -271,7 +252,7 @@ export default function AdminStudents() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this student?')) return;
     try {
-      await deleteDoc(doc(db, 'students', id));
+      await deleteStudent(id);
       setStudents((prev) => prev.filter((s) => s.id !== id));
       toast.success('Student deleted');
     } catch {

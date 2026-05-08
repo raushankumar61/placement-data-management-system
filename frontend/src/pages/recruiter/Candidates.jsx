@@ -4,9 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, Download, Star, ExternalLink, CheckCircle, Zap, X } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { getStudents } from '../../services/api';
+import { createShortlist, getShortlists, getStudents } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RecruiterCandidates() {
@@ -71,15 +69,7 @@ export default function RecruiterCandidates() {
     if (!user?.uid) { toast.error('Not authenticated'); return; }
     setShortlisting(candidate.id);
     try {
-      // Check for duplicate shortlist
-      const existing = await getDocs(
-        query(collection(db, 'shortlists'), where('recruiterId', '==', user.uid), where('studentId', '==', candidate.id))
-      );
-      if (!existing.empty) {
-        toast.error(`${candidate.name} is already in your shortlist`);
-        throw new Error('Already shortlisted');
-      }
-      await addDoc(collection(db, 'shortlists'), {
+      const shortlistPayload = {
         recruiterId: user.uid,
         studentId: candidate.id,
         studentName: candidate.name,
@@ -87,14 +77,13 @@ export default function RecruiterCandidates() {
         studentBranch: candidate.branch,
         studentCgpa: candidate.cgpa,
         skills: candidate.skills,
-        shortlistedAt: serverTimestamp(),
         status: 'Shortlisted',
-      });
+      };
+      await createShortlist(shortlistPayload);
       toast.success(`${candidate.name} shortlisted successfully!`);
     } catch (err) {
-      if (err.message !== 'Already shortlisted') {
-        toast.error('Failed to shortlist: ' + (err.message || 'Unknown error'));
-      }
+      if (err.response?.status === 409) toast.error(`${candidate.name} is already in your shortlist`);
+      else toast.error('Failed to shortlist: ' + (err.message || 'Unknown error'));
       throw err;
     } finally {
       setShortlisting(null);

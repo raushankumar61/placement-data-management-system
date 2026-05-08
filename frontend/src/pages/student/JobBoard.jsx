@@ -4,10 +4,8 @@ import { motion } from 'framer-motion';
 import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { createApplication } from '../../services/api';
+import { createApplication, getApplications, getJobs, getStudent } from '../../services/api';
 import { branchMatches } from '../../utils/branchEligibility';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
@@ -81,24 +79,32 @@ export default function StudentJobBoard() {
   useEffect(() => {
     if (!user?.uid) return undefined;
 
-    const studentUnsub = onSnapshot(doc(db, 'students', user.uid), (snap) => {
-      const data = snap.exists() ? { id: snap.id, ...snap.data() } : {};
-      setStudent(normalizeStudentForEligibility(data, userProfile, user));
-    }, () => setStudent(null));
+    let active = true;
 
-    const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
-      setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setJobs([]));
+    const load = async () => {
+      try {
+        const [studentRes, jobsRes, appsRes] = await Promise.all([
+          getStudent(user.uid),
+          getJobs(),
+          getApplications({ studentId: user.uid }),
+        ]);
 
-    const appsUnsub = onSnapshot(query(collection(db, 'applications'), where('studentId', '==', user.uid)), (snap) => {
-      setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setApplications([]));
+        if (!active) return;
 
-    return () => {
-      studentUnsub();
-      jobsUnsub();
-      appsUnsub();
+        const studentData = studentRes.data?.student || studentRes.data || {};
+        setStudent(normalizeStudentForEligibility(studentData, userProfile, user));
+        setJobs(jobsRes.data?.jobs || []);
+        setApplications(appsRes.data?.applications || []);
+      } catch {
+        if (!active) return;
+        setStudent(normalizeStudentForEligibility({}, userProfile, user));
+        setJobs([]);
+        setApplications([]);
+      }
     };
+
+    load();
+    return () => { active = false; };
   }, [user?.uid, user?.email, userProfile?.name, userProfile?.email, userProfile?.branch, userProfile?.department]);
 
   const displayedJobs = useMemo(() => {

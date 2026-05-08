@@ -4,9 +4,7 @@ import { motion } from 'framer-motion';
 import { Star, Send, X, Plus } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { createRecommendation, getRecommendations } from '../../services/api';
+import { createRecommendation, getRecommendations, getStudents, getJobs } from '../../services/api';
 
 export default function FacultyRecommendations() {
   const [students, setStudents] = useState([]);
@@ -22,15 +20,14 @@ export default function FacultyRecommendations() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, recsSnap, jobsSnap] = await Promise.all([
-          getDocs(collection(db, 'students')),
+        const [studentsRes, recsRes, jobsRes] = await Promise.all([
+          getStudents(),
           getRecommendations(),
-          getDocs(collection(db, 'jobs')),
+          getJobs(),
         ]);
-        setStudents(studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setRecommendations(recsSnap?.data?.recommendations || []);
-        setJobs(jobsSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
+        setStudents(studentsRes?.data?.students || []);
+        setRecommendations(recsRes?.data?.recommendations || []);
+        setJobs((jobsRes?.data?.jobs || [])
           .filter((j) => (j.status || 'active') !== 'closed'));
       } catch {
         setStudents([]);

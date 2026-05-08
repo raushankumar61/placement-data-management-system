@@ -10,6 +10,20 @@ const { createRecruiterDefaults } = require('../utils/marketplaceFactory');
 const { logActivity } = require('../utils/activityLogger');
 const { resolveRecruiterScope } = require('../utils/recruiterOwnership');
 
+const createShortlistDefaults = (data = {}, id) => ({
+  recruiterId: data.recruiterId || '',
+  studentId: data.studentId || '',
+  studentName: data.studentName || '',
+  studentEmail: data.studentEmail || '',
+  studentBranch: data.studentBranch || '',
+  studentCgpa: data.studentCgpa || 0,
+  skills: Array.isArray(data.skills) ? data.skills : [],
+  shortlistedAt: data.shortlistedAt || new Date().toISOString(),
+  status: data.status || 'Shortlisted',
+  ...data,
+  id,
+});
+
 // GET /api/v1/recruiters  — admin only
 router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
   try {
@@ -159,6 +173,48 @@ router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     if (db) await db.collection('recruiters').doc(req.params.id).delete();
     res.json({ success: true, id: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/v1/recruiters/shortlists — recruiter views their shortlists
+router.get('/shortlists', verifyToken, requireRole('recruiter', 'admin'), async (req, res) => {
+  try {
+    if (!db) return res.json({ shortlists: [], total: 0 });
+    const recruiterId = req.user.role === 'admin' ? (req.query.recruiterId || req.user.uid) : req.user.uid;
+    const snap = await db.collection('shortlists').where('recruiterId', '==', recruiterId).get();
+    const shortlists = snap.docs.map((d) => createShortlistDefaults(d.data() || {}, d.id));
+    res.json({ shortlists, total: shortlists.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/v1/recruiters/shortlists — recruiter creates a shortlist entry
+router.post('/shortlists', verifyToken, requireRole('recruiter', 'admin'), async (req, res) => {
+  try {
+    const recruiterId = req.user.role === 'admin' ? (req.body.recruiterId || req.user.uid) : req.user.uid;
+    if (!db) return res.status(201).json({ id: uuidv4(), ...createShortlistDefaults({ ...req.body, recruiterId }) });
+
+    const existing = await db.collection('shortlists')
+      .where('recruiterId', '==', recruiterId)
+      .where('studentId', '==', req.body.studentId)
+      .limit(1)
+      .get();
+
+    if (!existing.empty) {
+      return res.status(409).json({ error: 'Already shortlisted' });
+    }
+
+    const payload = createShortlistDefaults({
+      ...req.body,
+      recruiterId,
+      shortlistedAt: new Date().toISOString(),
+    });
+
+    const ref = await db.collection('shortlists').add(payload);
+    res.status(201).json({ id: ref.id, ...payload });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

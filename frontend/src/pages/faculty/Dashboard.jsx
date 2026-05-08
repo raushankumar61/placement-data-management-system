@@ -7,8 +7,7 @@ import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getApplications, getFacultyVerifications, getInterviews, getJobs, getPlacementActivities, getStudents } from '../../services/api';
 
 const STATUS_CLASS = {
   placed: 'badge-green',
@@ -72,29 +71,27 @@ export default function FacultyDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsSnap, verificationsSnap, appsSnap, jobsSnap, interviewsSnap, activitiesSnap] = await Promise.all([
-          getDocs(collection(db, 'students')),
-          getDocs(collection(db, 'verifications')),
-          getDocs(collection(db, 'applications')),
-          getDocs(collection(db, 'jobs')),
-          getDocs(collection(db, 'interviews')),
-          getDocs(collection(db, 'placementActivities')),
+        const [studentsRes, verificationsRes, appsRes, jobsRes, interviewsRes, activitiesRes] = await Promise.all([
+          getStudents(),
+          getFacultyVerifications(),
+          getApplications(),
+          getJobs(),
+          getInterviews(),
+          getPlacementActivities(),
         ]);
-        const data = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const apps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const jobs = jobsSnap.docs.reduce((acc, d) => {
-          acc[d.id] = d.data();
+        const data = studentsRes.data?.students || [];
+        const apps = appsRes.data?.applications || [];
+        const jobs = (jobsRes.data?.jobs || []).reduce((acc, job) => {
+          acc[job.id] = job;
           return acc;
         }, {});
-        const interviewData = interviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const interviewData = interviewsRes.data?.interviews || [];
         setStudents(data);
         setApplications(apps);
         setJobsById(jobs);
         setInterviews(interviewData);
-        setPlacementActivitiesCount(activitiesSnap.size || 0);
-        setPendingVerifications(
-          verificationsSnap.docs.filter((d) => (d.data()?.status || 'pending') === 'pending').length
-        );
+        setPlacementActivitiesCount(activitiesRes.data?.activities?.length || 0);
+        setPendingVerifications((verificationsRes.data?.verifications || []).filter((item) => (item.status || 'pending') === 'pending').length);
       } catch (error) {
         console.error('Error loading faculty dashboard data:', error);
         setLoadError(error.message);

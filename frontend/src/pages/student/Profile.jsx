@@ -4,13 +4,12 @@ import { motion } from 'framer-motion';
 import { Plus, X, Save, Upload, FileText, Sparkles } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+import { storage } from '../../services/firebase';
 import toast from 'react-hot-toast';
 import { validateForm, validators } from '../../utils/validation';
 import { fillStudentDefaults } from '../../utils/studentDefaults';
-import { parseResume } from '../../services/api';
+import { getStudent, parseResume, updateStudent } from '../../services/api';
 
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'Artificial Intelligence & Machine Learning', 'Data Science'];
 
@@ -64,24 +63,29 @@ export default function StudentProfile() {
 
   useEffect(() => {
     if (!user?.uid) return undefined;
-    const studentRef = doc(db, 'students', user.uid);
-    const unsub = onSnapshot(studentRef, (snap) => {
-      const data = snap.exists() ? snap.data() : {};
-      const normalized = fillStudentDefaults({
-        ...DEFAULT_FORM,
-        ...data,
-      }, user.uid);
-      setForm({
-        ...normalized,
-        name: normalized.name || userProfile?.name || '',
-        email: normalized.email || userProfile?.email || user?.email || '',
-        branch: normalized.branch || userProfile?.branch || userProfile?.department || '',
-      });
-    }, () => {
-      setForm((prev) => ({ ...prev, name: userProfile?.name || '', email: userProfile?.email || user?.email || '' }));
-    });
+    let active = true;
+    const load = async () => {
+      try {
+        const { data } = await getStudent(user.uid);
+        if (!active) return;
+        const normalized = fillStudentDefaults({
+          ...DEFAULT_FORM,
+          ...(data || {}),
+        }, user.uid);
+        setForm({
+          ...normalized,
+          name: normalized.name || userProfile?.name || '',
+          email: normalized.email || userProfile?.email || user?.email || '',
+          branch: normalized.branch || userProfile?.branch || userProfile?.department || '',
+        });
+      } catch {
+        if (!active) return;
+        setForm((prev) => ({ ...prev, name: userProfile?.name || '', email: userProfile?.email || user?.email || '' }));
+      }
+    };
 
-    return unsub;
+    load();
+    return () => { active = false; };
   }, [user?.uid, user?.email, userProfile?.name, userProfile?.email, userProfile?.branch, userProfile?.department]);
 
   const addSkill = () => {
@@ -189,14 +193,7 @@ export default function StudentProfile() {
         updatedAt: serverTimestamp(),
       };
 
-      await setDoc(doc(db, 'students', user.uid), payload, { merge: true });
-      await setDoc(doc(db, 'users', user.uid), {
-        name: payload.name,
-        email: payload.email,
-        phone: payload.phone,
-        branch: payload.branch,
-        department: payload.branch,
-      }, { merge: true });
+      await updateStudent(user.uid, payload);
       await refreshProfile();
       toast.success('Profile updated');
     } catch {

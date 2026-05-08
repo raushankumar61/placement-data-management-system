@@ -73,6 +73,8 @@ export const getMyRecruiterProfile = () => api.get('/recruiters/me');
 export const createRecruiter = (data) => api.post('/recruiters', data);
 export const updateRecruiter = (id, data) => api.put(`/recruiters/${id}`, data);
 export const verifyRecruiter = (id, verified) => api.put(`/recruiters/${id}/verify`, { verified });
+export const getShortlists = (params) => api.get('/recruiters/shortlists', { params });
+export const createShortlist = (data) => api.post('/recruiters/shortlists', data);
 
 export const getPlacementReport = (params) => api.get('/reports/placement', { params });
 
@@ -102,6 +104,11 @@ export const getMockInterviews = (params) => api.get('/mock-interviews', { param
 export const createMockInterview = (data) => api.post('/mock-interviews', data);
 
 export const getAlumni = (params) => api.get('/alumni', { params });
+export const getFacultyVerifications = () => api.get('/faculty/verifications');
+export const updateFacultyVerification = (id, data) => api.put(`/faculty/verifications/${id}`, data);
+export const getPlacementActivities = () => api.get('/faculty/placement-activities');
+export const createPlacementActivity = (data) => api.post('/faculty/placement-activities', data);
+export const updatePlacementActivity = (id, data) => api.put(`/faculty/placement-activities/${id}`, data);
 
 export const verifyToken = () => api.post('/auth/verify-token');
 export const syncClaims = () => api.post('/auth/sync-claims');

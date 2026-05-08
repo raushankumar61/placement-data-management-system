@@ -3,8 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Clock, Circle, ChevronRight } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getApplications, getJobs } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const STAGE_ICONS = {
@@ -78,18 +77,26 @@ export default function StudentApplications() {
   useEffect(() => {
     if (!user?.uid) return undefined;
 
-    const appsUnsub = onSnapshot(query(collection(db, 'applications'), where('studentId', '==', user.uid)), (snap) => {
-      setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setApplications([]));
+    let active = true;
 
-    const jobsUnsub = onSnapshot(collection(db, 'jobs'), (snap) => {
-      setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    }, () => setJobs([]));
-
-    return () => {
-      appsUnsub();
-      jobsUnsub();
+    const load = async () => {
+      try {
+        const [appsRes, jobsRes] = await Promise.all([
+          getApplications({ studentId: user.uid }),
+          getJobs(),
+        ]);
+        if (!active) return;
+        setApplications(appsRes.data?.applications || []);
+        setJobs(jobsRes.data?.jobs || []);
+      } catch {
+        if (!active) return;
+        setApplications([]);
+        setJobs([]);
+      }
     };
+
+    load();
+    return () => { active = false; };
   }, [user?.uid]);
 
   const records = useMemo(() => applications.map((app) => {
