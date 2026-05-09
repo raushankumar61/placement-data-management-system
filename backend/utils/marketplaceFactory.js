@@ -6,6 +6,7 @@ const ROLE_POOL = ['SDE', 'Data Analyst', 'Data Scientist', 'Product Manager', '
 const BENEFITS = ['Flexible hours', 'Health insurance', 'Learning budget', 'Remote allowance', 'Mentorship program', 'Performance bonus', 'Paid leave'];
 const SOURCES = ['Campus Drive', 'Off Campus', 'Referral', 'Portal', 'LinkedIn', 'Hackathon', 'Company Career Page'];
 const RECRUITER_SIZES = ['1-50', '51-200', '201-500', '501-1000', '1000+'];
+const LOCATIONS = ['Bengaluru (BLR)', 'Hyderabad (HYD)', 'Delhi NCR', 'Noida', 'Gurugram', 'Pune', 'Mumbai', 'Chennai', 'Remote'];
 
 const hashString = (input) => {
   const text = String(input || 'marketplace');
@@ -65,7 +66,7 @@ const createJobDefaults = (job = {}, seed = 'job') => {
   const title = job.title || pick(rng, ROLE_POOL);
   const company = job.company || pick(rng, ['Google', 'Microsoft', 'Amazon', 'Apple', 'Meta', 'Netflix', 'Uber', 'Salesforce', 'Oracle', 'IBM', 'TCS', 'Infosys', 'Wipro', 'Accenture', 'Deloitte', 'Flipkart', 'Swiggy', 'Razorpay']);
   const branches = ensureArray(job.branches, ['All']);
-  const ctcBase = job.ctc || `${pick(rng, [6, 8, 10, 12, 15, 18, 20, 24])} LPA`;
+  const ctcBase = job.ctc || `${pick(rng, [8, 10, 12, 15, 18, 20, 22, 24, 28, 30, 32, 36, 40])} LPA`;
   const applicants = Number(job.applicants ?? (50 + Math.floor(rng() * 200)));
 
   return {
@@ -78,7 +79,7 @@ const createJobDefaults = (job = {}, seed = 'job') => {
     industry: job.industry || pick(rng, INDUSTRIES),
     workMode: job.workMode || pick(rng, WORK_MODES),
     experienceLevel: job.experienceLevel || pick(rng, EXPERIENCE_LEVELS),
-    location: job.location || pick(rng, ['Bangalore', 'Hyderabad', 'Pune', 'Chennai', 'Mumbai', 'Delhi NCR']),
+    location: job.location || pick(rng, LOCATIONS),
     ctc: ctcBase,
     stipend: job.stipend || (job.type === 'Internship' ? '80k/month' : ''),
     type: job.type || pick(rng, JOB_TYPES),
@@ -111,7 +112,7 @@ const createRecruiterDefaults = (recruiter = {}, seed = 'recruiter') => {
     phone: recruiter.phone || `+91-${String(7000000000 + (hashString(`${seed}-phone`) % 900000000)).slice(0, 10)}`,
     website: recruiter.website || `https://www.${cleanSlug(companyName)}.com`,
     industry: recruiter.industry || pick(rng, INDUSTRIES),
-    location: recruiter.location || pick(rng, ['Bangalore', 'Hyderabad', 'Pune', 'Mumbai', 'Delhi NCR', 'Chennai']),
+    location: recruiter.location || pick(rng, LOCATIONS),
     companySize: recruiter.companySize || pick(rng, RECRUITER_SIZES),
     foundedYear: Number(recruiter.foundedYear || (1995 + Math.floor(rng() * 25))),
     linkedIn: recruiter.linkedIn || `https://linkedin.com/company/${cleanSlug(companyName)}`,

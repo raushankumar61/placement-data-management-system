@@ -17,6 +17,7 @@ const db = admin.firestore();
 const JOB_TITLES = ['Software Development Engineer', 'Data Scientist', 'Frontend Developer', 'Backend Developer', 'QA Engineer', 'DevOps Engineer', 'Product Analyst', 'Business Analyst', 'Mobile App Developer', 'ML Engineer'];
 const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Apple', 'Meta', 'Netflix', 'Uber', 'Salesforce', 'Oracle', 'IBM', 'TCS', 'Infosys', 'Wipro', 'Accenture', 'Deloitte', 'Flipkart', 'Swiggy', 'Razorpay'];
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'Artificial Intelligence & Machine Learning', 'Data Science'];
+const LOCATIONS = ['Bengaluru (BLR)', 'Hyderabad (HYD)', 'Delhi NCR', 'Noida', 'Gurugram', 'Pune', 'Mumbai', 'Chennai', 'Remote'];
 const STATUSES = ['Applied', 'Shortlisted', 'Selected', 'Rejected'];
 const SOURCES = ['Campus Drive', 'Off Campus', 'Referral', 'Portal', 'LinkedIn'];
 
@@ -67,7 +68,7 @@ async function seedMarketplaceData() {
       companyName: company,
       contactEmail: `talent@${company.toLowerCase().replace(/[^a-z0-9]+/g, '')}.com`,
       verified: index % 3 !== 0,
-      location: pick(createRng(`recruiter-${index}`), ['Bangalore', 'Hyderabad', 'Pune', 'Mumbai', 'Delhi NCR', 'Chennai']),
+      location: pick(createRng(`recruiter-${index}`), LOCATIONS),
       industry: pick(createRng(`recruiter-industry-${index}`), ['Technology', 'Finance', 'Consulting', 'E-commerce', 'EdTech', 'SaaS']),
     }, recruiterId);
     recruiterRecords.push({ id: recruiterId, ...recruiter });
@@ -89,8 +90,8 @@ async function seedMarketplaceData() {
       recruiterName: recruiter.companyName,
       recruiterEmail: recruiter.contactEmail,
       industry: recruiter.industry,
-      location: pick(rng, ['Bangalore', 'Hyderabad', 'Pune', 'Mumbai', 'Delhi NCR', 'Chennai']),
-      ctc: `${pick(rng, [6, 8, 10, 12, 15, 18, 20, 24])} LPA`,
+      location: pick(rng, LOCATIONS),
+      ctc: `${pick(rng, [8, 10, 12, 15, 18, 20, 22, 24, 28, 30, 32, 36, 40])} LPA`,
       type: pick(rng, ['Full-time', 'Internship', 'PPO', 'Contract']),
       minCGPA: String((6.5 + rng() * 1.8).toFixed(1)),
       branches: index % 6 === 0 ? ['All'] : [BRANCHES[index % BRANCHES.length], BRANCHES[(index + 1) % BRANCHES.length]],

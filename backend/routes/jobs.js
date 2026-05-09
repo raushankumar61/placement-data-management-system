@@ -22,10 +22,13 @@ router.get('/', verifyToken, async (req, res) => {
     if (!db) {
       return res.json({
         jobs: [
-          createJobDefaults({ id: '1', title: 'SDE', company: 'Google', ctc: '24 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-01', minCGPA: 7.0, openings: 10 }, 'job-1'),
-          createJobDefaults({ id: '2', title: 'Data Scientist', company: 'Microsoft', ctc: '18 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-10', minCGPA: 7.5, openings: 5 }, 'job-2'),
+          createJobDefaults({ id: '1', title: 'SDE II', company: 'Google', ctc: '32 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-01', minCGPA: 7.0, openings: 10, location: 'Bengaluru (BLR)' }, 'job-1'),
+          createJobDefaults({ id: '2', title: 'Data Scientist', company: 'Microsoft', ctc: '28 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-10', minCGPA: 7.5, openings: 5, location: 'Hyderabad (HYD)' }, 'job-2'),
+          createJobDefaults({ id: '3', title: 'Senior Backend Engineer', company: 'Amazon', ctc: '36 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-18', minCGPA: 7.2, openings: 8, location: 'Bengaluru (BLR)' }, 'job-3'),
+          createJobDefaults({ id: '4', title: 'Cloud Platform Engineer', company: 'Oracle', ctc: '30 LPA', type: 'Full-time', status: 'active', deadline: '2025-03-22', minCGPA: 7.0, openings: 6, location: 'Delhi NCR' }, 'job-4'),
+          createJobDefaults({ id: '5', title: 'ML Engineer', company: 'Swiggy', ctc: '34 LPA', type: 'Full-time', status: 'active', deadline: '2025-04-05', minCGPA: 7.8, openings: 4, location: 'Gurugram' }, 'job-5'),
         ],
-        total: 2,
+        total: 5,
       });
     }
 

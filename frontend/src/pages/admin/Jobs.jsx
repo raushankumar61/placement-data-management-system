@@ -20,10 +20,16 @@ const JOB_TYPES = ['Full-time', 'Internship', 'PPO', 'Contract'];
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'All'];
 
 const DEMO_JOBS = [
-  { id: 'd1', title: 'Software Development Engineer', company: 'Amazon', location: 'Bangalore', ctc: '24 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'IT'], status: 'active', deadline: '2025-02-28', openings: 20, applicants: 145 },
-  { id: 'd2', title: 'Product Manager Intern', company: 'Google', location: 'Hyderabad', ctc: '80k/month', type: 'Internship', minCGPA: '8.0', branches: ['Computer Science'], status: 'active', deadline: '2025-02-15', openings: 5, applicants: 89 },
-  { id: 'd3', title: 'Data Scientist', company: 'Microsoft', location: 'Pune', ctc: '18 LPA', type: 'Full-time', minCGPA: '7.5', branches: ['Computer Science', 'IT', 'Electronics & Communication'], status: 'active', deadline: '2025-03-10', openings: 10, applicants: 67 },
-  { id: 'd4', title: 'Frontend Developer', company: 'Flipkart', location: 'Bangalore', ctc: '15 LPA', type: 'Full-time', minCGPA: '6.5', branches: ['All'], status: 'closed', deadline: '2025-01-30', openings: 8, applicants: 203 },
+  { id: 'd1', title: 'Software Development Engineer', company: 'Amazon', location: 'Bengaluru (BLR)', ctc: '24 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology'], status: 'active', deadline: '2025-02-28', openings: 20, applicants: 145 },
+  { id: 'd2', title: 'Product Manager Intern', company: 'Google', location: 'Hyderabad (HYD)', ctc: '80k/month', type: 'Internship', minCGPA: '8.0', branches: ['Computer Science'], status: 'active', deadline: '2025-02-15', openings: 5, applicants: 89 },
+  { id: 'd3', title: 'Data Scientist', company: 'Microsoft', location: 'Pune', ctc: '18 LPA', type: 'Full-time', minCGPA: '7.5', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-03-10', openings: 10, applicants: 67 },
+  { id: 'd4', title: 'Frontend Developer', company: 'Flipkart', location: 'Bengaluru (BLR)', ctc: '15 LPA', type: 'Full-time', minCGPA: '6.5', branches: ['All'], status: 'closed', deadline: '2025-01-30', openings: 8, applicants: 203 },
+  { id: 'd5', title: 'Senior Backend Engineer', company: 'Razorpay', location: 'Bengaluru (BLR)', ctc: '32 LPA', type: 'Full-time', minCGPA: '7.2', branches: ['Computer Science', 'Information Technology'], status: 'active', deadline: '2025-03-18', openings: 12, applicants: 118 },
+  { id: 'd6', title: 'Cloud Platform Engineer', company: 'Oracle', location: 'Hyderabad (HYD)', ctc: '28 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-03-22', openings: 9, applicants: 96 },
+  { id: 'd7', title: 'ML Engineer', company: 'Swiggy', location: 'Delhi NCR', ctc: '30 LPA', type: 'Full-time', minCGPA: '7.8', branches: ['Computer Science', 'Information Technology', 'Data Science'], status: 'active', deadline: '2025-04-05', openings: 7, applicants: 74 },
+  { id: 'd8', title: 'Platform Engineering Intern', company: 'Meta', location: 'Noida', ctc: '1.2 L/month', type: 'Internship', minCGPA: '8.2', branches: ['Computer Science'], status: 'active', deadline: '2025-03-12', openings: 4, applicants: 58 },
+  { id: 'd9', title: 'Product Analyst', company: 'Salesforce', location: 'Gurugram', ctc: '22 LPA', type: 'Full-time', minCGPA: '7.1', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-04-02', openings: 11, applicants: 83 },
+  { id: 'd10', title: 'DevOps Engineer', company: 'Uber', location: 'Chennai', ctc: '26 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology', 'Electrical'], status: 'active', deadline: '2025-03-25', openings: 6, applicants: 62 },
 ];
 
 export default function AdminJobs() {
