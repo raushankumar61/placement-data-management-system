@@ -8,7 +8,7 @@ import { createShortlist, getShortlists, getStudents } from '../../services/api'
 import { useAuth } from '../../context/AuthContext';
 
 export default function RecruiterCandidates() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [candidates, setCandidates] = useState([]);
   const [search, setSearch] = useState('');
   const [minCGPA, setMinCGPA] = useState('');
@@ -22,6 +22,8 @@ export default function RecruiterCandidates() {
 
 
   useEffect(() => {
+    if (authLoading || !user?.uid) return;
+
     const load = async () => {
       try {
         const { data } = await getStudents();
@@ -49,7 +51,7 @@ export default function RecruiterCandidates() {
     };
 
     load();
-  }, []);
+  }, [authLoading, user?.uid]);
 
   const filtered = candidates.filter((c) => {
     const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()));
