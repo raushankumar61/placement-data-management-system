@@ -30,12 +30,13 @@ router.get('/', verifyToken, async (req, res) => {
     }
 
     let query = db.collection('jobs');
-    const { status, type, branch, mine } = req.query;
+    const { status, type, branch, mine, limit: lim = 200, offset = 0 } = req.query;
 
     if (status) query = query.where('status', '==', status);
     if (type) query = query.where('type', '==', type);
 
-    const snap = await query.get();
+    // Apply limit at Firestore level
+    const snap = await query.limit(Number(lim) + Number(offset)).get();
     let jobs = snap.docs.map((d) => ({ id: d.id, ...createJobDefaults(d.data() || {}, d.id) }));
 
     if (String(mine).toLowerCase() === 'true' && req.user.role === 'recruiter') {
@@ -45,7 +46,9 @@ router.get('/', verifyToken, async (req, res) => {
 
     if (branch) jobs = jobs.filter((j) => branchMatches(j.branches, branch));
 
-    res.json({ jobs, total: jobs.length });
+    // Apply pagination
+    const paginated = jobs.slice(Number(offset), Number(offset) + Number(lim));
+    res.json({ jobs: paginated, total: jobs.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -108,6 +111,32 @@ router.post(
       if (!db) return res.status(201).json({ id: uuidv4(), ...payload });
 
       const ref = await db.collection('jobs').add(payload);
+
+      // Auto-notify students and admin about new job posting
+      await db.collection('notifications').add({
+        message: `New job posted: ${payload.title} at ${payload.company}. Apply now!`,
+        targetRole: 'student',
+        type: 'in-app',
+        sentAt: new Date().toISOString(),
+        sentBy: 'system',
+        read: [],
+        jobId: ref.id,
+        actionable: true,
+        actions: ['view'],
+      });
+
+      // Notify admin
+      await db.collection('notifications').add({
+        message: `New job posted: ${payload.title} at ${payload.company} by ${payload.recruiterName}`,
+        targetRole: 'admin',
+        type: 'in-app',
+        sentAt: new Date().toISOString(),
+        sentBy: req.user.uid,
+        read: [],
+        jobId: ref.id,
+        actionable: true,
+        actions: ['review'],
+      });
 
       logActivity('job_posted', { jobId: ref.id, title: payload.title, company: payload.company }, req.user.uid);
 

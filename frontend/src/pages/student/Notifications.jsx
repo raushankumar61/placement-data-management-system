@@ -1,14 +1,17 @@
-// src/pages/student/Notifications.jsx
+// src/pages/student/Notifications.jsx - Enhanced with real-time listeners
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, CheckCheck, BriefcaseIcon, Calendar, Info, Megaphone, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, BriefcaseIcon, Calendar, Info, Megaphone, Trash2, Check, X } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  handleNotificationAction,
 } from '../../services/api';
+import { db } from '../../services/firebase';
+import { collection, query, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 const TYPE_ICON = {
@@ -27,7 +30,17 @@ const TYPE_COLOR = {
 
 const formatDate = (val) => {
   if (!val) return '';
-  try { return new Date(val).toLocaleString(); } catch { return val; }
+  try {
+    const d = new Date(val);
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 60000) return 'now';
+    if (diff < 3600000) return `${Math.round(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.round(diff / 3600000)}h ago`;
+    return d.toLocaleDateString();
+  } catch {
+    return val;
+  }
 };
 
 export default function StudentNotifications() {
@@ -35,27 +48,65 @@ export default function StudentNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
+  const [actioningNotif, setActioningNotif] = useState(null);
 
+  // Real-time listener for notifications
   useEffect(() => {
     if (!user?.uid) return;
 
     let active = true;
 
-    const loadNotifications = async () => {
-      setLoading(true);
-      try {
-        const { data } = await getNotifications();
-        if (!active) return;
-        setNotifications(data.notifications || []);
-      } catch {
-        if (active) setNotifications([]);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
+    // Set up real-time listener
+    const q = query(
+      collection(db, 'notifications'),
+      where('targetRole', 'in', ['all', 'student']),
+      orderBy('sentAt', 'desc'),
+      limit(50)
+    );
 
-    loadNotifications();
-    return () => { active = false; };
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        if (!active) return;
+        
+        const notifs = snapshot.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((n) => {
+            // Show if for all roles OR specifically for this user OR no targetUid specified
+            if (n.targetUid && n.targetUid !== user.uid) return false;
+            return true;
+          })
+          .map((n) => ({
+            ...n,
+            isRead: Array.isArray(n.read) ? n.read.includes(user.uid) : false,
+          }));
+
+        setNotifications(notifs);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Notification listener error:', error);
+        if (active) {
+          // Fallback to API call on error
+          const loadNotifications = async () => {
+            try {
+              const { data } = await getNotifications();
+              if (active) setNotifications(data.notifications || []);
+            } catch {
+              if (active) setNotifications([]);
+            } finally {
+              if (active) setLoading(false);
+            }
+          };
+          loadNotifications();
+        }
+      }
+    );
+
+    return () => {
+      active = false;
+      unsub();
+    };
   }, [user?.uid]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
@@ -64,11 +115,11 @@ export default function StudentNotifications() {
     if (!user?.uid) return;
     try {
       await markNotificationRead(notifId);
-      setNotifications((prev) => prev.map((n) => (
-        n.id === notifId ? { ...n, isRead: true, read: Array.isArray(n.read) ? [...new Set([...n.read, user.uid])] : [user.uid] } : n
-      )));
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notifId ? { ...n, isRead: true } : n))
+      );
     } catch (err) {
-      console.warn('Mark read failed:', err.message);
+      console.error('Failed to mark as read:', err);
     }
   };
 
@@ -77,15 +128,33 @@ export default function StudentNotifications() {
     try {
       await markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      toast.success('All notifications marked as read');
-    } catch {
-      // Fallback: mark each individually
-      for (const n of notifications.filter((x) => !x.isRead)) {
-        await markRead(n.id);
-      }
-      toast.success('All notifications marked as read');
+      toast.success('All marked as read');
+    } catch (err) {
+      toast.error('Failed to mark all read');
     } finally {
       setMarking(false);
+    }
+  };
+
+  const handleAction = async (notifId, action) => {
+    setActioningNotif(notifId);
+    try {
+      await handleNotificationAction(notifId, action);
+      
+      // Show success message based on action
+      const messages = {
+        shortlist: 'You have been shortlisted!',
+        reject: 'Application declined',
+        review: 'Marked as reviewed',
+      };
+      toast.success(messages[action] || 'Action completed');
+      
+      // Mark notification as read after action
+      await markRead(notifId);
+    } catch (err) {
+      toast.error(`Failed to ${action}: ${err?.response?.data?.error || err.message}`);
+    } finally {
+      setActioningNotif(null);
     }
   };
 
@@ -152,6 +221,7 @@ export default function StudentNotifications() {
               const typeKey = getIcon(n);
               const Icon = TYPE_ICON[typeKey] || Info;
               const colorClass = TYPE_COLOR[typeKey] || TYPE_COLOR.default;
+              const hasActions = n.actionable && Array.isArray(n.actions) && n.actions.length > 0;
 
               return (
                 <motion.div
@@ -173,12 +243,42 @@ export default function StudentNotifications() {
                     <p className={`text-sm font-body leading-relaxed ${n.isRead ? 'text-white/50' : 'text-white/80'}`}>
                       {n.message}
                     </p>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <p className="text-white/30 text-xs font-body">{formatDate(n.sentAt)}</p>
-                      {!n.isRead && (
-                        <span className="w-2 h-2 rounded-full bg-blue-electric flex-shrink-0" />
-                      )}
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-white/30 text-xs font-body">{formatDate(n.sentAt)}</span>
+                      {n.isRead && <span className="text-white/20 text-xs">✓ Read</span>}
                     </div>
+
+                    {/* Action Buttons */}
+                    {hasActions && !n.actionedAt && (
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        {n.actions.includes('shortlist') && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAction(n.id, 'shortlist');
+                            }}
+                            disabled={actioningNotif === n.id}
+                            className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            <Check size={12} />
+                            {actioningNotif === n.id ? 'Processing...' : 'Shortlist'}
+                          </button>
+                        )}
+                        {n.actions.includes('reject') && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAction(n.id, 'reject');
+                            }}
+                            disabled={actioningNotif === n.id}
+                            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            <X size={12} />
+                            {actioningNotif === n.id ? 'Processing...' : 'Reject'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );

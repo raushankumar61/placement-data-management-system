@@ -74,24 +74,34 @@ export default function DashboardLayout({ children, title }) {
   const navigate = useNavigate();
   const navItems = NAV_CONFIG[role] || [];
 
-  // Real-time unread notification count for students
+  // Real-time unread notification count for all authenticated users
   useEffect(() => {
-    if (!user?.uid || role !== 'student') return;
+    if (!user?.uid || !role) return;
+    
     const q = query(
       collection(db, 'notifications'),
       orderBy('sentAt', 'desc'),
       limit(100),
     );
+    
     const unsub = onSnapshot(q, (snap) => {
       const count = snap.docs.filter((d) => {
         const data = d.data();
+        // Show if:
+        // 1. Notification is for this specific user (targetUid)
+        // 2. OR notification is for all roles (no targetRole or targetRole='all')
+        // 3. OR notification is for this user's role
+        // 4. AND notification is unread
         const forMe = !data.targetUid || data.targetUid === user.uid;
-        const forRole = !data.targetRole || data.targetRole === 'all' || data.targetRole === 'student';
+        const forRole = !data.targetRole || data.targetRole === 'all' || data.targetRole === role;
         const isUnread = !Array.isArray(data.read) || !data.read.includes(user.uid);
         return forMe && forRole && isUnread;
       }).length;
       setUnreadCount(count);
-    }, () => {});
+    }, () => {
+      // Error handler - silently continue
+    });
+    
     return unsub;
   }, [user?.uid, role]);
 

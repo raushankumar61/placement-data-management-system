@@ -128,4 +128,80 @@ router.put('/read-all', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/v1/notifications/:id/action  — perform action on notification (shortlist, reject, etc.)
+router.post('/:id/action', verifyToken, async (req, res) => {
+  try {
+    if (!db) return res.status(201).json({ success: true });
+    
+    const { action } = req.body; // 'shortlist', 'reject', 'review', etc.
+    const notifRef = db.collection('notifications').doc(req.params.id);
+    const notifSnap = await notifRef.get();
+
+    if (!notifSnap.exists) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    const notif = notifSnap.data();
+    if (!isNotificationVisibleToUser(notif, req.user)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { applicationId, studentId, jobId } = notif;
+
+    if (action === 'shortlist' && applicationId) {
+      // Update application status to shortlisted
+      await db.collection('applications').doc(applicationId).update({
+        status: 'Shortlisted',
+        shortlistedAt: new Date().toISOString(),
+        shortlistedBy: req.user.uid,
+      });
+
+      // Notify student
+      await db.collection('notifications').add({
+        message: `Congratulations! You've been shortlisted for ${notif.jobId ? 'the position' : 'an opportunity'}!`,
+        targetRole: 'student',
+        targetUid: studentId,
+        type: 'in-app',
+        sentAt: new Date().toISOString(),
+        sentBy: req.user.uid,
+        read: [],
+        applicationId,
+      });
+
+      logActivity('application_shortlisted', { studentId, applicationId, by: req.user.uid }, req.user.uid);
+    } else if (action === 'reject' && applicationId) {
+      // Update application status to rejected
+      await db.collection('applications').doc(applicationId).update({
+        status: 'Rejected',
+        rejectedAt: new Date().toISOString(),
+        rejectedBy: req.user.uid,
+      });
+
+      // Notify student
+      await db.collection('notifications').add({
+        message: `Thank you for your interest. Unfortunately, we're moving forward with other candidates.`,
+        targetRole: 'student',
+        targetUid: studentId,
+        type: 'in-app',
+        sentAt: new Date().toISOString(),
+        sentBy: req.user.uid,
+        read: [],
+        applicationId,
+      });
+
+      logActivity('application_rejected', { studentId, applicationId, by: req.user.uid }, req.user.uid);
+    } else if (action === 'review' && studentId) {
+      // Just mark as reviewed (no automatic action)
+      logActivity('application_reviewed', { studentId, notificationId: req.params.id, by: req.user.uid }, req.user.uid);
+    }
+
+    // Mark notification as acted upon
+    await notifRef.update({ actionedAt: new Date().toISOString(), actionedBy: req.user.uid, action });
+
+    res.json({ success: true, action });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

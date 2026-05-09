@@ -84,30 +84,33 @@ export default function AdminStudents() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const [studentsRes, appsRes, jobsRes, interviewsRes] = await Promise.all([
-        getStudents(),
-        getApplications(),
-        getJobs(),
-        getInterviews(),
-      ]);
+      // Load students with pagination (50 per page)
+      const studentsRes = await getStudents({ limit: 50, offset: 0 });
       const data = (studentsRes.data?.students || []).map((student) => ({ id: student.id, ...fillStudentDefaults(student, student.id) }));
-      const apps = appsRes.data?.applications || [];
-      const jobs = (jobsRes.data?.jobs || []).reduce((acc, job) => {
-        acc[job.id] = job;
-        return acc;
-      }, {});
-      const interviewsData = interviewsRes.data?.interviews || [];
       setStudents(data);
       setFiltered(data);
-      setApplications(apps);
-      setJobsById(jobs);
-      setInterviews(interviewsData);
+
+      // Load supporting data in background (deferred)
+      Promise.all([
+        getApplications({ limit: 500 }),
+        getJobs({ limit: 200 }),
+        getInterviews({ limit: 500 }),
+      ]).then(([appsRes, jobsRes, interviewsRes]) => {
+        setApplications(appsRes.data?.applications || []);
+        const jobs = (jobsRes.data?.jobs || []).reduce((acc, job) => {
+          acc[job.id] = job;
+          return acc;
+        }, {});
+        setJobsById(jobs);
+        setInterviews(interviewsRes.data?.interviews || []);
+      }).catch(() => {
+        setApplications([]);
+        setJobsById({});
+        setInterviews([]);
+      });
     } catch {
       setStudents([]);
       setFiltered([]);
-      setApplications([]);
-      setJobsById({});
-      setInterviews([]);
       toast.error('Unable to load students. Check Firebase configuration.');
     } finally {
       setLoading(false);

@@ -90,7 +90,19 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
       trendMap[month].applications++;
       if ((a.status || '').toLowerCase() === 'selected') trendMap[month].placed++;
     });
-    const placementTrend = Object.values(trendMap).sort((a, b) => a.month.localeCompare(b.month)).slice(-8);
+    
+    // Fill in missing months with 0 data for last 8 months
+    const now = new Date();
+    const last8Months = [];
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStr = d.toISOString().slice(0, 7); // "YYYY-MM"
+      if (!trendMap[monthStr]) {
+        trendMap[monthStr] = { month: monthStr, applications: 0, placed: 0 };
+      }
+      last8Months.push(trendMap[monthStr]);
+    }
+    const placementTrend = last8Months.sort((a, b) => a.month.localeCompare(b.month));
 
     // Recent system activity
     const recentActivity = activitySnap.docs.map((d) => ({ id: d.id, ...d.data() }));

@@ -26,21 +26,19 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     if (!db) return res.json({ interviews: [], total: 0 });
 
-    const snap = await db.collection('interviews').orderBy('createdAt', 'desc').get();
+    const { limit: lim = 500, offset = 0 } = req.query;
+
+    // Apply limit at Firestore level
+    const snap = await db.collection('interviews').orderBy('createdAt', 'desc').limit(Number(lim) + Number(offset)).get();
     const interviews = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
 
+    let filtered = interviews;
     if (req.user.role === 'student') {
-      const filtered = interviews.filter((interview) => interview.studentId === req.user.uid);
-      return res.json({ interviews: filtered, total: filtered.length });
-    }
-
-    if (req.user.role === 'recruiter') {
+      filtered = interviews.filter((interview) => interview.studentId === req.user.uid);
+    } else if (req.user.role === 'recruiter') {
       const recruiterScope = await resolveRecruiterScope(db, req.user);
-      const filtered = interviews.filter((interview) => isOwnedByRecruiter(interview, recruiterScope));
-      return res.json({ interviews: filtered, total: filtered.length });
-    }
-
-    if (req.user.role === 'faculty') {
+      filtered = interviews.filter((interview) => isOwnedByRecruiter(interview, recruiterScope));
+    } else if (req.user.role === 'faculty') {
       const department = await getFacultyDepartment(db, req.user.uid);
       if (!department) {
         return res.json({ interviews: [], total: 0 });
@@ -48,15 +46,15 @@ router.get('/', verifyToken, async (req, res) => {
 
       const studentSnaps = await db.collection('students').get();
       const studentById = new Map(studentSnaps.docs.map((docSnap) => [docSnap.id, docSnap.data() || {}]));
-      const filtered = interviews.filter((interview) => {
+      filtered = interviews.filter((interview) => {
         const student = studentById.get(interview.studentId);
         return student ? branchMatches([department], student.branch) : false;
       });
-
-      return res.json({ interviews: filtered, total: filtered.length });
     }
 
-    res.json({ interviews, total: interviews.length });
+    // Apply pagination
+    const paginated = filtered.slice(Number(offset), Number(offset) + Number(lim));
+    res.json({ interviews: paginated, total: filtered.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

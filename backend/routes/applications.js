@@ -94,7 +94,7 @@ router.get('/', verifyToken, async (req, res) => {
     if (!db) return res.json({ applications: [], total: 0 });
 
     let query = db.collection('applications');
-    const { studentId, jobId, status } = req.query;
+    const { studentId, jobId, status, limit: lim = 500, offset = 0 } = req.query;
 
     if (req.user.role === 'student') {
       query = query.where('studentId', '==', req.user.uid);
@@ -104,9 +104,13 @@ router.get('/', verifyToken, async (req, res) => {
     }
     if (status) query = query.where('status', '==', status);
 
-    const snap = await query.get();
+    // Apply limit at Firestore level
+    const snap = await query.limit(Number(lim) + Number(offset)).get();
     const applications = snap.docs.map((d) => ({ id: d.id, ...createApplicationDefaults(d.data() || {}, d.id) }));
-    res.json({ applications, total: applications.length });
+    
+    // Apply pagination
+    const paginated = applications.slice(Number(offset), Number(offset) + Number(lim));
+    res.json({ applications: paginated, total: applications.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -179,7 +183,7 @@ router.post(
 
       await recomputeStudentRollup(studentId, req.user.uid);
 
-      // Write notification to student (self) so notification page shows it
+      // Notify student (applicant)
       await db.collection('notifications').add({
         message: `You applied to ${payload.role} at ${payload.company}. Status: Applied.`,
         targetRole: 'student',
@@ -189,6 +193,44 @@ router.post(
         sentBy: 'system',
         read: [],
         applicationId: ref.id,
+        jobId: jobId,
+        studentId: studentId,
+      });
+
+      // Notify recruiter who owns the job
+      if (job.recruiterId) {
+        await db.collection('notifications').add({
+          message: `New application from ${payload.studentName} for ${payload.role} position`,
+          targetRole: 'recruiter',
+          targetUid: job.recruiterId,
+          type: 'in-app',
+          sentAt: new Date().toISOString(),
+          sentBy: 'system',
+          read: [],
+          applicationId: ref.id,
+          jobId: jobId,
+          studentId: studentId,
+          studentName: payload.studentName,
+          studentEmail: payload.studentEmail,
+          actionable: true,
+          actions: ['shortlist', 'reject'],
+        });
+      }
+
+      // Notify admin
+      await db.collection('notifications').add({
+        message: `${payload.studentName} applied for ${payload.role} at ${payload.company}`,
+        targetRole: 'admin',
+        type: 'in-app',
+        sentAt: new Date().toISOString(),
+        sentBy: 'system',
+        read: [],
+        applicationId: ref.id,
+        jobId: jobId,
+        studentId: studentId,
+        studentName: payload.studentName,
+        actionable: true,
+        actions: ['review'],
       });
 
       logActivity('application_submitted', { studentId, jobId, company: payload.company }, studentId);
