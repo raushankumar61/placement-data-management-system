@@ -5,7 +5,7 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const { createSeededRecord } = require('../utils/studentFactory');
 
 // GET /api/v1/alumni
-router.get('/', verifyToken, requireRole('admin', 'faculty'), async (req, res) => {
+router.get('/', verifyToken, requireRole('admin', 'faculty', 'student'), async (req, res) => {
   try {
     if (!db) return res.json({ alumni: [], total: 0 });
 
