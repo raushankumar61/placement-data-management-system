@@ -109,7 +109,15 @@ router.put(
   [
     body('cgpa').optional().isFloat({ min: 0, max: 10 }).withMessage('CGPA must be between 0 and 10'),
     body('email').optional().isEmail().withMessage('Valid email is required'),
-    body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
+    body('phone')
+      .optional({ checkFalsy: true })
+      .custom((value) => {
+        const digits = String(value || '').replace(/\D/g, '');
+        if (digits.length < 10) {
+          throw new Error('Valid phone number required');
+        }
+        return true;
+      }),
   ],
   validate,
   async (req, res) => {
