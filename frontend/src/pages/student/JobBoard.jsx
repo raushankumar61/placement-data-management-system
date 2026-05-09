@@ -53,6 +53,16 @@ const displayValue = (value, fallback) => {
   return text || fallback;
 };
 
+const formatBranchList = (branches) => {
+  if (!branches) return 'All branches';
+  if (Array.isArray(branches)) {
+    const values = branches.map((branch) => String(branch).trim()).filter(Boolean);
+    return values.length ? values.join(', ') : 'All branches';
+  }
+  const text = String(branches).trim();
+  return text || 'All branches';
+};
+
 const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
 
 const normalizeStudentForEligibility = (student = {}, userProfile = {}, user = null) => ({
@@ -132,7 +142,7 @@ export default function StudentJobBoard() {
         : !meetsCgpa
           ? `CGPA requirement: ${job.minCGPA || minCgpa} (Your CGPA: ${hasValue(student?.cgpa) ? studentCgpa : 'Not set'})`
           : !meetsBranch
-            ? `Branch mismatch (${studentBranch || 'Not set'})`
+            ? `Branch mismatch. Your branch: ${studentBranch || 'Not set'}. Eligible branches: ${formatBranchList(job.branches)}`
             : !meetsPackageRule
               ? `Requires package higher than current (${student?.currentPackage || `${studentCurrentPackageLpa} LPA`})`
             : '';
@@ -277,8 +287,22 @@ export default function StudentJobBoard() {
                         <p className="text-white font-semibold text-sm">{job.title}</p>
                         <p className="text-white/50 text-xs font-body">{job.company}</p>
                       </div>
-                      {job.applied && <span className="badge-green text-xs flex-shrink-0">Applied</span>}
-                      {!job.eligible && <span className="badge-red text-xs flex-shrink-0">Not Eligible</span>}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {job.applied && <span className="badge-green text-xs">Applied</span>}
+                        {!job.eligible && <span className="badge-red text-xs">Not Eligible</span>}
+                        {job.eligible && !job.applied && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              applyToJob(job);
+                            }}
+                            disabled={applying}
+                            className="btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-3 mt-2">
                       <div className="flex items-center gap-1 text-white/40">

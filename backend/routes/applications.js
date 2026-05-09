@@ -52,7 +52,10 @@ const canApplyToJob = (student = {}, job = {}) => {
   }
 
   if (!branchMatches(job.branches, student.branch)) {
-    return { allowed: false, reason: 'Branch mismatch' };
+    const eligibleBranches = Array.isArray(job.branches) && job.branches.length
+      ? job.branches.join(', ')
+      : 'All branches';
+    return { allowed: false, reason: `Branch mismatch. Eligible branches: ${eligibleBranches}` };
   }
 
   if (studentStatus === 'placed' && studentPackage != null && jobPackage != null && jobPackage <= studentPackage) {
