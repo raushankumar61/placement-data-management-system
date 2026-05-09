@@ -252,56 +252,116 @@ export default function StudentProfile() {
         <div className="glass-card p-5 space-y-4">
           <p className="section-title">Academic And Contact Details</p>
           <div className="grid md:grid-cols-3 gap-4">
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Full name" disabled />
-            <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Email" disabled />
-            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Phone" disabled={!isEditing} />
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Full Name</label>
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Full name" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Email</label>
+              <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Email" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Phone</label>
+              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Phone" disabled={!isEditing} />
+            </div>
 
-            <input value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Roll number" disabled />
-            <input value={form.usn} onChange={(e) => setForm({ ...form, usn: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="USN" disabled />
-            <select value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} className="input-field text-sm appearance-none opacity-60 cursor-not-allowed" disabled>
-              <option value="">Select Branch</option>
-              {BRANCHES.map((branch) => <option key={branch} value={branch} className="bg-dark-700">{branch}</option>)}
-            </select>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Roll Number</label>
+              <input value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Roll number" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">USN</label>
+              <input value={form.usn} onChange={(e) => setForm({ ...form, usn: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="USN" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Branch</label>
+              <select value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} className="input-field text-sm appearance-none opacity-60 cursor-not-allowed" disabled>
+                <option value="">Select Branch</option>
+                {BRANCHES.map((branch) => <option key={branch} value={branch} className="bg-dark-700">{branch}</option>)}
+              </select>
+            </div>
 
-            <input type="number" step="0.1" min="0" max="10" value={form.cgpa} onChange={(e) => setForm({ ...form, cgpa: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="CGPA" disabled />
-            <input value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Graduation year" disabled />
-            <input type="number" min="0" value={form.backlogCount} onChange={(e) => setForm({ ...form, backlogCount: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Backlogs" disabled />
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">CGPA</label>
+              <input type="number" step="0.1" min="0" max="10" value={form.cgpa} onChange={(e) => setForm({ ...form, cgpa: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="CGPA" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Graduation Year</label>
+              <input value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Graduation year" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Backlogs</label>
+              <input type="number" min="0" value={form.backlogCount} onChange={(e) => setForm({ ...form, backlogCount: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="Backlogs" disabled />
+            </div>
 
-            <input value={form.tenthPercentage} onChange={(e) => setForm({ ...form, tenthPercentage: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="10th %" disabled />
-            <input value={form.twelfthPercentage} onChange={(e) => setForm({ ...form, twelfthPercentage: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="12th %" disabled />
-            <input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" disabled />
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">10th Percentage</label>
+              <input value={form.tenthPercentage} onChange={(e) => setForm({ ...form, tenthPercentage: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="10th %" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">12th Percentage</label>
+              <input value={form.twelfthPercentage} onChange={(e) => setForm({ ...form, twelfthPercentage: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" placeholder="12th %" disabled />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Date of Birth</label>
+              <input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} className="input-field text-sm opacity-60 cursor-not-allowed" disabled />
+            </div>
 
-            <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field text-sm appearance-none opacity-60 cursor-not-allowed" disabled>
-              <option value="">Gender</option>
-              <option value="male" className="bg-dark-700">Male</option>
-              <option value="female" className="bg-dark-700">Female</option>
-              <option value="other" className="bg-dark-700">Other</option>
-            </select>
-            <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={`input-field text-sm resize-none md:col-span-2 ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} rows={2} placeholder="Address" disabled={!isEditing} />
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Gender</label>
+              <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field text-sm appearance-none opacity-60 cursor-not-allowed" disabled>
+                <option value="">Gender</option>
+                <option value="male" className="bg-dark-700">Male</option>
+                <option value="female" className="bg-dark-700">Female</option>
+                <option value="other" className="bg-dark-700">Other</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Address</label>
+              <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={`input-field text-sm resize-none ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} rows={2} placeholder="Address" disabled={!isEditing} />
+            </div>
           </div>
         </div>
 
         <div className="glass-card p-5 space-y-4">
           <p className="section-title">Placement Details</p>
           <div className="grid md:grid-cols-3 gap-4">
-            <select
-              value={form.placementStatus}
-              onChange={(e) => setForm({ ...form, placementStatus: e.target.value })}
-              className={`input-field text-sm appearance-none ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`}
-              disabled={!isEditing}
-            >
-              {['unplaced', 'in-process', 'shortlisted', 'selected', 'placed', 'rejected'].map((status) => (
-                <option key={status} value={status} className="bg-dark-700 capitalize">
-                  {status}
-                </option>
-              ))}
-            </select>
-            <input value={form.companyPlaced} onChange={(e) => setForm({ ...form, companyPlaced: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Company placed in" disabled={!isEditing} />
-            <input value={form.currentPackage} onChange={(e) => setForm({ ...form, currentPackage: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Current package (LPA)" disabled={!isEditing} />
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Placement Status</label>
+              <select
+                value={form.placementStatus}
+                onChange={(e) => setForm({ ...form, placementStatus: e.target.value })}
+                className={`input-field text-sm appearance-none ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`}
+                disabled={!isEditing}
+              >
+                {['unplaced', 'in-process', 'shortlisted', 'selected', 'placed', 'rejected'].map((status) => (
+                  <option key={status} value={status} className="bg-dark-700 capitalize">
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Company Placed In</label>
+              <input value={form.companyPlaced} onChange={(e) => setForm({ ...form, companyPlaced: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Company placed in" disabled={!isEditing} />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Current Package</label>
+              <input value={form.currentPackage} onChange={(e) => setForm({ ...form, currentPackage: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Current package (LPA)" disabled={!isEditing} />
+            </div>
 
-            <input value={form.highestPackage} onChange={(e) => setForm({ ...form, highestPackage: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Highest package (LPA)" disabled={!isEditing} />
-            <input type="number" min="0" value={form.offersCount} onChange={(e) => setForm({ ...form, offersCount: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Offers count" disabled={!isEditing} />
-            <input type="number" min="0" max="100" value={form.placementReadinessScore} onChange={(e) => setForm({ ...form, placementReadinessScore: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Readiness score" disabled={!isEditing} />
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Highest Package</label>
+              <input value={form.highestPackage} onChange={(e) => setForm({ ...form, highestPackage: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Highest package (LPA)" disabled={!isEditing} />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Offers Count</label>
+              <input type="number" min="0" value={form.offersCount} onChange={(e) => setForm({ ...form, offersCount: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Offers count" disabled={!isEditing} />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Placement Readiness Score</label>
+              <input type="number" min="0" max="100" value={form.placementReadinessScore} onChange={(e) => setForm({ ...form, placementReadinessScore: e.target.value })} className={`input-field text-sm ${isEditing ? '' : 'opacity-60 cursor-not-allowed'}`} placeholder="Readiness score" disabled={!isEditing} />
+            </div>
           </div>
 
           <div>
