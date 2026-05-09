@@ -13,7 +13,7 @@ const displayValue = (value, fallback) => {
 };
 
 export default function StudentRecommendations() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // Faculty-sent recommendations
   const [facultyRecs, setFacultyRecs] = useState([]);
@@ -38,20 +38,34 @@ export default function StudentRecommendations() {
 
   // AI recommendations from backend
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user?.uid) {
+      setAiRecs([]);
+      setLoadingAi(false);
+      return;
+    }
+
+    let active = true;
     const load = async () => {
       setLoadingAi(true);
       try {
         const { data } = await getJobRecommendations();
-        setAiRecs(data.recommendations || []);
+        if (active) setAiRecs(data.recommendations || []);
       } catch {
-        toast.error('Could not load AI recommendations');
-        setAiRecs([]);
+        if (active) {
+          toast.error('Could not load AI recommendations');
+          setAiRecs([]);
+        }
       } finally {
-        setLoadingAi(false);
+        if (active) setLoadingAi(false);
       }
     };
     load();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [authLoading, user?.uid]);
 
   const TABS = [
     { key: 'ai', label: 'AI Picks', icon: Zap },
