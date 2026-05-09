@@ -104,7 +104,7 @@ export default function DashboardLayout({ children, title }) {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-5 border-b border-white/5">
+      <div className="p-5 border-b border-white/5 pr-12 relative">
         <Link to="/" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-blue-electric/20 border border-blue-electric/40 flex items-center justify-center">
             <Zap size={16} className="text-blue-electric" />
@@ -161,7 +161,7 @@ export default function DashboardLayout({ children, title }) {
       </nav>
 
       {/* Bottom Actions */}
-      <div className="p-3 border-t border-white/5 space-y-1">
+      <div className="mt-auto p-3 border-t border-white/5 space-y-1">
         <button
           onClick={handleLogout}
           className={`sidebar-link w-full hover:text-red-400 ${!sidebarOpen ? 'justify-center px-2' : ''}`}
@@ -184,7 +184,7 @@ export default function DashboardLayout({ children, title }) {
       >
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute top-4 -right-3 z-10 w-6 h-6 rounded-full bg-dark-600 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+          className="absolute top-4 right-3 z-20 w-6 h-6 rounded-full bg-dark-600 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-colors shadow-lg"
         >
           <motion.div animate={{ rotate: sidebarOpen ? 0 : 180 }}>
             <ChevronRight size={12} />
