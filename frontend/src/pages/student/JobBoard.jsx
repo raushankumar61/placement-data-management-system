@@ -218,6 +218,7 @@ export default function StudentJobBoard() {
         if (prev.some((application) => application.id === data.id || application.jobId === job.id)) return prev;
         return [{ ...data }, ...prev];
       });
+      setSelectedId(job.id);
 
       toast.success('Application submitted successfully!');
     } catch (error) {
@@ -261,7 +262,10 @@ export default function StudentJobBoard() {
             </select>
           </div>
 
-          <p className="text-white/40 text-xs font-body">{filtered.filter((job) => job.eligible).length} eligible jobs found</p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-white/40 text-xs font-body">{filtered.filter((job) => job.eligible).length} eligible jobs found</p>
+            <p className="text-white/30 text-xs font-body">Tip: tap Apply on any eligible job card to submit instantly.</p>
+          </div>
 
           <div className="space-y-3">
             {!filtered.length && (
@@ -297,9 +301,9 @@ export default function StudentJobBoard() {
                               applyToJob(job);
                             }}
                             disabled={applying}
-                            className="btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
+                            className="btn-primary text-xs py-1.5 px-3 disabled:opacity-50 whitespace-nowrap"
                           >
-                            Apply
+                            Quick Apply
                           </button>
                         )}
                       </div>
