@@ -113,6 +113,7 @@ export const updatePlacementActivity = (id, data) => api.put(`/faculty/placement
 
 export const verifyToken = () => api.post('/auth/verify-token');
 export const syncClaims = () => api.post('/auth/sync-claims');
+export const bootstrapAdmin = (payload) => api.post('/auth/bootstrap-admin', payload);
 export const setUserRole = (targetUid, role) => api.post('/auth/set-role', { targetUid, role });
 
 export default api;

@@ -2,10 +2,18 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
+const crypto = require('crypto');
 const { admin, db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { logActivity } = require('../utils/activityLogger');
+
+const safeEquals = (left, right) => {
+  const leftBuffer = Buffer.from(String(left || ''));
+  const rightBuffer = Buffer.from(String(right || ''));
+  if (leftBuffer.length !== rightBuffer.length) return false;
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+};
 
 // POST /api/v1/auth/verify-token
 // Returns the user's uid, email, and Firestore profile.
@@ -64,6 +72,56 @@ router.post('/sync-claims', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// POST /api/v1/auth/bootstrap-admin
+// Creates/updates the caller's users profile as admin after validating a setup key.
+// Intended for controlled admin onboarding from the register flow.
+router.post(
+  '/bootstrap-admin',
+  verifyToken,
+  [
+    body('name').trim().notEmpty().withMessage('name is required'),
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('setupKey').trim().notEmpty().withMessage('setupKey is required'),
+    body('department').optional().trim(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const expectedKey = String(process.env.ADMIN_SETUP_KEY || '').trim();
+      const providedKey = String(req.body.setupKey || '').trim();
+
+      if (!expectedKey) {
+        return res.status(503).json({ error: 'Admin setup is not configured' });
+      }
+
+      if (!safeEquals(providedKey, expectedKey)) {
+        return res.status(403).json({ error: 'Invalid admin setup key' });
+      }
+
+      if (!db) {
+        return res.status(503).json({ error: 'Firestore not available' });
+      }
+
+      const uid = req.user.uid;
+      const profile = {
+        name: req.body.name,
+        email: req.body.email,
+        role: 'admin',
+        department: req.body.department || '',
+        createdAt: new Date().toISOString(),
+      };
+
+      await db.collection('users').doc(uid).set(profile, { merge: true });
+      await admin.auth().setCustomUserClaims(uid, { role: 'admin' });
+      logActivity('admin_bootstrapped', { email: profile.email }, uid);
+
+      res.status(201).json({ success: true, role: 'admin' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 // POST /api/v1/auth/set-role  (admin only)
 router.post(

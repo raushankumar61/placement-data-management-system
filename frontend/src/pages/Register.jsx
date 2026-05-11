@@ -11,12 +11,13 @@ const ROLES = [
   { value: 'student', label: 'Student', desc: 'Looking for placement opportunities' },
   { value: 'recruiter', label: 'Recruiter', desc: 'Hire talented candidates' },
   { value: 'faculty', label: 'Faculty / Coordinator', desc: 'Monitor department placements' },
+  { value: 'admin', label: 'Admin', desc: 'Manage platform operations' },
 ];
 
 const DEPARTMENTS = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'Chemical', 'Other'];
 
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student', department: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student', department: '', adminSetupKey: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register, loginWithGoogle } = useAuth();
@@ -36,6 +37,7 @@ export default function Register() {
         email: [validators.required, validators.email],
         password: [validators.required, validators.minLength(6)],
         department: (value) => ((form.role === 'student' || form.role === 'faculty') ? validators.required(value) : null),
+        adminSetupKey: (value) => (form.role === 'admin' ? validators.required(value) : null),
       }
     );
     if (Object.keys(errors).length) return toast.error(Object.values(errors)[0]);
@@ -52,6 +54,11 @@ export default function Register() {
   };
 
   const handleGoogle = async () => {
+    if (form.role === 'admin') {
+      toast.error('Admin signup with Google is not supported. Use email signup with setup key.');
+      return;
+    }
+
     try {
       const { profile } = await loginWithGoogle(form.role);
       toast.success('Account created with Google!');
@@ -169,6 +176,23 @@ export default function Register() {
                       <option key={d} value={d} className="bg-dark-700">{d}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+            )}
+
+            {form.role === 'admin' && (
+              <div>
+                <label className="block text-white/60 text-xs font-semibold uppercase tracking-wider mb-2 font-body">Admin Setup Key *</label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="password"
+                    value={form.adminSetupKey}
+                    onChange={(e) => setForm({ ...form, adminSetupKey: e.target.value })}
+                    placeholder="Enter admin setup key"
+                    className="input-field pl-10"
+                    required
+                  />
                 </div>
               </div>
             )}

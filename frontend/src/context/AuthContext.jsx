@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
-import { syncClaims, getMyRecruiterProfile, verifyToken as verifySessionToken } from '../services/api';
+import { syncClaims, getMyRecruiterProfile, verifyToken as verifySessionToken, bootstrapAdmin } from '../services/api';
 import { fillStudentDefaults } from '../utils/studentDefaults';
 
 const AuthContext = createContext(null);
@@ -168,34 +168,44 @@ export function AuthProvider({ children }) {
     return { user: result.user, profile };
   };
 
-  const register = async ({ name, email, password, role: userRole, department }) => {
+  const register = async ({ name, email, password, role: userRole, department, adminSetupKey }) => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(result.user, { displayName: name });
-    const docRef = doc(db, 'users', result.user.uid);
-    const userData = {
-      name,
-      email,
-      role: userRole,
-      department: department || '',
-      createdAt: serverTimestamp(),
-    };
-    await setDoc(docRef, userData);
-
-    // Create role-specific doc
-    if (userRole === 'student') {
-      await setDoc(doc(db, 'students', result.user.uid), fillStudentDefaults({
+    if (userRole === 'admin') {
+      await bootstrapAdmin({
         name,
         email,
-        branch: department || '',
-        createdAt: serverTimestamp(),
-      }, result.user.uid));
-    } else if (userRole === 'recruiter') {
-      await setDoc(doc(db, 'recruiters', result.user.uid), {
-        companyName: '',
-        contactEmail: email,
-        verified: false,
-        createdAt: serverTimestamp(),
+        department: department || '',
+        setupKey: adminSetupKey || '',
       });
+      await result.user.getIdToken(true);
+    } else {
+      const docRef = doc(db, 'users', result.user.uid);
+      const userData = {
+        name,
+        email,
+        role: userRole,
+        department: department || '',
+        createdAt: serverTimestamp(),
+      };
+      await setDoc(docRef, userData);
+
+      // Create role-specific doc
+      if (userRole === 'student') {
+        await setDoc(doc(db, 'students', result.user.uid), fillStudentDefaults({
+          name,
+          email,
+          branch: department || '',
+          createdAt: serverTimestamp(),
+        }, result.user.uid));
+      } else if (userRole === 'recruiter') {
+        await setDoc(doc(db, 'recruiters', result.user.uid), {
+          companyName: '',
+          contactEmail: email,
+          verified: false,
+          createdAt: serverTimestamp(),
+        });
+      }
     }
 
     const profile = await fetchUserProfile(result.user);
