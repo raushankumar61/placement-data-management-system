@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { getJobRecommendations, getRecommendations } from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatCompensationInInr } from '../../utils/compensation';
 
 const displayValue = (value, fallback) => {
   const text = String(value ?? '').trim();
@@ -163,7 +164,7 @@ export default function StudentRecommendations() {
                         )}
                         {job.ctc && (
                           <div className="flex items-center gap-1 text-white/40 text-xs font-body">
-                            <DollarSign size={11} />{job.ctc}
+                            <DollarSign size={11} />{formatCompensationInInr(job.ctc, job.ctc)}
                           </div>
                         )}
                         {job.type && (

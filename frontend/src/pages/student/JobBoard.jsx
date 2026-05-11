@@ -7,11 +7,12 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { createApplication, getApplications, getJobs, getStudent } from '../../services/api';
 import { branchMatches } from '../../utils/branchEligibility';
+import { formatCompensationInInr } from '../../utils/compensation';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
 const parseNumber = (value, fallback = 0) => {
-  const text = String(value ?? '').trim();
+  const text = String(value ?? '').replace(/,/g, '').replace(/₹/g, '').trim();
   if (!text) return fallback;
   const match = text.match(/\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : fallback;
@@ -152,7 +153,7 @@ export default function StudentJobBoard() {
         title: displayValue(job.title, 'Campus Opportunity'),
         company: displayValue(job.company, 'Hiring Partner'),
         location: displayValue(job.location, 'Location to be announced'),
-        ctc: displayValue(job.ctc || job.stipend, 'Compensation to be announced'),
+        ctc: formatCompensationInInr(job.ctc || job.stipend, 'Compensation to be announced'),
         type: displayValue(job.type, 'Full-time'),
         workMode: displayValue(job.workMode, 'Onsite'),
         experienceLevel: displayValue(job.experienceLevel, 'Fresher'),

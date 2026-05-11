@@ -5,6 +5,7 @@ import { CheckCircle, Clock, Circle, ChevronRight } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { getApplications, getJobs } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { formatCompensationInInr } from '../../utils/compensation';
 
 const STAGE_ICONS = {
   done: CheckCircle,
@@ -108,7 +109,7 @@ export default function StudentApplications() {
       role: job.title || app.role || 'N/A',
       appliedAt: formatDate(appliedSource),
       appliedAtValue: appliedSource,
-      ctc: job.ctc || app.ctc || 'N/A',
+      ctc: formatCompensationInInr(job.ctc || app.ctc || '', 'N/A'),
       timeline: buildTimeline(app.status, appliedSource),
       overallStatus: buildOverallStatus(app.status),
     };

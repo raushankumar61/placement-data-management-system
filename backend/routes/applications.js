@@ -13,7 +13,8 @@ const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruite
 const { branchMatches } = require('../utils/branchEligibility');
 
 const parseNumber = (value, fallback = 0) => {
-  const match = String(value ?? '').match(/\d+(?:\.\d+)?/);
+  const normalized = String(value ?? '').replace(/,/g, '').replace(/₹/g, '');
+  const match = normalized.match(/\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : fallback;
 };
 
@@ -23,9 +24,11 @@ const parsePackageToLpa = (value) => {
   const text = String(value || '').toLowerCase();
   const amount = parseNumber(text, NaN);
   if (Number.isNaN(amount)) return null;
+  if (text.includes('crore') || text.includes('cr')) return Number((amount * 100).toFixed(2));
   if (text.includes('lpa') || text.includes('lac')) return amount;
   if (text.includes('k/month') || text.includes('/month') || text.includes('per month')) return Number(((amount * 12) / 100).toFixed(2));
-  if (text.includes('pa') || text.includes('per annum')) return Number((amount / 100000).toFixed(2));
+  if (text.includes('/year') || text.includes('per year') || text.includes('pa') || text.includes('per annum') || text.includes('annum')) return Number((amount / 100000).toFixed(2));
+  if (amount >= 100000) return Number((amount / 100000).toFixed(2));
   return amount;
 };
 

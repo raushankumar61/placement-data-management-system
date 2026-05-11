@@ -6,6 +6,24 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const { rankStudents, recommendJobsForStudent } = require('../utils/aiScoring');
 const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
 
+const parseNumber = (value, fallback = 0) => {
+  const normalized = String(value ?? '').replace(/,/g, '').replace(/₹/g, '');
+  const match = normalized.match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : fallback;
+};
+
+const parsePackageToLpa = (value) => {
+  const text = String(value || '').toLowerCase();
+  const amount = parseNumber(text, NaN);
+  if (Number.isNaN(amount)) return 0;
+  if (text.includes('crore') || text.includes('cr')) return amount * 100;
+  if (text.includes('lpa') || text.includes('lac')) return amount;
+  if (text.includes('k/month') || text.includes('/month') || text.includes('per month')) return (amount * 12) / 100;
+  if (text.includes('/year') || text.includes('per year') || text.includes('pa') || text.includes('per annum') || text.includes('annum')) return amount / 100000;
+  if (amount >= 100000) return amount / 100000;
+  return amount;
+};
+
 // GET /api/v1/analytics/admin  — admin only, full system metrics
 router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
   try {
@@ -51,7 +69,7 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
     const selectedApps = applications.filter((a) => (a.status || '').toLowerCase() === 'selected');
     const packageBuckets = { '<5': 0, '5-10': 0, '10-20': 0, '>20': 0 };
     jobs.forEach((job) => {
-      const ctcNum = parseFloat(String(job.ctc || '').match(/\d+/)?.[0] || 0);
+      const ctcNum = parsePackageToLpa(job.ctc || '');
       if (!ctcNum) return;
       if (ctcNum < 5) packageBuckets['<5']++;
       else if (ctcNum < 10) packageBuckets['5-10']++;
@@ -73,7 +91,7 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
       .map(([company, offers]) => {
         const relatedJobs = jobs.filter((j) => (j.company || '').toLowerCase() === company.toLowerCase());
         const avgCtc = relatedJobs.length
-          ? (relatedJobs.reduce((s, j) => s + (parseFloat(String(j.ctc || '').match(/\d+/)?.[0] || 0)), 0) / relatedJobs.length).toFixed(1)
+          ? (relatedJobs.reduce((s, j) => s + parsePackageToLpa(j.ctc || ''), 0) / relatedJobs.length).toFixed(1)
           : 0;
         return { company, offers, avgCtc: Number(avgCtc) };
       })
