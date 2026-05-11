@@ -9,6 +9,7 @@ import { fillStudentDefaults } from '../../utils/studentDefaults';
 import { getApplications, getInterviews, getJobs, getStudent } from '../../services/api';
 
 const STATUS_CLASS = { Shortlisted: 'badge-blue', Applied: 'badge-gray', Selected: 'badge-green', Rejected: 'badge-red' };
+const PLACEMENT_STATUSES = new Set(['selected', 'placed', 'offer', 'offered']);
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
@@ -133,6 +134,19 @@ export default function StudentDashboard() {
   }, [activeJobs.length, recentApplications, upcomingInterviews]);
 
   const shortlistedCount = applications.filter((app) => ['shortlisted', 'selected', 'offer', 'placed'].includes(normalize(app.status))).length;
+  const placementHistory = applications
+    .filter((app) => PLACEMENT_STATUSES.has(normalize(app.status)))
+    .sort((a, b) => toMillis(b.updatedAt || b.appliedAt || b.createdAt) - toMillis(a.updatedAt || a.appliedAt || a.createdAt))
+    .slice(0, 5)
+    .map((app) => {
+      const job = jobs.find((item) => item.id === app.jobId) || {};
+      return {
+        company: job.company || app.company || 'N/A',
+        role: job.title || app.role || 'N/A',
+        status: getDisplayStatus(app.status),
+        date: formatDate(app.updatedAt || app.appliedAt || app.createdAt),
+      };
+    });
 
   return (
     <DashboardLayout title="Student Dashboard">
@@ -238,6 +252,35 @@ export default function StudentDashboard() {
               </table>
               {!recentApplications.length && (
                 <div className="px-4 py-6 text-white/40 text-sm font-body">No applications found yet.</div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between mt-2">
+              <p className="section-title">Placement History</p>
+            </div>
+            <div className="glass-card overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    {['Company', 'Role', 'Updated', 'Status'].map((h) => (
+                      <th key={h} className="table-header text-left px-4 py-3">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {placementHistory.map((item, i) => (
+                    <motion.tr key={`${item.company}-${item.role}-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 + i * 0.06 }} className="table-row">
+                      <td className="px-4 py-3 text-white text-sm font-medium">{item.company}</td>
+                      <td className="px-4 py-3 text-white/60 text-sm font-body">{item.role}</td>
+                      <td className="px-4 py-3 text-white/40 text-xs font-body">{item.date}</td>
+                      <td className="px-4 py-3"><span className={STATUS_CLASS[item.status] || 'badge-gray'}>{item.status}</span></td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+              {!placementHistory.length && (
+                <div className="px-4 py-6 text-white/40 text-sm font-body">No placement history found yet.</div>
               )}
             </div>
           </div>

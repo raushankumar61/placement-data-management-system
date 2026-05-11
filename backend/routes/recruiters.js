@@ -214,6 +214,40 @@ router.post('/shortlists', verifyToken, requireRole('recruiter', 'admin'), async
     });
 
     const ref = await db.collection('shortlists').add(payload);
+
+    const recruiterSnap = await db.collection('recruiters').doc(recruiterId).get();
+    const recruiterData = recruiterSnap.exists ? recruiterSnap.data() : {};
+
+    const appsSnap = await db.collection('applications')
+      .where('recruiterId', '==', recruiterId)
+      .where('studentId', '==', payload.studentId)
+      .get();
+
+    const updatePromises = [];
+    appsSnap.docs.forEach((docSnap) => {
+      updatePromises.push(docSnap.ref.update({
+        status: 'Shortlisted',
+        shortlistedAt: new Date().toISOString(),
+        shortlistedBy: req.user.uid,
+      }));
+    });
+
+    if (payload.studentId) {
+      updatePromises.push(db.collection('notifications').add({
+        message: `You have been shortlisted${recruiterData.companyName ? ` by ${recruiterData.companyName}` : ''}.`,
+        targetRole: 'student',
+        targetUid: payload.studentId,
+        type: 'in-app',
+        sentAt: new Date().toISOString(),
+        sentBy: req.user.uid,
+        read: [],
+        shortlistId: ref.id,
+        recruiterId,
+        actionable: false,
+      }));
+    }
+
+    await Promise.all(updatePromises);
     res.status(201).json({ id: ref.id, ...payload });
   } catch (err) {
     res.status(500).json({ error: err.message });

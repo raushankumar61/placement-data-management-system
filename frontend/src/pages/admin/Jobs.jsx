@@ -34,6 +34,7 @@ const DEMO_JOBS = [
 
 export default function AdminJobs() {
   const [jobs, setJobs] = useState([]);
+  const [useDemoData, setUseDemoData] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -52,8 +53,10 @@ export default function AdminJobs() {
         const { data } = await getJobs();
         const jobsList = data.jobs || [];
         setJobs(jobsList.length ? jobsList : DEMO_JOBS);
+        setUseDemoData(!jobsList.length);
       } catch {
         setJobs(DEMO_JOBS);
+        setUseDemoData(true);
       }
       finally { setLoading(false); }
     };
@@ -107,14 +110,19 @@ export default function AdminJobs() {
       setShowModal(false);
       const { data } = await getJobs();
       setJobs(data.jobs || []);
+      setUseDemoData(false);
     } catch {
-      if (editJob) {
-        setJobs((prev) => prev.map((j) => j.id === editJob.id ? { ...j, ...form } : j));
-      } else {
-        setJobs((prev) => [{ ...form, id: `new-${Date.now()}`, applicants: 0 }, ...prev]);
+      if (useDemoData) {
+        if (editJob) {
+          setJobs((prev) => prev.map((j) => j.id === editJob.id ? { ...j, ...form } : j));
+        } else {
+          setJobs((prev) => [{ ...form, id: `new-${Date.now()}`, applicants: 0 }, ...prev]);
+        }
+        toast.success(editJob ? 'Job updated in demo mode' : 'Job posted in demo mode');
+        setShowModal(false);
+        return;
       }
-      toast.success(editJob ? 'Job updated' : 'Job posted');
-      setShowModal(false);
+      toast.error(editJob ? 'Failed to update job' : 'Failed to post job');
     } finally { setSaving(false); }
   };
 
@@ -125,8 +133,12 @@ export default function AdminJobs() {
       setJobs((prev) => prev.filter((j) => j.id !== id));
       toast.success('Job deleted');
     } catch {
-      setJobs((prev) => prev.filter((j) => j.id !== id));
-      toast.success('Job deleted');
+      if (useDemoData) {
+        setJobs((prev) => prev.filter((j) => j.id !== id));
+        toast.success('Job deleted in demo mode');
+        return;
+      }
+      toast.error('Failed to delete job');
     }
   };
 

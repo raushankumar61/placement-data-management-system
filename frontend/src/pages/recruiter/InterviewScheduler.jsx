@@ -5,7 +5,7 @@ import { Calendar, Clock, Plus, X, CheckCircle, User, Video, MapPin } from 'luci
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
-import { createInterview, deleteInterview, getInterviews, getStudents } from '../../services/api';
+import { createInterview, deleteInterview, getInterviews, getShortlists, getStudents } from '../../services/api';
 
 const INITIAL_FORM = {
   studentId: '', role: '', date: '', time: '',
@@ -19,6 +19,7 @@ export default function RecruiterInterviewScheduler() {
   const { user, userProfile } = useAuth();
   const [students, setStudents] = useState([]);
   const [scheduled, setScheduled] = useState([]);
+  const [shortlistIds, setShortlistIds] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
@@ -26,9 +27,10 @@ export default function RecruiterInterviewScheduler() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsRes, interviewsRes] = await Promise.all([
+        const [studentsRes, interviewsRes, shortlistsRes] = await Promise.all([
           getStudents(),
           getInterviews(),
+          getShortlists(),
         ]);
 
         const data = (studentsRes.data.students || []).map((v) => {
@@ -45,19 +47,26 @@ export default function RecruiterInterviewScheduler() {
 
         const scheduledData = interviewsRes.data.interviews || [];
         setScheduled(scheduledData);
+
+        const shortlistsData = shortlistsRes.data.shortlists || [];
+        const ids = shortlistsData.map((item) => String(item.studentId || '').trim()).filter(Boolean);
+        setShortlistIds(ids);
       } catch {
         setStudents([]);
         setScheduled([]);
+        setShortlistIds([]);
       }
     };
 
     load();
   }, []);
 
-  const shortlistedStudents = useMemo(
-    () => students.filter((s) => s.placementStatus !== 'placed').slice(0, 50),
-    [students]
-  );
+  const shortlistedStudents = useMemo(() => {
+    const shortlisted = shortlistIds.length
+      ? students.filter((student) => shortlistIds.includes(student.id))
+      : students.filter((student) => student.placementStatus !== 'placed');
+    return shortlisted.slice(0, 50);
+  }, [students, shortlistIds]);
 
   // Compute real stats
   const stats = useMemo(() => {

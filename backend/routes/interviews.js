@@ -82,9 +82,14 @@ router.post(
         return res.status(404).json({ error: 'Student not found' });
       }
 
+      const studentData = studentSnap.data() || {};
+      const recruiterProfile = recruiterScope.recruiterDocs?.[0] || {};
+
       const payload = {
         studentId: req.body.studentId,
-        student: studentSnap.data().name || '',
+        student: studentData.name || '',
+        studentName: studentData.name || '',
+        studentEmail: studentData.email || '',
         role: req.body.role,
         date: req.body.date,
         time: req.body.time,
@@ -95,6 +100,7 @@ router.post(
         venue: req.body.venue || '',
         instructions: req.body.instructions || '',
         status: 'scheduled',
+        company: req.body.company || recruiterProfile.companyName || req.user.name || req.user.displayName || '',
         recruiterId: recruiterScope.primaryRecruiterId || req.user.uid,
         recruiterName: req.user.name || req.user.displayName || '',
         createdAt: new Date().toISOString(),

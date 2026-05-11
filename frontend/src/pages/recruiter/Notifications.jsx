@@ -5,6 +5,8 @@ import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { getNotifications, handleNotificationAction, markAllNotificationsRead, markNotificationRead } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../services/firebase';
+import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 
 const TYPE_ICON = {
   interview: Calendar,
@@ -34,24 +36,47 @@ export default function RecruiterNotifications() {
 
     let active = true;
 
-    const load = async () => {
-      try {
-        const { data } = await getNotifications();
-        if (!active) return;
-        setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
-      } catch {
-        if (active) setNotifications([]);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
+    const q = query(
+      collection(db, 'notifications'),
+      where('targetRole', 'in', ['all', 'recruiter']),
+      orderBy('sentAt', 'desc'),
+      limit(50)
+    );
 
-    load();
-    const intervalId = window.setInterval(load, 30000);
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        if (!active) return;
+        const notifs = snapshot.docs
+          .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+          .filter((notification) => {
+            if (notification.targetUid && notification.targetUid !== user.uid) return false;
+            return true;
+          })
+          .map((notification) => ({
+            ...notification,
+            isRead: Array.isArray(notification.read) ? notification.read.includes(user.uid) : false,
+          }));
+
+        setNotifications(notifs);
+        setLoading(false);
+      },
+      async () => {
+        if (!active) return;
+        try {
+          const { data } = await getNotifications();
+          if (active) setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+        } catch {
+          if (active) setNotifications([]);
+        } finally {
+          if (active) setLoading(false);
+        }
+      }
+    );
 
     return () => {
       active = false;
-      window.clearInterval(intervalId);
+      unsub();
     };
   }, [user?.uid]);
 
