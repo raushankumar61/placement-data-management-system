@@ -21,7 +21,7 @@ const tryBuildServiceAccountFromSplitEnv = () => {
 };
 
 const tryParseServiceAccount = () => {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw) return null;
 
   try {
