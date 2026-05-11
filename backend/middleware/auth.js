@@ -1,6 +1,9 @@
 // backend/middleware/auth.js
 const { admin, db } = require('../config/firebase');
 
+const bypassAuthEnabled = ['1', 'true', 'yes'].includes(String(process.env.BYPASS_AUTH || '').toLowerCase())
+  && process.env.NODE_ENV !== 'production';
+
 /**
  * Verifies the Firebase ID token from the Authorization header.
  * If the decoded token doesn't include a role in its custom claims,
@@ -9,6 +12,17 @@ const { admin, db } = require('../config/firebase');
  * subsequent requests skip the Firestore round-trip.
  */
 const verifyToken = async (req, res, next) => {
+  if (bypassAuthEnabled) {
+    req.user = {
+      uid: req.headers['x-dev-uid'] || 'dev-user',
+      email: req.headers['x-dev-email'] || 'dev@placecloud.local',
+      role: req.headers['x-dev-role'] || process.env.BYPASS_AUTH_ROLE || 'admin',
+      name: req.headers['x-dev-name'] || 'Development User',
+      bypassAuth: true,
+    };
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });

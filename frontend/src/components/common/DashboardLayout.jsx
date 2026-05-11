@@ -10,8 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { getNotifications } from '../../services/api';
 
 const NAV_CONFIG = {
   admin: [
@@ -74,35 +73,29 @@ export default function DashboardLayout({ children, title }) {
   const navigate = useNavigate();
   const navItems = NAV_CONFIG[role] || [];
 
-  // Real-time unread notification count for all authenticated users
   useEffect(() => {
     if (!user?.uid || !role) return;
-    
-    const q = query(
-      collection(db, 'notifications'),
-      orderBy('sentAt', 'desc'),
-      limit(100),
-    );
-    
-    const unsub = onSnapshot(q, (snap) => {
-      const count = snap.docs.filter((d) => {
-        const data = d.data();
-        // Show if:
-        // 1. Notification is for this specific user (targetUid)
-        // 2. OR notification is for all roles (no targetRole or targetRole='all')
-        // 3. OR notification is for this user's role
-        // 4. AND notification is unread
-        const forMe = !data.targetUid || data.targetUid === user.uid;
-        const forRole = !data.targetRole || data.targetRole === 'all' || data.targetRole === role;
-        const isUnread = !Array.isArray(data.read) || !data.read.includes(user.uid);
-        return forMe && forRole && isUnread;
-      }).length;
-      setUnreadCount(count);
-    }, () => {
-      // Error handler - silently continue
-    });
-    
-    return unsub;
+
+    let cancelled = false;
+
+    const loadUnreadCount = async () => {
+      try {
+        const { data } = await getNotifications();
+        if (cancelled) return;
+        const notifications = Array.isArray(data?.notifications) ? data.notifications : [];
+        setUnreadCount(notifications.filter((notification) => !notification.isRead).length);
+      } catch {
+        if (!cancelled) setUnreadCount(0);
+      }
+    };
+
+    loadUnreadCount();
+    const intervalId = window.setInterval(loadUnreadCount, 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [user?.uid, role]);
 
   const handleLogout = async () => {

@@ -133,9 +133,9 @@ Visit `http://localhost:3000` 🎉
 ### Step 3 — Get Service Account (Backend)
 1. Project Settings → Service Accounts
 2. Generate new private key (downloads JSON)
-3. Set `FIREBASE_SERVICE_ACCOUNT_KEY` in `backend/.env` as the JSON string:
+3. Set `FIREBASE_SERVICE_ACCOUNT_JSON` in `backend/.env` as the JSON string:
 ```bash
-FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"..."}'
+FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"..."}'
 ```
 
 ### Step 4 — Deploy Firestore Rules
@@ -161,7 +161,7 @@ gcloud run deploy placement-backend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars "NODE_ENV=production,FIREBASE_PROJECT_ID=YOUR_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_KEY=..."
+  --set-env-vars "NODE_ENV=production,FIREBASE_PROJECT_ID=YOUR_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_JSON=..."
 ```
 
 #### Deploy Frontend to Firebase Hosting
@@ -206,7 +206,8 @@ Set these in **Settings → Secrets → Actions**:
 | `GCP_PROJECT_ID` | Your Google Cloud project ID |
 | `GCP_SA_KEY` | GCP Service Account JSON (for Cloud Run deploy) |
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON (for Hosting deploy) |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase Admin SDK JSON string (runtime) |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase Admin SDK JSON string (runtime) |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Legacy alias supported by the backend runtime |
 | `VITE_FIREBASE_API_KEY` | Firebase web API key |
 | `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
 | `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |

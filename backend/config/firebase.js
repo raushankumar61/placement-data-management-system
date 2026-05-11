@@ -1,5 +1,4 @@
 const admin = require('firebase-admin');
-const path = require('path');
 
 const targetProjectId = process.env.FIREBASE_PROJECT_ID || '';
 
@@ -36,33 +35,23 @@ const tryParseServiceAccount = () => {
   }
 };
 
-const tryReadServiceAccountFile = () => {
-  try {
-    return require(path.join(__dirname, '../serviceAccountKey.json'));
-  } catch {
-    return null;
-  }
-};
-
 const chooseServiceAccount = () => {
   const splitEnvAccount = tryBuildServiceAccountFromSplitEnv();
   const envAccount = tryParseServiceAccount();
-  const fileAccount = tryReadServiceAccountFile();
 
   if (targetProjectId) {
     if (splitEnvAccount?.project_id === targetProjectId) return splitEnvAccount;
     if (envAccount?.project_id === targetProjectId) return envAccount;
-    if (fileAccount?.project_id === targetProjectId) return fileAccount;
   }
 
-  return splitEnvAccount || envAccount || fileAccount;
+  return splitEnvAccount || envAccount;
 };
 
 if (!admin.apps.length) {
   try {
     const serviceAccount = chooseServiceAccount();
     if (!serviceAccount) {
-      throw new Error('No Firebase service account found in env or serviceAccountKey.json');
+      throw new Error('No Firebase service account found in FIREBASE_SERVICE_ACCOUNT_JSON, FIREBASE_SERVICE_ACCOUNT_KEY, or split FIREBASE_* env vars');
     }
     
     admin.initializeApp({
