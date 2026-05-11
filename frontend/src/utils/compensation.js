@@ -7,36 +7,49 @@ const parseNumber = (value) => {
   return match ? Number(match[0]) : NaN;
 };
 
-const parsePackageToAnnualInr = (value) => {
-  const text = String(value || '').trim().toLowerCase();
-  if (!text) return null;
-
-  const amount = parseNumber(text);
-  if (Number.isNaN(amount)) return null;
-
-  if (text.includes('crore') || text.includes('cr')) return Math.round(amount * 10000000);
-  if (text.includes('lpa') || text.includes('lac') || text.includes('lakh')) return Math.round(amount * 100000);
-  if (text.includes('k/month') || text.includes('k per month') || text.includes('thousand/month')) return Math.round(amount * 1000 * 12);
-  if (text.includes('/month') || text.includes('per month')) return Math.round(amount * 12);
-  if (text.includes('/year') || text.includes('per year') || text.includes('pa') || text.includes('annum')) return Math.round(amount);
-
-  if (amount >= 100000) return Math.round(amount);
-  if (amount < 100) return Math.round(amount * 100000);
-  return Math.round(amount);
-};
-
-const formatInr = (amount) => new Intl.NumberFormat('en-IN', {
+const formatRupee = (amount) => new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
-  maximumFractionDigits: 0,
-}).format(amount);
+  maximumFractionDigits: 1,
+}).format(amount).replace(/^₹\s*/, '₹');
+
+const formatLpaValue = (amount) => {
+  const rounded = Number(amount.toFixed(2));
+  const display = Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.0+$/, '');
+  return `₹${display} LPA`;
+};
 
 export const formatCompensationInInr = (value, fallback = 'Compensation to be announced') => {
   const raw = String(value ?? '').trim();
   if (!raw) return fallback;
 
-  const annualInr = parsePackageToAnnualInr(raw);
-  if (annualInr == null) return raw;
+  const text = raw.toLowerCase();
+  const amount = parseNumber(raw);
+  if (Number.isNaN(amount)) return raw;
 
-  return `${formatInr(annualInr)} / year`;
+  if (text.includes('lpa') || text.includes('lac') || text.includes('lakh')) {
+    return formatLpaValue(amount);
+  }
+
+  if (text.includes('crore') || text.includes('cr')) {
+    return `₹${amount} Cr`;
+  }
+
+  if (text.includes('k/month') || text.includes('k per month') || text.includes('thousand/month')) {
+    return `₹${amount}k/month`;
+  }
+
+  if (text.includes('/month') || text.includes('per month')) {
+    return `₹${amount}/month`;
+  }
+
+  if (text.includes('/year') || text.includes('per year') || text.includes('pa') || text.includes('annum')) {
+    return `₹${amount}/year`;
+  }
+
+  if (amount < 100) return formatLpaValue(amount);
+  if (amount >= 10000000) return `₹${String(Number((amount / 10000000).toFixed(2))).replace(/\.0+$/, '')} Cr`;
+  if (amount >= 100000) return `₹${String(Number((amount / 100000).toFixed(2))).replace(/\.0+$/, '')} LPA`;
+
+  return formatRupee(amount);
 };

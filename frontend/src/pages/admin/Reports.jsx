@@ -316,8 +316,8 @@ export default function AdminReports() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: 'Overall Placement %', value: `${analytics.kpis.overallPlacementPct}%`, color: 'text-green-400' },
-            { label: 'Avg CTC', value: `Rs ${analytics.kpis.avgCtc} LPA`, color: 'text-gold' },
-            { label: 'Highest CTC', value: `Rs ${analytics.kpis.highestCtc} LPA`, color: 'text-blue-electric' },
+            { label: 'Avg CTC', value: `₹${analytics.kpis.avgCtc} LPA`, color: 'text-gold' },
+            { label: 'Highest CTC', value: `₹${analytics.kpis.highestCtc} LPA`, color: 'text-blue-electric' },
             { label: 'Companies Visited', value: analytics.kpis.companiesVisited, color: 'text-purple-400' },
           ].map((k) => (
             <div key={k.label} className="glass-card p-4">
