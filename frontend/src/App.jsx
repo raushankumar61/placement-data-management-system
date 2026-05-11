@@ -38,6 +38,7 @@ import RecruiterDashboard from './pages/recruiter/Dashboard';
 import RecruiterPostJob from './pages/recruiter/PostJob';
 import RecruiterMyJobs from './pages/recruiter/MyJobs';
 import RecruiterCandidates from './pages/recruiter/Candidates';
+import RecruiterNotifications from './pages/recruiter/Notifications';
 import RecruiterInterviewScheduler from './pages/recruiter/InterviewScheduler';
 
 // Faculty
@@ -132,6 +133,7 @@ function AppRoutes() {
       <Route path="/recruiter/post-job" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterPostJob /></ProtectedRoute>} />
       <Route path="/recruiter/my-jobs" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterMyJobs /></ProtectedRoute>} />
       <Route path="/recruiter/candidates" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterCandidates /></ProtectedRoute>} />
+      <Route path="/recruiter/notifications" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterNotifications /></ProtectedRoute>} />
       <Route path="/recruiter/interviews" element={<ProtectedRoute allowedRoles={['recruiter']}><RecruiterInterviewScheduler /></ProtectedRoute>} />
 
       {/* Faculty */}

@@ -1,13 +1,15 @@
 // src/pages/faculty/Dashboard.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, CheckCircle, AlertCircle, ClipboardList, X } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, AlertCircle, ClipboardList, X, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getApplications, getFacultyVerifications, getInterviews, getJobs, getPlacementActivities, getStudents } from '../../services/api';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 
 const STATUS_CLASS = {
   placed: 'badge-green',
@@ -163,6 +165,40 @@ export default function FacultyDashboard() {
     unplaced: filteredDeptStudents.filter((s) => s.status === 'unplaced').length,
   }), [filteredDeptStudents]);
 
+  const handleExportReport = () => {
+    try {
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const reportRows = filteredDeptStudents.map((student) => ({
+        RollNo: student.rollNo,
+        Name: student.name,
+        CGPA: student.cgpa,
+        Status: student.status,
+        Company: student.company,
+      }));
+
+      const workbook = XLSX.utils.book_new();
+      const sheet = XLSX.utils.json_to_sheet(reportRows);
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Department Report');
+      XLSX.writeFile(workbook, `faculty_department_report_${timestamp}.xlsx`);
+
+      const pdf = new jsPDF();
+      pdf.setFontSize(18);
+      pdf.text('Faculty Department Report', 14, 18);
+      pdf.setFontSize(11);
+      pdf.text(`Department: ${selectedDepartment}`, 14, 28);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, 14, 35);
+      pdf.text(`Total: ${stats.total} | Placed: ${stats.placed} | In Process: ${stats.inProcess} | Unplaced: ${stats.unplaced}`, 14, 44);
+      pdf.text('Top students:', 14, 56);
+      filteredDeptStudents.slice(0, 10).forEach((student, index) => {
+        const y = 64 + index * 7;
+        pdf.text(`${index + 1}. ${student.name} (${student.rollNo}) - CGPA ${student.cgpa} - ${student.status} - ${student.company}`, 14, y);
+      });
+      pdf.save(`faculty_department_report_${timestamp}.pdf`);
+    } catch (error) {
+      console.error('Failed to export faculty report:', error);
+    }
+  };
+
   const selectedDepartment = userProfile?.department || 'All Departments';
   const departmentMatchNote = userProfile?.department && deptStudents.length === students.length
     ? 'No exact department match found, showing all students.'
@@ -239,9 +275,16 @@ export default function FacultyDashboard() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="glass-card p-5 border border-purple-500/20"
           style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,163,255,0.05))' }}>
-          <h2 className="font-heading font-bold text-xl text-white">Welcome, {userProfile?.name || 'Faculty'}</h2>
-          <p className="text-white/40 text-sm font-body mt-1">Department: {selectedDepartment}</p>
-          {departmentMatchNote && <p className="text-gold text-xs font-body mt-1">{departmentMatchNote}</p>}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="font-heading font-bold text-xl text-white">Welcome, {userProfile?.name || 'Faculty'}</h2>
+              <p className="text-white/40 text-sm font-body mt-1">Department: {selectedDepartment}</p>
+              {departmentMatchNote && <p className="text-gold text-xs font-body mt-1">{departmentMatchNote}</p>}
+            </div>
+            <button onClick={handleExportReport} className="btn-outline text-sm py-2 px-4 flex items-center gap-2">
+              <Download size={14} /> Export Report
+            </button>
+          </div>
         </motion.div>
 
         {/* Stats */}

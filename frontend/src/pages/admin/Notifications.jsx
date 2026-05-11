@@ -69,7 +69,7 @@ export default function AdminNotifications() {
                           : 'border-white/10 text-white/40 hover:border-white/20'
                       }`}>
                       <span>{t.label}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${form.target === t.value ? 'bg-white/15 text-white' : 'bg-white/8 text-white/60'}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${form.targetRole === t.value ? 'bg-white/15 text-white' : 'bg-white/8 text-white/60'}`}>
                         {t.count}
                       </span>
                     </button>
@@ -115,7 +115,7 @@ export default function AdminNotifications() {
         <div className="lg:col-span-2 space-y-4">
           <p className="section-title">Notification History</p>
           {notifications.map((n, i) => {
-            const Icon = TARGET_ICONS[n.target] || Users;
+            const Icon = TARGET_ICONS[n.targetRole] || Users;
             const readPct = Math.round(((Number(n.read || 0)) / (Number(n.total || 1))) * 100);
             return (
               <motion.div key={n.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}

@@ -39,6 +39,7 @@ const NAV_CONFIG = {
     { label: 'Post Job', icon: Briefcase, path: '/recruiter/post-job' },
     { label: 'My Jobs', icon: ClipboardList, path: '/recruiter/my-jobs' },
     { label: 'Candidates', icon: Users, path: '/recruiter/candidates' },
+    { label: 'Notifications', icon: Bell, path: '/recruiter/notifications', badge: true },
     { label: 'Interview Scheduler', icon: Calendar, path: '/recruiter/interviews' },
   ],
   faculty: [

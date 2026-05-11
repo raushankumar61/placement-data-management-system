@@ -10,7 +10,9 @@
     "backfill:students": "node scripts/backfillStudentData.js",
     "backfill:marketplace": "node scripts/backfillMarketplaceData.js",
     "backfill:job-deadlines": "node scripts/refreshJobDeadlines.js",
-    "seed:marketplace": "node scripts/seedMarketplaceData.js"
+    "seed:marketplace": "node scripts/seedMarketplaceData.js",
+    "backup:firestore": "node scripts/exportFirestoreBackup.js",
+    "restore:firestore": "node scripts/restoreFirestoreBackup.js"
   },
   "dependencies": {
     "compression": "^1.7.4",
