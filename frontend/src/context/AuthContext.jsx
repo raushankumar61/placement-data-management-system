@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
 import { syncClaims, getMyRecruiterProfile, verifyToken as verifySessionToken, bootstrapAdmin } from '../services/api';
 import { fillStudentDefaults } from '../utils/studentDefaults';
@@ -136,7 +136,7 @@ export function AuthProvider({ children }) {
     return { user: result.user, profile };
   };
 
-  const loginWithGoogle = async (selectedRole = 'student') => {
+  const loginWithGoogle = async (selectedRole = 'student', department = '') => {
     const result = await signInWithPopup(auth, googleProvider);
     const uid = result.user.uid;
     const docRef = doc(db, 'users', uid);
@@ -149,11 +149,30 @@ export function AuthProvider({ children }) {
         name: result.user.displayName,
         email: result.user.email,
         role: selectedRole,       // role is only set once at registration
+        department: department || '',
         createdAt: serverTimestamp(),
         photoURL: result.user.photoURL,
       });
+    } else if (department && !snap.data()?.department) {
+      await updateDoc(docRef, { department });
     }
     // If doc exists, leave it untouched — preserving the stored role.
+
+    if (selectedRole === 'student' && department) {
+      const studentRef = doc(db, 'students', uid);
+      const studentSnap = await getDoc(studentRef).catch(() => null);
+
+      if (!studentSnap?.exists()) {
+        await setDoc(studentRef, fillStudentDefaults({
+          name: result.user.displayName,
+          email: result.user.email,
+          branch: department,
+          createdAt: serverTimestamp(),
+        }, uid));
+      } else if (!studentSnap.data()?.branch) {
+        await updateDoc(studentRef, { branch: department });
+      }
+    }
 
     const profile = await fetchUserProfile(result.user);
 

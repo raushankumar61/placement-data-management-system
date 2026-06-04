@@ -59,8 +59,13 @@ export default function Register() {
       return;
     }
 
+    if ((form.role === 'student' || form.role === 'faculty') && !form.department.trim()) {
+      toast.error('Select your department before continuing with Google.');
+      return;
+    }
+
     try {
-      const { profile } = await loginWithGoogle(form.role);
+      const { profile } = await loginWithGoogle(form.role, form.department);
       toast.success('Account created with Google!');
       navigate(getRoleRedirect(profile?.role));
     } catch (err) {

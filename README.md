@@ -1,144 +1,162 @@
 # 🎓 PlaceCloud — Cloud-Based Placement Management System
 
-A full-stack, production-ready campus placement management platform built with React, Node.js, Firebase, and Tailwind CSS.
+<div align="center">
 
-![PlaceCloud](https://img.shields.io/badge/PlaceCloud-v1.0.0-00A3FF?style=flat-square)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
-![Firebase](https://img.shields.io/badge/Firebase-10-FFCA28?style=flat-square&logo=firebase)
-![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat-square&logo=node.js)
+![PlaceCloud Banner](https://img.shields.io/badge/PlaceCloud-v1.0.0-00A3FF?style=for-the-badge&logo=cloud)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-10-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+A full-stack, production-ready campus placement management platform built with **React**, **Node.js**, **Firebase**, and **Tailwind CSS**. Designed to bridge the gap between Students, Recruiter Organizations, and Placement Officers.
+
+[Explore Setup](#-quick-start-local-development) • [API Documentation](#-api-reference) • [Architecture](#%EF%B8%8F-system-architecture) • [CLI Scripts](#%EF%B8%8F-cli-scripts--data-management)
+
+</div>
 
 ---
 
-## ✨ Features
+## 📖 Table of Contents
+- [✨ Key Features](#-key-features)
+- [🏗️ System Architecture](#%EF%B8%8F-system-architecture)
+- [📁 Project Structure](#-project-structure)
+- [🚀 Quick Start (Local Development)](#-quick-start-local-development)
+- [🔥 Firebase Config & Seeding](#-firebase-config--seeding)
+- [🛠️ CLI Scripts & Data Management](#%EF%B8%8F-cli-scripts--data-management)
+- [🔐 Google SSO & Security](#-google-sso--security)
+- [☁️ Cloud Deployment](#%EF%B8%8F-cloud-deployment)
+- [🌐 API Reference](#-api-reference)
+- [🗃️ Firestore Collections Schema](#%EF%B8%8F-firestore-collections-schema)
+- [🎨 Design System](#-design-system)
 
-### Roles & Dashboards
-| Role | Key Features |
-|------|-------------|
-| **Admin / Placement Officer** | Student CRUD, bulk import/export, job management, analytics charts, PDF/Excel reports, notifications, recruiter approval |
-| **Student** | Profile builder, filtered job board, one-click apply, application timeline tracker |
-| **Recruiter** | Post jobs, filter candidates by CGPA/branch/skills, shortlist & download resumes |
-| **Faculty / Coordinator** | Monitor department students, CGPA distribution charts, verification tools |
+---
 
-### Platform
-- 🔐 Firebase Auth — Email/Password + Google OAuth (SSO)
-- ⚡ Real-time Firestore listeners (no refresh needed)
-- 📊 Recharts analytics dashboards
-- 📥 Excel/CSV bulk import & export (SheetJS)
-- 📄 PDF report generation (jsPDF + autoTable)
-- 🎨 Glassmorphism dark UI with Framer Motion animations
-- 📱 Fully responsive (mobile-first)
-- 🛡️ Role-based access control with Firestore security rules
-- 🚀 CI/CD via GitHub Actions → Firebase Hosting + Cloud Run
+## ✨ Key Features
+
+### 👥 Role-Based Portals & Dashboards
+| Portal Role | Key Capabilities |
+| :--- | :--- |
+| **🎓 Student** | Resume upload, profile builder, filtered job application feed, application timeline tracker. |
+| **💼 Recruiter** | Job posting and management, candidate matching (CGPA, branch, skills), resume downloads. |
+| **🛡️ Placement Officer (Admin)** | Student & recruiter approvals, bulk data imports, exportable reports (Excel/PDF), and stats charts. |
+| **👩‍🏫 Faculty Coordinator** | Department-level student performance analytics, CGPA distribution charts, validation tools. |
+
+### ⚡ Platform Highlights
+- **Real-Time Database Sync**: Live Firestore listeners trigger instant dashboard state changes without page reloads.
+- **Robust Authentication**: Firebase Authentication supports email/password credentials and Google OAuth (SSO) with custom claims.
+- **Reporting Engine**: Dynamic charts using **Recharts**, bulk Excel/CSV import/export via **SheetJS**, and PDF generation with **jsPDF**.
+- **Interactive UI**: Futuristic glassmorphism theme using **Framer Motion** animations.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    Client[React Frontend / Vite] -->|Auth Token / REST| API[Node.js / Express Backend]
+    Client -->|Direct SDK Listeners| Firestore[(Firestore DB)]
+    Client -->|OAuth / Creds| FirebaseAuth[Firebase Auth]
+    API -->|Admin SDK validation| Firestore
+    API -->|Claims Verification| FirebaseAuth
+    API -->|Resume & File Uploads| FirebaseStorage[(Firebase Storage)]
+    
+    style Client fill:#00A3FF,stroke:#fff,stroke-width:2px,color:#fff
+    style API fill:#339933,stroke:#fff,stroke-width:2px,color:#fff
+    style Firestore fill:#FFCA28,stroke:#000,stroke-width:1px,color:#000
+    style FirebaseAuth fill:#FFCA28,stroke:#000,stroke-width:1px,color:#000
+```
 
 ---
 
 ## 📁 Project Structure
 
+<details>
+<summary>📂 <b>View Directory Map</b> <i>(Click to expand)</i></summary>
+
 ```
 placement-system/
 ├── frontend/                 # Vite + React + Tailwind
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── common/       # Navbar, DashboardLayout
-│   │   │   └── landing/      # Hero, Features, Stats, Testimonials
-│   │   ├── pages/
-│   │   │   ├── Landing.jsx
-│   │   │   ├── Login.jsx
-│   │   │   ├── Register.jsx
-│   │   │   ├── admin/        # Dashboard, Students, Jobs, Applications, Reports, Notifications, Recruiters
-│   │   │   ├── student/      # Dashboard, Profile, JobBoard, Applications
-│   │   │   ├── recruiter/    # Dashboard, PostJob, Candidates
-│   │   │   └── faculty/      # Dashboard
-│   │   ├── context/          # AuthContext
-│   │   └── services/         # firebase.js, api.js (Axios)
+│   │   ├── components/       # Common layouts & visual elements
+│   │   ├── pages/            # View pages (admin, student, recruiter, faculty)
+│   │   ├── context/          # Global AuthContext & hooks
+│   │   └── services/         # API (Axios instance) & Firebase configuration
 │   └── package.json
 │
-├── backend/                  # Node.js + Express REST API
-│   ├── routes/               # auth, students, jobs, applications, recruiters, reports, notifications
-│   ├── middleware/            # Firebase token verification
-│   ├── config/               # Firebase Admin SDK
-│   ├── server.js
-│   ├── Dockerfile
-│   └── package.json
+├── backend/                  # Node.js + Express Rest API
+│   ├── routes/               # API Router endpoints
+│   ├── middleware/            # Auth claims & JWT interceptors
+│   ├── config/               # Firebase Admin SDK setups
+│   ├── scripts/              # Migration, backfill, and database seeds
+│   └── server.js             # Main API entrypoint
 │
 ├── firestore.rules            # Firestore security rules
-├── firestore.indexes.json     # Composite indexes
-├── firebase.json              # Hosting + Cloud Run rewrite config
-├── docker-compose.yml         # Local dev with Docker
-├── .github/workflows/         # CI/CD pipeline
+├── firestore.indexes.json     # Composite database indexes
+├── firebase.json              # Hosting & Cloud Run proxy setups
+├── docker-compose.yml         # Local Docker setup
+├── .github/workflows/         # Deployment CI/CD configurations
 └── README.md
 ```
+</details>
 
 ---
 
 ## 🚀 Quick Start (Local Development)
 
-### Prerequisites
-- Node.js 18+
-- A Firebase project ([create one](https://console.firebase.google.com))
+### 📋 Prerequisites
+- **Node.js 18+** installed.
+- A **Firebase Project** set up ([Firebase Console](https://console.firebase.google.com)).
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/placement-system.git
+git clone https://github.com/raushankumar61/placement-data-management-system.git
 cd placement-system
 ```
 
-### 2. Configure Firebase (Frontend)
+### 2. Configure Environment Variables
+- **Frontend Setup**: Copy the example configuration and input your Firebase app keys:
+  ```bash
+  cp frontend/.env.example frontend/.env.local
+  ```
+- **Backend Setup**: Copy the example configuration and insert your Firebase Admin credentials:
+  ```bash
+  cp backend/.env.example backend/.env
+  ```
+
+### 3. Install All Dependencies
+Install dependencies for both frontend and backend directories concurrently from the project root:
 ```bash
-cd frontend
-cp .env.example .env.local
-# Edit .env.local with your Firebase project values
+npm run install:all
 ```
 
-### 3. Configure Backend
+### 4. Run Development Servers
+Start the full-stack system concurrently (Frontend on `:3000`, Backend on `:5000`):
 ```bash
-cd ../backend
-cp .env.example .env
-# Edit .env with your Firebase Admin SDK credentials
+npm run dev
 ```
 
-### 4. Install dependencies
-```bash
-# From project root
-cd frontend && npm install
-cd ../backend && npm install
-```
-
-### 5. Run development servers
-```bash
-# Terminal 1 — Frontend (port 3000)
-cd frontend && npm run dev
-
-# Terminal 2 — Backend (port 5000)
-cd backend && npm run dev
-```
-
-Visit `http://localhost:3000` 🎉
+> [!NOTE]
+> You can also run the servers individually using `npm run dev:frontend` or `npm run dev:backend` from the root workspace.
 
 ---
 
-## 🔥 Firebase Setup
+## 🔥 Firebase Config & Seeding
 
-### Step 1 — Create Firebase Project
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Create a new project
-3. Enable **Authentication** → Email/Password + Google
-4. Enable **Firestore Database** (Start in production mode)
-5. Enable **Storage**
+### Step 1 — Enable Firebase Services
+1. Activate **Authentication** (Email/Password + Google Provider).
+2. Activate **Firestore Database** (Start in production mode).
+3. Activate **Cloud Storage** for resume file hosting.
 
-### Step 2 — Get Web Config (Frontend)
-1. Project Settings → Your Apps → Add Web App
-2. Copy the config values to `frontend/.env.local`
+### Step 2 — Link Credentials
+- **Frontend configuration**: Copy the Web Client configuration dictionary from Firebase app settings to `frontend/.env.local`.
+- **Backend credentials**: Download a new Firebase Admin SDK private key JSON from *Project Settings → Service Accounts*, and format it as a single string variable inside `backend/.env`:
+  ```bash
+  FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"..."}'
+  ```
 
-### Step 3 — Get Service Account (Backend)
-1. Project Settings → Service Accounts
-2. Generate new private key (downloads JSON)
-3. Set `FIREBASE_SERVICE_ACCOUNT_JSON` in `backend/.env` as the JSON string:
-```bash
-FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"..."}'
-```
-
-### Step 4 — Deploy Firestore Rules
+### Step 3 — Deploy Security Rules & Indexes
+Deploy database structures to Firestore using `firebase-tools`:
 ```bash
 npm install -g firebase-tools
 firebase login
@@ -148,11 +166,39 @@ firebase deploy --only firestore:rules,firestore:indexes
 
 ---
 
+## 🛠️ CLI Scripts & Data Management
+
+The backend contains utility scripts for database migrations, backfills, and database seeding. Execute these scripts using `npm run <script-name>` from the `backend/` directory:
+
+| Script Command | Script File | Description |
+| :--- | :--- | :--- |
+| `npm run seed:students` | `scripts/seedStudents.js` | Generates 200 mock student profiles in Firestore. |
+| `npm run seed:marketplace` | `scripts/seedMarketplaceData.js` | Seeds jobs, recruiters, and placement applications. |
+| `npm run backfill:students` | `scripts/backfillStudentData.js` | Migrates legacy student profiles to include new system default fields. |
+| `npm run backfill:marketplace` | `scripts/backfillMarketplaceData.js`| Recomputes aggregates, metrics, and recruiters statistics. |
+| `npm run backfill:job-deadlines`| `scripts/refreshJobDeadlines.js` | Extends expirations and refreshes job posting deadlines. |
+| `npm run backup:firestore` | `scripts/exportFirestoreBackup.js` | Backs up all collection documents to a timestamped folder. |
+| `npm run restore:firestore` | `scripts/restoreFirestoreBackup.js` | Restores Firestore collection structures from a local backup source. |
+
+---
+
+## 🔐 Google SSO & Security
+
+### 🤝 Google Sign-In Department Syncer
+The custom Google SSO registration flow requires registering users to provide their metadata at checkout:
+1. **Department selection**: On signup, users choosing Google Sign-In must provide their role (`student` or `faculty`) and select their **Department/Branch**.
+2. **Claims Synchronization**: Express claims middleware validates the Firebase JWT, sets role custom claims, and registers profiles under `users/{uid}` in Firestore.
+3. **Student Profile Initialization**: If the user registers as a student, a Firestore document in `students/{uid}` is automatically initialized with the selected department configured as their academic `branch`.
+
+---
+
 ## ☁️ Cloud Deployment
 
-### Option A — Firebase Hosting + Cloud Run (Recommended)
+<details>
+<summary>🚀 <b>Option A: Firebase Hosting + Cloud Run (Recommended)</b></summary>
 
-#### Deploy Backend to Cloud Run
+#### 1. Deploy the Backend REST API
+Compile and build the API container to Google Artifact Registry and run on Google Cloud Run:
 ```bash
 cd backend
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/placement-backend
@@ -164,114 +210,154 @@ gcloud run deploy placement-backend \
   --set-env-vars "NODE_ENV=production,FIREBASE_PROJECT_ID=YOUR_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_JSON=..."
 ```
 
-#### Deploy Frontend to Firebase Hosting
+#### 2. Deploy the Frontend client
+Build and push assets to Firebase Global CDN:
 ```bash
 cd frontend
 npm run build
 firebase deploy --only hosting
 ```
+</details>
 
-### Option B — Render (Simpler alternative)
-1. Create account at [render.com](https://render.com)
-2. New Web Service → connect your GitHub repo
-3. **Root Directory:** `backend`
-4. **Build Command:** `npm install`
-5. **Start Command:** `node server.js`
-6. Set environment variables in Render dashboard
-7. For frontend: New Static Site → Root Dir: `frontend`, Build: `npm run build`, Publish: `dist`
+<details>
+<summary>☁️ <b>Option B: Deploy to Render</b></summary>
 
-### Vercel Frontend Note
-If you deploy only the `frontend` folder to Vercel, do not rely on the default `/api/v1` base URL in production unless that Vercel project also proxies `/api/*` to a real backend. The frontend-only `vercel.json` should only rewrite non-API routes to `index.html`, and your Vercel project must set:
+1. Connect your Github repository to [Render](https://render.com).
+2. **Backend Config**: Create a Web Service:
+   - Root Directory: `backend`
+   - Build Command: `npm install`
+   - Start Command: `node server.js`
+   - Setup environment variables in the Render console.
+3. **Frontend Config**: Create a Static Site:
+   - Root Directory: `frontend`
+   - Build Command: `npm run build`
+   - Publish Directory: `dist`
+</details>
 
-```bash
-VITE_API_URL=https://YOUR_DEPLOYED_BACKEND/api/v1
-```
+<details>
+<summary>🐳 <b>Option C: Self-Hosted Docker Compose</b></summary>
 
-Without that variable, requests such as `/api/v1/auth/verify-token` will hit the frontend deployment itself instead of the Express API, which causes login and role sync to fail.
-
-### Option C — Docker Compose (Self-hosted)
+Build and launch the complete multi-container system locally using Docker:
 ```bash
 docker-compose up --build
 ```
-
----
-
-## 🔐 GitHub Actions CI/CD
-
-### Required GitHub Secrets
-Set these in **Settings → Secrets → Actions**:
-
-| Secret | Description |
-|--------|-------------|
-| `GCP_PROJECT_ID` | Your Google Cloud project ID |
-| `GCP_SA_KEY` | GCP Service Account JSON (for Cloud Run deploy) |
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON (for Hosting deploy) |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase Admin SDK JSON string (runtime) |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Legacy alias supported by the backend runtime |
-| `VITE_FIREBASE_API_KEY` | Firebase web API key |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
-| `VITE_FIREBASE_APP_ID` | Firebase app ID |
-| `VITE_API_URL` | Deployed backend URL (e.g., `https://placement-backend-xxx.run.app/api/v1`) |
-| `FRONTEND_URL` | Deployed frontend URL |
+</details>
 
 ---
 
 ## 🌐 API Reference
 
-Base URL: `/api/v1`
+> [!IMPORTANT]
+> All REST API endpoints require a valid Authorization Bearer header: `Authorization: Bearer <Firebase_ID_Token>`.
 
-All endpoints require `Authorization: Bearer <Firebase ID Token>` header.
+<details>
+<summary>🔍 <b>Expand Full Endpoint Catalog</b> <i>(Click to expand)</i></summary>
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/auth/verify-token` | Verify Firebase token, return profile |
-| GET | `/students` | List all students (admin/faculty) |
-| POST | `/students` | Create student (admin) |
-| PUT | `/students/:id` | Update student |
-| DELETE | `/students/:id` | Delete student (admin) |
-| POST | `/students/bulk-import` | Bulk import via Excel/CSV |
-| GET | `/jobs` | List all jobs |
-| POST | `/jobs` | Post new job (admin/recruiter) |
-| PUT | `/jobs/:id` | Update job |
-| DELETE | `/jobs/:id` | Delete job |
-| GET | `/applications` | List applications |
-| POST | `/applications` | Submit application (student) |
-| PUT | `/applications/:id/status` | Update status (admin/recruiter) |
-| GET | `/reports/placement` | Placement summary report |
-| POST | `/notifications/send` | Send notification (admin) |
-| GET | `/recruiters` | List recruiters |
-| PUT | `/recruiters/:id/verify` | Approve/suspend recruiter |
+### 🔑 Authentication
+* **POST** `/api/v1/auth/verify-token`
+  - *Description*: Validates the Firebase user ID token and returns the profile details.
+  - *Access*: All Roles.
+
+### 🎓 Students Management
+* **GET** `/api/v1/students`
+  - *Description*: Returns all student records.
+  - *Access*: Admin, Faculty.
+* **POST** `/api/v1/students`
+  - *Description*: Creates a new student record manually.
+  - *Access*: Admin.
+* **PUT** `/api/v1/students/:id`
+  - *Description*: Modifies details of a specific student profile.
+  - *Access*: Admin, Student owner.
+* **DELETE** `/api/v1/students/:id`
+  - *Description*: Removes a student record.
+  - *Access*: Admin.
+* **POST** `/api/v1/students/bulk-import`
+  - *Description*: Imports student records from a Excel/CSV spreadsheet.
+  - *Access*: Admin.
+
+### 💼 Jobs & Applications
+* **GET** `/api/v1/jobs`
+  - *Description*: Fetches all job postings.
+  - *Access*: All Roles.
+* **POST** `/api/v1/jobs`
+  - *Description*: Posts a new vacancy.
+  - *Access*: Admin, Recruiter.
+* **GET** `/api/v1/applications`
+  - *Description*: Fetches job application submissions.
+  - *Access*: Admin, Faculty, Recruiter.
+* **POST** `/api/v1/applications`
+  - *Description*: Submits a student job application.
+  - *Access*: Student.
+* **PUT** `/api/v1/applications/:id/status`
+  - *Description*: Updates an application status (e.g., Shortlisted, Selected).
+  - *Access*: Admin, Recruiter.
+
+### 📊 Reports & Notifications
+* **GET** `/api/v1/reports/placement`
+  - *Description*: Fetches statistics and summary graphs on placements.
+  - *Access*: Admin, Faculty.
+* **POST** `/api/v1/notifications/send`
+  - *Description*: Dispatches push alerts to specific target roles.
+  - *Access*: Admin.
+</details>
 
 ---
 
-## 🗃️ Firestore Collections
+## 🗃️ Firestore Collections Schema
 
+<details>
+<summary>📂 <b>Expand Document Models</b></summary>
+
+```typescript
+users/{uid} {
+  name: string;
+  email: string;
+  role: 'admin' | 'student' | 'recruiter' | 'faculty';
+  department: string;
+  createdAt: timestamp;
+}
+
+students/{uid} {
+  cgpa: string;
+  branch: string;
+  skills: string[];
+  resumeURL: string;
+  placementStatus: 'placed' | 'in-process' | 'unplaced';
+  projects: { title: string; description: string }[];
+}
+
+jobs/{jobId} {
+  title: string;
+  company: string;
+  eligibility: { minCGPA: number; branches: string[] };
+  deadline: string;
+  postedBy: string;
+  status: 'active' | 'closed';
+}
+
+applications/{appId} {
+  studentId: string;
+  jobId: string;
+  status: 'Applied' | 'Shortlisted' | 'Selected' | 'Rejected';
+  appliedAt: timestamp;
+}
 ```
-users/{uid}            → name, email, role, department, createdAt
-students/{uid}         → cgpa, branch, skills[], resumeURL, placementStatus, projects[]
-jobs/{jobId}           → title, company, eligibility{}, deadline, postedBy, status
-applications/{appId}   → studentId, jobId, status, appliedAt
-recruiters/{uid}       → companyName, contactEmail, verified
-notifications/{id}     → message, targetRole, sentAt, read[]
-interviews/{id}        → studentId, recruiterId, dateTime, venue
-```
+</details>
 
 ---
 
 ## 🎨 Design System
 
-- **Font:** Syne (headings) + DM Sans (body)
-- **Primary Color:** `#00A3FF` (Electric Blue)
-- **Accent Color:** `#F5A623` (Gold)
-- **Background:** `#050811` (Deep Navy)
-- **Cards:** Glassmorphism — `bg-white/5 backdrop-blur-md border-white/10`
-- **Animations:** Framer Motion — page transitions, staggered list entrances, counter animations
+- **Typography**: `Syne` (for major page headings) + `DM Sans` (for readable body layout).
+- **Core Palette**:
+  - Primary Accent: `#00A3FF` (Electric Sky Blue)
+  - Contrast Highlight: `#F5A623` (Premium Amber Gold)
+  - Background Canvas: `#050811` (Deep Space Blue)
+- **Styling Paradigm**: Framer Motion glassmorphism panels configured with `backdrop-blur-md` and semi-transparent borders.
 
 ---
 
 ## 📜 License
 
-DSCE © 2026 PlaceCloud
+Project distributed under the **MIT License**.  
+© 2026 PlaceCloud. Developed for DSCE Placement Officer Department.
