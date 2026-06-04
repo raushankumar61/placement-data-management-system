@@ -40,15 +40,14 @@ router.get('/', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async
     if (status) query = query.where('placementStatus', '==', status);
 
     // Apply limit and offset at Firestore level for efficiency
-    const snap = await query.limit(Number(lim) + Number(offset)).get();
+    const snap = await query.offset(Number(offset)).limit(Number(lim)).get();
     let students = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    // Get total count (cached across requests) — optional, expensive on large collections
-    let totalCount = students.length;
-    if (!branch && !status && offset === 0) {
-      // Only count when no filters and at first page to save time
-      const countSnap = await query.get();
-      totalCount = countSnap.size;
+    // Get total count using cheap count aggregation
+    let totalCount = 0;
+    if (db) {
+      const countSnap = await query.count().get();
+      totalCount = countSnap.data().count;
     }
 
     // Recruiters: hide sensitive personal data fields
@@ -59,9 +58,7 @@ router.get('/', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async
       });
     }
 
-    // Apply pagination on result set
-    const paginated = students.slice(Number(offset), Number(offset) + Number(lim));
-    res.json({ students: paginated, total: totalCount });
+    res.json({ students, total: totalCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

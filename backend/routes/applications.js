@@ -110,13 +110,17 @@ router.get('/', verifyToken, async (req, res) => {
     }
     if (status) query = query.where('status', '==', status);
 
-    // Apply limit at Firestore level
-    const snap = await query.limit(Number(lim) + Number(offset)).get();
+    // Apply limit and offset at Firestore level for efficiency
+    const snap = await query.offset(Number(offset)).limit(Number(lim)).get();
     const applications = snap.docs.map((d) => ({ id: d.id, ...createApplicationDefaults(d.data() || {}, d.id) }));
-    
-    // Apply pagination
-    const paginated = applications.slice(Number(offset), Number(offset) + Number(lim));
-    res.json({ applications: paginated, total: applications.length });
+
+    let totalCount = 0;
+    if (db) {
+      const countSnap = await query.count().get();
+      totalCount = countSnap.data().count;
+    }
+
+    res.json({ applications, total: totalCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
