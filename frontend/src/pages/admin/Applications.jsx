@@ -54,7 +54,16 @@ export default function AdminApplications() {
   };
 
   useEffect(() => {
-    loadApplications();
+    let isMounted = true;
+    const fetch = async () => {
+      if (isMounted) await loadApplications();
+    };
+    fetch();
+    const interval = setInterval(fetch, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const filtered = applications.filter((a) => {

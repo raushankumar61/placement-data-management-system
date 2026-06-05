@@ -28,6 +28,37 @@ const upload = multer({
   },
 });
 
+// GET /api/v1/students/search - unauthenticated endpoint for login autocomplete
+router.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json({ students: [] });
+    if (!db) return res.json({ students: [] });
+
+    // Quick scan of all students (only for demo, in production use Algolia or Elastic)
+    const snap = await db.collection('students').get();
+    const term = q.toLowerCase();
+    const students = [];
+
+    snap.forEach(d => {
+      const data = d.data();
+      const name = data.name || '';
+      const email = data.email || '';
+      const rollNo = data.rollNo || '';
+
+      if (name.toLowerCase().includes(term) || 
+          email.toLowerCase().includes(term) || 
+          rollNo.toLowerCase().includes(term)) {
+        students.push({ id: d.id, name, email, rollNo });
+      }
+    });
+
+    res.json({ students: students.slice(0, 5) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/v1/students  — admin, faculty, recruiter can list students
 router.get('/', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async (req, res) => {
   try {

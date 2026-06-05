@@ -44,14 +44,13 @@ api.interceptors.response.use(
   }
 );
 
+export const searchStudents = (q) => api.get('/students/search', { params: { q } });
 export const getStudents = (params) => api.get('/students', { params });
 export const getStudent = (id) => api.get(`/students/${id}`);
 export const createStudent = (data) => api.post('/students', data);
 export const updateStudent = (id, data) => api.put(`/students/${id}`, data);
 export const deleteStudent = (id) => api.delete(`/students/${id}`);
-export const bulkImportStudents = (formData) => api.post('/students/bulk-import', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
+export const bulkImportStudents = (formData) => api.post('/students/bulk-import', formData);
 
 export const getJobs = (params) => api.get('/jobs', { params });
 export const getJob = (id) => api.get(`/jobs/${id}`);
@@ -92,9 +91,8 @@ export const createComplaint = (data) => api.post('/complaints', data);
 export const resolveComplaint = (id, data) => api.put(`/complaints/${id}/resolve`, data);
 export const deleteComplaint = (id) => api.delete(`/complaints/${id}`);
 
-export const parseResume = (formData) => api.post('/resume/parse', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
+export const parseResume = (formData) => api.post('/resume/parse', formData);
+export const uploadResume = (formData) => api.post('/resume/upload', formData);
 
 export const getAdminAnalytics = () => api.get('/analytics/admin');
 export const getRecruiterAnalytics = () => api.get('/analytics/recruiter');

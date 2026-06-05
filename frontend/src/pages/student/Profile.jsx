@@ -9,7 +9,7 @@ import { storage } from '../../services/firebase';
 import toast from 'react-hot-toast';
 import { validateForm, validators } from '../../utils/validation';
 import { fillStudentDefaults } from '../../utils/studentDefaults';
-import { getStudent, parseResume, updateStudent } from '../../services/api';
+import { getStudent, parseResume, updateStudent, uploadResume } from '../../services/api';
 
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'Artificial Intelligence & Machine Learning', 'Data Science'];
 
@@ -124,7 +124,7 @@ export default function StudentProfile() {
   const removeOfferCompany = (idx) => setForm({ ...form, offerCompanies: form.offerCompanies.filter((_, i) => i !== idx) });
 
   // ── Resume Upload ───────────────────────────────────────────────────────────
-  const handleResumeUpload = (e) => {
+  const handleResumeUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.type !== 'application/pdf') {
@@ -136,31 +136,24 @@ export default function StudentProfile() {
       return;
     }
     setUploading(true);
-    setUploadProgress(0);
-    const storageRef = ref(storage, `resumes/${user.uid}/${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100));
-      },
-      (err) => {
-        toast.error('Upload failed: ' + err.message);
+    setUploadProgress(10); // Fake progress to indicate starting
+    try {
+      const fd = new FormData();
+      fd.append('resume', file);
+      setUploadProgress(50);
+      
+      const { data } = await uploadResume(fd);
+      setUploadProgress(100);
+      setForm((prev) => ({ ...prev, resumeURL: data.url }));
+      toast.success('Resume uploaded! Click "Parse Skills" to extract skills automatically.');
+    } catch (err) {
+      toast.error('Upload failed: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setTimeout(() => {
         setUploading(false);
-      },
-      async () => {
-        try {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          setForm((prev) => ({ ...prev, resumeURL: url }));
-          toast.success('Resume uploaded! Click "Parse Skills" to extract skills automatically.');
-        } catch (err) {
-          toast.error('Could not get download URL');
-        } finally {
-          setUploading(false);
-          setUploadProgress(0);
-        }
-      }
-    );
+        setUploadProgress(0);
+      }, 500);
+    }
   };
 
   // ── Resume Skill Parsing ─────────────────────────────────────────────────────

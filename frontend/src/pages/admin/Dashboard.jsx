@@ -212,17 +212,25 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
       try {
         const { data: res } = await getAdminAnalytics();
-        setData(res);
+        if (isMounted) setData(res);
       } catch {
-        setData(null);
+        if (isMounted) setData(null);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
-    fetchData();
+    
+    fetchData(); // Initial load
+    const interval = setInterval(fetchData, 5000); // Poll every 5s for real-time feel
+    
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const stats = data?.stats || { students: 0, placed: 0, jobs: 0, companies: 0 };

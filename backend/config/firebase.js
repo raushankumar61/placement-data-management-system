@@ -57,6 +57,7 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: targetProjectId || serviceAccount.project_id,
+      storageBucket: `${targetProjectId || serviceAccount.project_id}.firebasestorage.app`
     });
 
     console.log(`✅ Firebase Admin initialized successfully (${targetProjectId || serviceAccount.project_id})`);

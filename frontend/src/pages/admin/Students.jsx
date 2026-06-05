@@ -182,7 +182,16 @@ export default function AdminStudents() {
     };
   };
 
-  useEffect(() => { fetchStudents(); }, [fetchStudents]);
+  useEffect(() => { 
+    let isMounted = true;
+    const fetch = async () => {
+      if (isMounted) await fetchStudents();
+    };
+    fetch();
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchStudents]);
 
   useEffect(() => {
     let result = students;

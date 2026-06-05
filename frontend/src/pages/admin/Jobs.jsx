@@ -7,6 +7,7 @@ import { TableSkeleton } from '../../components/common/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { createJob, deleteJob, getJobs, updateJob } from '../../services/api';
+import { useRealtimeJobs } from '../../hooks/useRealtime';
 import { normalizeJobBranches } from '../../utils/branchEligibility';
 
 const INITIAL_FORM = {
@@ -33,35 +34,20 @@ const DEMO_JOBS = [
 ];
 
 export default function AdminJobs() {
-  const [jobs, setJobs] = useState([]);
-  const [useDemoData, setUseDemoData] = useState(false);
+  const { jobs: realtimeJobs, loading: realtimeLoading } = useRealtimeJobs();
+  const jobs = realtimeJobs.length ? realtimeJobs : DEMO_JOBS;
+  const useDemoData = !realtimeJobs.length;
+  const loading = realtimeLoading;
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editJob, setEditJob] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
-
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const { data } = await getJobs();
-        const jobsList = data.jobs || [];
-        setJobs(jobsList.length ? jobsList : DEMO_JOBS);
-        setUseDemoData(!jobsList.length);
-      } catch {
-        setJobs(DEMO_JOBS);
-        setUseDemoData(true);
-      }
-      finally { setLoading(false); }
-    };
-    fetch();
-  }, []);
 
   const branchOptions = [...new Set(jobs.flatMap((job) => (Array.isArray(job.branches) ? job.branches : [job.branches])).filter(Boolean))].filter((branch) => branch !== 'All');
 
@@ -108,9 +94,6 @@ export default function AdminJobs() {
         toast.success('Job posted');
       }
       setShowModal(false);
-      const { data } = await getJobs();
-      setJobs(data.jobs || []);
-      setUseDemoData(false);
     } catch {
       if (useDemoData) {
         if (editJob) {
@@ -130,12 +113,10 @@ export default function AdminJobs() {
     if (!confirm('Delete this job?')) return;
     try {
       if (!id.startsWith('d') && !id.startsWith('new-')) await deleteJob(id);
-      setJobs((prev) => prev.filter((j) => j.id !== id));
       toast.success('Job deleted');
     } catch {
       if (useDemoData) {
-        setJobs((prev) => prev.filter((j) => j.id !== id));
-        toast.success('Job deleted in demo mode');
+        toast.success('Job deleted in demo mode (Local UI does not reflect with realtime hook until reload)');
         return;
       }
       toast.error('Failed to delete job');

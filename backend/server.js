@@ -19,7 +19,7 @@ app.use(helmet({
 app.use(compression());
 app.use(morgan('combined'));
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests' });
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, message: 'Too many requests' });
 app.use('/api/', limiter);
 
 const normalizeOrigin = (value) => String(value || '').trim().replace(/\/+$/, '');

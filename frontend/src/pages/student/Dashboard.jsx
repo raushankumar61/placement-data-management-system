@@ -161,9 +161,31 @@ export default function StudentDashboard() {
             <div>
               <p className="text-white/60 text-sm font-body">Welcome back,</p>
               <h2 className="font-heading font-bold text-2xl text-white">{userProfile?.name || 'Student'} 👋</h2>
-              <p className="text-white/40 text-sm font-body mt-1">
-                {upcomingInterviews.length ? `You have ${upcomingInterviews.length} upcoming interviews` : 'Live placement updates will appear here'}
-              </p>
+              
+              <div className="mt-4 flex flex-wrap gap-3">
+                {normalize(student?.placementStatus) === 'placed' || placementHistory.length > 0 ? (
+                  <div className="bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-2 rounded-xl flex items-center gap-2 font-semibold text-sm shadow-lg shadow-green-500/5">
+                    <CheckCircle size={16} /> Placed
+                    {placementHistory[0] && (
+                      <span className="text-white/70 font-body border-l border-white/10 pl-2 ml-1">
+                        at <span className="text-white">{placementHistory[0].company}</span> as <span className="text-white">{placementHistory[0].role}</span>
+                      </span>
+                    )}
+                    {student?.currentPackage && (
+                      <span className="text-white/70 font-body border-l border-white/10 pl-2 ml-1">
+                        CTC: <span className="text-white">{student.currentPackage}</span>
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-gold/10 border border-gold/20 text-gold px-4 py-2 rounded-xl flex items-center gap-2 font-semibold text-sm shadow-lg shadow-gold/5">
+                    <Clock size={16} /> Actively Looking for Placement
+                    <span className="text-white/70 font-body border-l border-white/10 pl-2 ml-1 text-xs">
+                      Current CGPA: <span className="text-white">{cgpa}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             <Link to="/student/jobs">
               <button className="btn-primary text-sm py-2.5 flex items-center gap-2">
