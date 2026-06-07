@@ -1,5 +1,5 @@
 // src/pages/student/Dashboard.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FileText, Briefcase, CheckCircle, Clock, ArrowRight, Bell } from 'lucide-react';
@@ -52,21 +52,31 @@ export default function StudentDashboard() {
     const load = async () => {
       try {
         const [studentRes, jobsRes, applicationsRes, interviewsRes] = await Promise.all([
-          getStudent(user.uid),
-          getJobs(),
-          getApplications({ studentId: user.uid }),
-          getInterviews({ studentId: user.uid }),
+          getStudent(user.uid).catch(() => ({ data: {} })),
+          getJobs().catch(() => ({ data: { jobs: [] } })),
+          getApplications({ studentId: user.uid }).catch(() => ({ data: { applications: [] } })),
+          getInterviews({ studentId: user.uid }).catch(() => ({ data: { interviews: [] } })),
         ]);
 
         if (!active) return;
 
         const studentData = studentRes.data?.student || studentRes.data || {};
-        setStudent(fillStudentDefaults({
+        
+        // Ensure we don't accidentally set a 0 CGPA if the document is empty or missing
+        const fallbackStudent = fillStudentDefaults({
           name: userProfile?.name || '',
           email: userProfile?.email || user?.email || '',
           branch: userProfile?.branch || userProfile?.department || '',
           ...studentData,
-        }, user.uid));
+        }, user.uid);
+        
+        // If the backend explicitly returned a valid student but it had 0 CGPA, keep it. 
+        // Otherwise, use the fallback.
+        if (studentData.id && studentData.cgpa === 0) {
+          fallbackStudent.cgpa = 0;
+        }
+
+        setStudent(fallbackStudent);
         setJobs(jobsRes.data?.jobs || []);
         setApplications(applicationsRes.data?.applications || []);
         setInterviews(interviewsRes.data?.interviews || []);

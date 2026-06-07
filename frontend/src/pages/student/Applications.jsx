@@ -1,5 +1,5 @@
 // src/pages/student/Applications.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Clock, Circle, ChevronRight } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
@@ -83,8 +83,8 @@ export default function StudentApplications() {
     const load = async () => {
       try {
         const [appsRes, jobsRes] = await Promise.all([
-          getApplications({ studentId: user.uid }),
-          getJobs(),
+          getApplications({ studentId: user.uid }).catch(() => ({ data: { applications: [] } })),
+          getJobs().catch(() => ({ data: { jobs: [] } })),
         ]);
         if (!active) return;
         setApplications(appsRes.data?.applications || []);

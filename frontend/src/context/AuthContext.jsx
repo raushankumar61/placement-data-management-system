@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const applyResolvedSession = (profile, fallbackRole = null) => {
+  const applyResolvedSession = useCallback((profile, fallbackRole = null) => {
     if (profile) {
       setUserProfile(profile);
       setRole(profile.role || fallbackRole || null);
@@ -31,9 +31,9 @@ export function AuthProvider({ children }) {
     setUserProfile(null);
     setRole(fallbackRole || null);
     return null;
-  };
+  }, []);
 
-  const fetchUserProfile = async (firebaseUser) => {
+  const fetchUserProfile = useCallback(async (firebaseUser) => {
     if (!firebaseUser?.uid) {
       return applyResolvedSession(null);
     }
@@ -97,7 +97,7 @@ export function AuthProvider({ children }) {
     }
 
     return applyResolvedSession(null);
-  };
+  }, [applyResolvedSession]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -112,7 +112,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
     return unsubscribe;
-  }, []);
+  }, [fetchUserProfile]);
 
   const login = async (email, password) => {
     console.log('[AuthContext] login() called for:', email);
@@ -180,8 +180,10 @@ export function AuthProvider({ children }) {
     try {
       await syncClaims();
       await result.user.getIdToken(/* forceRefresh= */ true);
+      console.log('[AuthContext] Token refreshed successfully.');
     } catch (e) {
-      console.warn('syncClaims after Google login failed:', e.message);
+      console.error('[AuthContext ERROR] syncClaims API call failed:', e);
+      throw new Error('Role synchronization failed. Please check backend connection.');
     }
 
     return { user: result.user, profile };
@@ -235,7 +237,8 @@ export function AuthProvider({ children }) {
       await syncClaims();
       await result.user.getIdToken(/* forceRefresh= */ true);
     } catch (e) {
-      console.warn('syncClaims after register failed:', e.message);
+      console.error('[AuthContext ERROR] syncClaims after register failed:', e);
+      throw new Error('Role synchronization failed. Please check backend connection.');
     }
 
     return { user: result.user, profile };

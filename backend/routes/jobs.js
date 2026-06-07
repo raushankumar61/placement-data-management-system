@@ -187,7 +187,24 @@ router.put(
         updatedBy: req.user.uid,
       }, req.params.id);
 
-      if (db) await db.collection('jobs').doc(req.params.id).update(payload);
+      if (db) {
+        await db.collection('jobs').doc(req.params.id).update(payload);
+        
+        // SYNC DENORMALIZED DATA to applications
+        if (req.body.title !== current.title || req.body.company !== current.company) {
+          const appsSnap = await db.collection('applications').where('jobId', '==', req.params.id).get();
+          if (!appsSnap.empty) {
+            const batch = db.batch();
+            appsSnap.docs.forEach((doc) => {
+              batch.update(doc.ref, {
+                role: payload.title,
+                company: payload.company
+              });
+            });
+            await batch.commit();
+          }
+        }
+      }
       res.json({ id: req.params.id, ...payload });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -222,7 +239,25 @@ router.put('/:id/close', verifyToken, requireRole('admin', 'recruiter'), async (
 // DELETE /api/v1/jobs/:id  — admin only
 router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    if (db) await db.collection('jobs').doc(req.params.id).delete();
+    if (db) {
+      await db.collection('jobs').doc(req.params.id).delete();
+      
+      // CASCADE DELETE applications
+      const appsSnap = await db.collection('applications').where('jobId', '==', req.params.id).get();
+      if (!appsSnap.empty) {
+        const batch = db.batch();
+        appsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+      }
+      
+      // CASCADE DELETE interviews
+      const interviewsSnap = await db.collection('interviews').where('jobId', '==', req.params.id).get();
+      if (!interviewsSnap.empty) {
+        const batch = db.batch();
+        interviewsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+      }
+    }
     res.json({ success: true, id: req.params.id });
   } catch (err) {
     res.status(500).json({ error: err.message });

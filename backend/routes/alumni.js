@@ -9,21 +9,20 @@ router.get('/', verifyToken, requireRole('admin', 'faculty', 'student'), async (
   try {
     if (!db) return res.json({ alumni: [], total: 0 });
 
-    const snap = await db.collection('students')
-      .where('placementStatus', '==', 'placed')
-      .get();
+    const snap = await db.collection('alumni').get();
 
     let alumni = snap.docs.map((docSnap) => {
-      const normalized = createSeededRecord(docSnap.data() || {}, docSnap.id);
+      const data = docSnap.data() || {};
       return {
         id: docSnap.id,
-        name: normalized.name,
-        email: normalized.email,
-        branch: normalized.branch,
-        companyPlaced: normalized.companyPlaced,
-        latestApplicationCompany: normalized.latestApplicationCompany || '',
-        bio: normalized.bio,
-        linkedin: normalized.linkedin,
+        name: data.name || '',
+        email: data.email || '',
+        branch: data.branch || '',
+        companyPlaced: data.companyPlaced || '',
+        latestApplicationCompany: data.companyPlaced || '',
+        bio: data.bio || '',
+        linkedin: data.linkedin || '',
+        graduationYear: data.graduationYear || null
       };
     });
 

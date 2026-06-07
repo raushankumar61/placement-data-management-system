@@ -1,7 +1,7 @@
 // src/pages/admin/Students.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Upload, Download, Trash2, Edit2, Filter, X, ChevronDown } from 'lucide-react';
+import { Plus, Search, Upload, Download, Trash2, Edit2, X } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
@@ -92,9 +92,9 @@ export default function AdminStudents() {
 
       // Load supporting data in background (deferred)
       Promise.all([
-        getApplications({ limit: 500 }),
-        getJobs({ limit: 200 }),
-        getInterviews({ limit: 500 }),
+        getApplications({ limit: 500 }).catch(() => ({ data: { applications: [] } })),
+        getJobs({ limit: 200 }).catch(() => ({ data: { jobs: [] } })),
+        getInterviews({ limit: 500 }).catch(() => ({ data: { interviews: [] } })),
       ]).then(([appsRes, jobsRes, interviewsRes]) => {
         setApplications(appsRes.data?.applications || []);
         const jobs = (jobsRes.data?.jobs || []).reduce((acc, job) => {

@@ -1,9 +1,9 @@
 // src/pages/recruiter/MyJobs.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Briefcase, Users, X, Edit2, EyeOff, CheckCircle,
-  Plus, Search, Clock, AlertCircle
+  Plus, Search, Clock
 } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';

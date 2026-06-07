@@ -1,7 +1,7 @@
 // src/pages/faculty/Dashboard.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, CheckCircle, AlertCircle, ClipboardList, X, Download } from 'lucide-react';
+import { CheckCircle, AlertCircle, ClipboardList, X, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
@@ -75,11 +75,11 @@ export default function FacultyDashboard() {
       try {
         const [studentsRes, verificationsRes, appsRes, jobsRes, interviewsRes, activitiesRes] = await Promise.all([
           getStudents(),
-          getFacultyVerifications(),
+          getFacultyVerifications().catch(() => ({ data: { verifications: [] } })),
           getApplications(),
           getJobs(),
           getInterviews(),
-          getPlacementActivities(),
+          getPlacementActivities().catch(() => ({ data: { activities: [] } })),
         ]);
         const data = studentsRes.data?.students || [];
         const apps = appsRes.data?.applications || [];

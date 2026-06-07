@@ -1,12 +1,11 @@
 // src/pages/admin/Jobs.jsx
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Trash2, Edit2, X, Briefcase, Calendar, MapPin, DollarSign, Users } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, X, Calendar, MapPin, DollarSign, Users, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
-import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { createJob, deleteJob, getJobs, updateJob } from '../../services/api';
+import { createJob, deleteJob, updateJob } from '../../services/api';
 import { useRealtimeJobs } from '../../hooks/useRealtime';
 import { normalizeJobBranches } from '../../utils/branchEligibility';
 
@@ -20,24 +19,8 @@ const INITIAL_FORM = {
 const JOB_TYPES = ['Full-time', 'Internship', 'PPO', 'Contract'];
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'All'];
 
-const DEMO_JOBS = [
-  { id: 'd1', title: 'Software Development Engineer', company: 'Amazon', location: 'Bengaluru (BLR)', ctc: '24 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology'], status: 'active', deadline: '2025-02-28', openings: 20, applicants: 145 },
-  { id: 'd2', title: 'Product Manager Intern', company: 'Google', location: 'Hyderabad (HYD)', ctc: '80k/month', type: 'Internship', minCGPA: '8.0', branches: ['Computer Science'], status: 'active', deadline: '2025-02-15', openings: 5, applicants: 89 },
-  { id: 'd3', title: 'Data Scientist', company: 'Microsoft', location: 'Pune', ctc: '18 LPA', type: 'Full-time', minCGPA: '7.5', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-03-10', openings: 10, applicants: 67 },
-  { id: 'd4', title: 'Frontend Developer', company: 'Flipkart', location: 'Bengaluru (BLR)', ctc: '15 LPA', type: 'Full-time', minCGPA: '6.5', branches: ['All'], status: 'closed', deadline: '2025-01-30', openings: 8, applicants: 203 },
-  { id: 'd5', title: 'Senior Backend Engineer', company: 'Razorpay', location: 'Bengaluru (BLR)', ctc: '32 LPA', type: 'Full-time', minCGPA: '7.2', branches: ['Computer Science', 'Information Technology'], status: 'active', deadline: '2025-03-18', openings: 12, applicants: 118 },
-  { id: 'd6', title: 'Cloud Platform Engineer', company: 'Oracle', location: 'Hyderabad (HYD)', ctc: '28 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-03-22', openings: 9, applicants: 96 },
-  { id: 'd7', title: 'ML Engineer', company: 'Swiggy', location: 'Delhi NCR', ctc: '30 LPA', type: 'Full-time', minCGPA: '7.8', branches: ['Computer Science', 'Information Technology', 'Data Science'], status: 'active', deadline: '2025-04-05', openings: 7, applicants: 74 },
-  { id: 'd8', title: 'Platform Engineering Intern', company: 'Meta', location: 'Noida', ctc: '1.2 L/month', type: 'Internship', minCGPA: '8.2', branches: ['Computer Science'], status: 'active', deadline: '2025-03-12', openings: 4, applicants: 58 },
-  { id: 'd9', title: 'Product Analyst', company: 'Salesforce', location: 'Gurugram', ctc: '22 LPA', type: 'Full-time', minCGPA: '7.1', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-04-02', openings: 11, applicants: 83 },
-  { id: 'd10', title: 'DevOps Engineer', company: 'Uber', location: 'Chennai', ctc: '26 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology', 'Electrical'], status: 'active', deadline: '2025-03-25', openings: 6, applicants: 62 },
-];
-
 export default function AdminJobs() {
-  const { jobs: realtimeJobs, loading: realtimeLoading } = useRealtimeJobs();
-  const jobs = realtimeJobs.length ? realtimeJobs : DEMO_JOBS;
-  const useDemoData = !realtimeJobs.length;
-  const loading = realtimeLoading;
+  const { jobs, loading, error } = useRealtimeJobs();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -47,7 +30,6 @@ export default function AdminJobs() {
   const [editJob, setEditJob] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
 
   const branchOptions = [...new Set(jobs.flatMap((job) => (Array.isArray(job.branches) ? job.branches : [job.branches])).filter(Boolean))].filter((branch) => branch !== 'All');
 
@@ -95,16 +77,6 @@ export default function AdminJobs() {
       }
       setShowModal(false);
     } catch {
-      if (useDemoData) {
-        if (editJob) {
-          setJobs((prev) => prev.map((j) => j.id === editJob.id ? { ...j, ...form } : j));
-        } else {
-          setJobs((prev) => [{ ...form, id: `new-${Date.now()}`, applicants: 0 }, ...prev]);
-        }
-        toast.success(editJob ? 'Job updated in demo mode' : 'Job posted in demo mode');
-        setShowModal(false);
-        return;
-      }
       toast.error(editJob ? 'Failed to update job' : 'Failed to post job');
     } finally { setSaving(false); }
   };
@@ -112,13 +84,9 @@ export default function AdminJobs() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this job?')) return;
     try {
-      if (!id.startsWith('d') && !id.startsWith('new-')) await deleteJob(id);
+      await deleteJob(id);
       toast.success('Job deleted');
     } catch {
-      if (useDemoData) {
-        toast.success('Job deleted in demo mode (Local UI does not reflect with realtime hook until reload)');
-        return;
-      }
       toast.error('Failed to delete job');
     }
   };
@@ -199,6 +167,24 @@ export default function AdminJobs() {
         {/* Job Cards */}
         {loading ? (
           <TableSkeleton rows={6} cols={6} />
+        ) : error ? (
+          <div className="glass-card p-8 text-center border border-red-500/20">
+            <AlertCircle size={28} className="text-red-400 mx-auto mb-3" />
+            <p className="section-title mb-1">Unable to load jobs</p>
+            <p className="text-white/40 text-sm font-body max-w-md mx-auto">
+              Firestore rejected the realtime jobs query. Check Firebase configuration, role claims, rules, or indexes.
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="glass-card p-8 text-center">
+            <BriefcaseEmpty />
+            <p className="section-title mb-1">No jobs found</p>
+            <p className="text-white/40 text-sm font-body max-w-md mx-auto">
+              {jobs.length === 0
+                ? 'Post the first job drive to populate this dashboard.'
+                : 'No jobs match the current filters.'}
+            </p>
+          </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
             {filtered.map((job, i) => (
@@ -408,5 +394,13 @@ export default function AdminJobs() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+function BriefcaseEmpty() {
+  return (
+    <div className="w-12 h-12 rounded-xl bg-blue-electric/10 border border-blue-electric/20 flex items-center justify-center mx-auto mb-3">
+      <Plus size={20} className="text-blue-electric" />
+    </div>
   );
 }

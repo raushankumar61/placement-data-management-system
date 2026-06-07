@@ -126,128 +126,8 @@ async function seed() {
 
   console.log('Generating students...');
   const branches = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil'];
-  let batch = db.batch();
-  let opCount = 0;
+  const companies = ['Google', 'Amazon', 'Microsoft', 'TCS', 'Infosys'];
   
-  let studentCounter = 2; // Demo student is 1
-
-  for (const branch of branches) {
-    const branchCode = getBranchCode(branch);
-    for (let i = 1; i <= 15; i++) {
-      const fname = firstNames[Math.floor(Math.random() * firstNames.length)];
-      const lname = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const name = `${fname} ${lname}`;
-      const email = `${fname.toLowerCase()}.${lname.toLowerCase()}${i}@demo.edu`;
-      const rollNo = `1DS21${branchCode}${(studentCounter++).toString().padStart(3, '0')}`;
-      
-      const studentId = await createAuthUser(email, pw, name, 'student');
-      const studentRef = db.collection('students').doc(studentId);
-      const userRef = db.collection('users').doc(studentId);
-      
-      const cgpaBase = 6.0 + Math.random() * 2.0;
-      const cgpaBonus = Math.random() > 0.7 ? Math.random() * 2.0 : 0;
-      const finalCgpa = Math.min(10.0, cgpaBase + cgpaBonus).toFixed(1);
-
-      let branchSkills = [];
-      if (branch === 'Computer Science' || branch === 'Information Technology') {
-        branchSkills = ['Python', 'Java', 'C++', 'JavaScript', 'React', 'Node.js', 'SQL', 'MongoDB', 'AWS', 'Data Structures'];
-      } else if (branch === 'Electronics & Communication') {
-        branchSkills = ['C', 'C++', 'Python', 'MATLAB', 'Verilog', 'IoT', 'Embedded Systems'];
-      } else if (branch === 'Mechanical') {
-        branchSkills = ['AutoCAD', 'SolidWorks', 'MATLAB', 'ANSYS', 'Python', 'C++'];
-      } else if (branch === 'Civil') {
-        branchSkills = ['AutoCAD', 'Revit', 'STAAD.Pro', 'Project Management', 'C++'];
-      } else {
-        branchSkills = ['Python', 'C++', 'Java', 'Communication', 'Problem Solving'];
-      }
-      
-      // Pick 3-6 random skills from the branch pool
-      const shuffledSkills = branchSkills.sort(() => 0.5 - Math.random());
-      const studentSkills = shuffledSkills.slice(0, 3 + Math.floor(Math.random() * 4));
-
-      batch.set(studentRef, {
-        name: name,
-        email: email,
-        branch: branch,
-        cgpa: Number(finalCgpa),
-        placementStatus: Math.random() > 0.8 ? 'placed' : 'unplaced',
-        currentPackage: '',
-        skills: studentSkills,
-        rollNo: rollNo,
-        createdAt: new Date().toISOString()
-      });
-
-      batch.set(userRef, {
-        name: name,
-        email: email,
-        role: 'student',
-        department: branch,
-        createdAt: new Date().toISOString()
-      });
-
-      const completedDate = new Date();
-      completedDate.setDate(completedDate.getDate() - Math.floor(Math.random() * 30) - 1);
-      
-      const interview1 = {
-        studentId: studentId,
-        studentName: name,
-        studentEmail: email,
-        role: jobs[Math.floor(Math.random() * jobs.length)].title,
-        company: companies[Math.floor(Math.random() * companies.length)],
-        date: completedDate.toISOString().split('T')[0],
-        time: '10:00 AM',
-        mode: 'Online',
-        platform: 'Google Meet',
-        round: 'Technical Round 1',
-        link: 'https://meet.google.com/mock-link',
-        instructions: 'Be prepared with a working camera and microphone.',
-        status: 'completed',
-        createdBy: 'mock_system',
-        feedback: {
-          rating: 4,
-          strengths: 'Good grasp of core CS fundamentals. Clear communication.',
-          improvements: 'Could optimize the DP solution further.',
-          result: 'Selected for Next Round',
-          givenBy: 'Technical Panel'
-        }
-      };
-
-      const upcomingDate = new Date();
-      upcomingDate.setDate(upcomingDate.getDate() + Math.floor(Math.random() * 10) + 1);
-      
-      const interview2 = {
-        studentId: studentId,
-        studentName: name,
-        studentEmail: email,
-        role: jobs[Math.floor(Math.random() * jobs.length)].title,
-        company: companies[Math.floor(Math.random() * companies.length)],
-        date: upcomingDate.toISOString().split('T')[0],
-        time: '02:00 PM',
-        mode: 'Online',
-        platform: 'Zoom',
-        round: 'HR Round',
-        link: 'https://zoom.us/mock-link',
-        instructions: 'Please join 5 mins early.',
-        status: 'scheduled',
-        createdBy: 'mock_system'
-      };
-
-      const intRef1 = db.collection('interviews').doc();
-      const intRef2 = db.collection('interviews').doc();
-      batch.set(intRef1, interview1);
-      batch.set(intRef2, interview2);
-
-      opCount += 4;
-      if (opCount > 400) {
-        await batch.commit();
-        batch = db.batch();
-        opCount = 0;
-      }
-    }
-  }
-  if (opCount > 0) await batch.commit();
-
-  console.log('Creating mock jobs...');
   const futureDate = new Date();
   futureDate.setMonth(futureDate.getMonth() + 1);
   const farFutureDate = new Date();
@@ -541,13 +421,136 @@ async function seed() {
     }
   ];
 
+  let batch = db.batch();
+  let opCount = 0;
+  
+  let studentCounter = 2; // Demo student is 1
+
+  for (const branch of branches) {
+    const branchCode = getBranchCode(branch);
+    for (let i = 1; i <= 15; i++) {
+      const fname = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lname = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const name = `${fname} ${lname}`;
+      const email = `${fname.toLowerCase()}.${lname.toLowerCase()}${i}@demo.edu`;
+      const rollNo = `1DS21${branchCode}${(studentCounter++).toString().padStart(3, '0')}`;
+      
+      const studentId = await createAuthUser(email, pw, name, 'student');
+      const studentRef = db.collection('students').doc(studentId);
+      const userRef = db.collection('users').doc(studentId);
+      
+      const cgpaBase = 6.0 + Math.random() * 2.0;
+      const cgpaBonus = Math.random() > 0.7 ? Math.random() * 2.0 : 0;
+      const finalCgpa = Math.min(10.0, cgpaBase + cgpaBonus).toFixed(1);
+
+      let branchSkills = [];
+      if (branch === 'Computer Science' || branch === 'Information Technology') {
+        branchSkills = ['Python', 'Java', 'C++', 'JavaScript', 'React', 'Node.js', 'SQL', 'MongoDB', 'AWS', 'Data Structures'];
+      } else if (branch === 'Electronics & Communication') {
+        branchSkills = ['C', 'C++', 'Python', 'MATLAB', 'Verilog', 'IoT', 'Embedded Systems'];
+      } else if (branch === 'Mechanical') {
+        branchSkills = ['AutoCAD', 'SolidWorks', 'MATLAB', 'ANSYS', 'Python', 'C++'];
+      } else if (branch === 'Civil') {
+        branchSkills = ['AutoCAD', 'Revit', 'STAAD.Pro', 'Project Management', 'C++'];
+      } else {
+        branchSkills = ['Python', 'C++', 'Java', 'Communication', 'Problem Solving'];
+      }
+      
+      // Pick 3-6 random skills from the branch pool
+      const shuffledSkills = branchSkills.sort(() => 0.5 - Math.random());
+      const studentSkills = shuffledSkills.slice(0, 3 + Math.floor(Math.random() * 4));
+
+      batch.set(studentRef, {
+        name: name,
+        email: email,
+        branch: branch,
+        cgpa: Number(finalCgpa),
+        placementStatus: Math.random() > 0.8 ? 'placed' : 'unplaced',
+        currentPackage: '',
+        skills: studentSkills,
+        projects: ['Built a Placement Portal System', 'Developed a Machine Learning Model for predictive analysis'],
+        rollNo: rollNo,
+        createdAt: new Date().toISOString()
+      });
+
+      batch.set(userRef, {
+        name: name,
+        email: email,
+        role: 'student',
+        department: branch,
+        createdAt: new Date().toISOString()
+      });
+
+      const completedDate = new Date();
+      completedDate.setDate(completedDate.getDate() - Math.floor(Math.random() * 30) - 1);
+      
+      const interview1 = {
+        studentId: studentId,
+        studentName: name,
+        studentEmail: email,
+        role: jobs[Math.floor(Math.random() * jobs.length)].title,
+        company: companies[Math.floor(Math.random() * companies.length)],
+        date: completedDate.toISOString().split('T')[0],
+        time: '10:00 AM',
+        mode: 'Online',
+        platform: 'Google Meet',
+        round: 'Technical Round 1',
+        link: 'https://meet.google.com/mock-link',
+        instructions: 'Be prepared with a working camera and microphone.',
+        status: 'completed',
+        createdBy: 'mock_system',
+        feedback: {
+          rating: 4,
+          strengths: 'Good grasp of core CS fundamentals. Clear communication.',
+          improvements: 'Could optimize the DP solution further.',
+          result: 'Selected for Next Round',
+          givenBy: 'Technical Panel'
+        }
+      };
+
+      const upcomingDate = new Date();
+      upcomingDate.setDate(upcomingDate.getDate() + Math.floor(Math.random() * 10) + 1);
+      
+      const interview2 = {
+        studentId: studentId,
+        studentName: name,
+        studentEmail: email,
+        role: jobs[Math.floor(Math.random() * jobs.length)].title,
+        company: companies[Math.floor(Math.random() * companies.length)],
+        date: upcomingDate.toISOString().split('T')[0],
+        time: '02:00 PM',
+        mode: 'Online',
+        platform: 'Zoom',
+        round: 'HR Round',
+        link: 'https://zoom.us/mock-link',
+        instructions: 'Please join 5 mins early.',
+        status: 'scheduled',
+        createdBy: 'mock_system'
+      };
+
+      const intRef1 = db.collection('interviews').doc();
+      const intRef2 = db.collection('interviews').doc();
+      batch.set(intRef1, interview1);
+      batch.set(intRef2, interview2);
+
+      opCount += 4;
+      if (opCount > 400) {
+        await batch.commit();
+        batch = db.batch();
+        opCount = 0;
+      }
+    }
+  }
+  if (opCount > 0) await batch.commit();
+
+
+
   for (let i = 0; i < jobs.length; i++) {
     await db.collection('jobs').doc(`mock_job_${i}`).set(jobs[i]);
   }
 
   console.log('Creating mock alumni...');
   const mockAlumni = [];
-  const companies = ['Google', 'Amazon', 'Microsoft', 'TCS', 'Infosys'];
   
   for (let i = 1; i <= 8; i++) {
     const fname = firstNames[Math.floor(Math.random() * firstNames.length)];

@@ -183,6 +183,23 @@ router.put(
         updatedAt: new Date().toISOString(),
         updatedBy: req.user.uid,
       });
+
+      // SYNC DENORMALIZED DATA to applications
+      if (payload.name !== existing.name || payload.email !== existing.email || payload.branch !== existing.branch) {
+        const appsSnap = await db.collection('applications').where('studentId', '==', req.params.id).get();
+        if (!appsSnap.empty) {
+          const batch = db.batch();
+          appsSnap.docs.forEach((doc) => {
+            batch.update(doc.ref, {
+              studentName: payload.name,
+              studentEmail: payload.email,
+              branch: payload.branch
+            });
+          });
+          await batch.commit();
+        }
+      }
+
       res.json({ id: req.params.id, ...payload });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -193,7 +210,21 @@ router.put(
 // DELETE /api/v1/students/:id  — admin only
 router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    if (db) await db.collection('students').doc(req.params.id).delete();
+    if (db) {
+      await db.collection('students').doc(req.params.id).delete();
+      
+      // CASCADE DELETE applications, interviews, notifications
+      const collectionsToCascade = ['applications', 'interviews', 'notifications'];
+      for (const col of collectionsToCascade) {
+        const fieldName = col === 'notifications' ? 'targetUid' : 'studentId';
+        const snap = await db.collection(col).where(fieldName, '==', req.params.id).get();
+        if (!snap.empty) {
+          const batch = db.batch();
+          snap.docs.forEach((doc) => batch.delete(doc.ref));
+          await batch.commit();
+        }
+      }
+    }
     logActivity('student_deleted', { studentId: req.params.id }, req.user.uid);
     res.json({ success: true, id: req.params.id });
   } catch (err) {

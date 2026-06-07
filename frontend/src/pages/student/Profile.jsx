@@ -1,11 +1,9 @@
 // src/pages/student/Profile.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, X, Save, Upload, FileText, Sparkles } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../services/firebase';
 import toast from 'react-hot-toast';
 import { validateForm, validators } from '../../utils/validation';
 import { fillStudentDefaults } from '../../utils/studentDefaults';

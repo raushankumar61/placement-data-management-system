@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 
 export function SkeletonLoader({ count = 1, height = 'h-12', className = '' }) {

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Download, Star, ExternalLink, CheckCircle, X, Calendar, UserX, UserCheck } from 'lucide-react';
+import { Search, CheckCircle, X, Calendar, UserX, UserCheck } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { updateApplicationStatus, createInterview } from '../../services/api';

@@ -1,7 +1,7 @@
 // src/pages/admin/Complaints.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, CheckCircle, Clock, AlertTriangle, X, Search, ChevronDown, Trash2 } from 'lucide-react';
+import { MessageSquare, CheckCircle, AlertTriangle, X, Search, Trash2 } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { getComplaints, resolveComplaint, deleteComplaint } from '../../services/api';

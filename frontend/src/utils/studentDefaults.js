@@ -31,7 +31,6 @@ const LAST_NAMES = ['Sharma', 'Kumar', 'Singh', 'Patel', 'Reddy', 'Verma', 'Gupt
 const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Apple', 'Meta', 'Netflix', 'Uber', 'LinkedIn', 'Salesforce', 'Oracle', 'IBM', 'TCS', 'Infosys', 'Wipro', 'Accenture', 'Cognizant', 'HCL', 'Tech Mahindra', 'Capgemini', 'Deloitte', 'Flipkart', 'Swiggy', 'OYO', 'Unacademy', 'Dream11', 'Razorpay', 'Meesho'];
 const SKILLS = ['JavaScript', 'Python', 'Java', 'React', 'Node.js', 'SQL', 'MongoDB', 'AWS', 'Azure', 'Docker', 'Kubernetes', 'Git', 'REST API', 'GraphQL', 'Machine Learning', 'Data Science', 'TensorFlow', 'PyTorch', 'C++', 'DSA', 'System Design', 'Problem Solving', 'Communication', 'Leadership'];
 const PROJECTS = ['E-commerce Platform', 'Chat Application', 'Weather App', 'Task Management System', 'Social Media Clone', 'Blogging Platform', 'ML Model for Prediction', 'Data Analytics Dashboard', 'Real-time Notification System', 'Mobile App Development'];
-const CERTIFICATIONS = ['https://coursera.org/cert/placeholder', 'https://udemy.com/cert/placeholder', 'https://edx.org/cert/placeholder', 'https://aws.amazon.com/cert/placeholder', 'https://google.com/cert/placeholder'];
 const GENDERS = ['male', 'female', 'other'];
 const EMAIL_DOMAINS = ['students.placecloud.edu', 'campusmail.placecloud.edu', 'mail.placecloud.edu'];
 const RESUME_HOSTS = ['storage.googleapis.com/placecloud-demo-resumes', 'resumes.placecloud.app', 'placecloud-resumes.s3.amazonaws.com'];
@@ -91,7 +90,7 @@ const normalizeList = (value) => {
 
 const branchCode = (branch) => BRANCH_CODES[branch] || 'CS';
 
-const generateName = (rng, seed) => {
+const generateName = (rng) => {
   return `${pick(rng, FIRST_NAMES)} ${pick(rng, LAST_NAMES)}`;
 };
 

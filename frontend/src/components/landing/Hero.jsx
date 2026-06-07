@@ -1,5 +1,5 @@
 // src/components/landing/Hero.jsx
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Play, Sparkles, TrendingUp, Users, Briefcase } from 'lucide-react';

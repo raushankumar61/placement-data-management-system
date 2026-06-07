@@ -1,5 +1,5 @@
 // src/components/landing/Features.jsx
-import React, { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Users, Search, Activity, Building2, BarChart3, Shield } from 'lucide-react';
 
@@ -120,9 +120,9 @@ export function HowItWorks() {
 function AnimatedCounter({ target, suffix = '', prefix = '' }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
-  const [count, setCount] = React.useState(0);
+  const [count, setCount] = useState(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!inView) return;
     let start = 0;
     const duration = 2000;

@@ -1,5 +1,5 @@
 // src/pages/recruiter/PostJob.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Briefcase, Send } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';

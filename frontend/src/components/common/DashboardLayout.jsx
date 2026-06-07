@@ -1,12 +1,12 @@
 // src/components/common/DashboardLayout.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Briefcase, FileText, BarChart3,
-  Bell, Building2, LogOut, Menu, X, ChevronRight, Zap,
+  Bell, Building2, LogOut, Menu, ChevronRight, Zap,
   UserCircle, Search, BookOpen, Calendar, MessageSquare,
-  Shield, Settings, ClipboardList, TrendingUp, GraduationCap, Video
+  Shield, ClipboardList, TrendingUp, GraduationCap, Video
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';

@@ -1,10 +1,9 @@
 // src/pages/recruiter/InterviewScheduler.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, Plus, X, CheckCircle, User, Video, MapPin } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../context/AuthContext';
 import { createInterview, deleteInterview, getInterviews, getShortlists, getStudents } from '../../services/api';
 
 const INITIAL_FORM = {
@@ -16,7 +15,6 @@ const INITIAL_FORM = {
 const ROUNDS = ['Technical Round 1', 'Technical Round 2', 'HR Round', 'Managerial Round', 'Final Round'];
 
 export default function RecruiterInterviewScheduler() {
-  const { user, userProfile } = useAuth();
   const [students, setStudents] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [shortlistIds, setShortlistIds] = useState([]);

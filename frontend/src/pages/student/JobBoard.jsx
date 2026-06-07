@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, MapPin, DollarSign, Calendar, Building2, Briefcase } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
@@ -37,13 +37,6 @@ const parsePackageToLpa = (value) => {
   }
 
   return amount;
-};
-
-const deadlineToLabel = (deadline) => {
-  if (!deadline) return 'TBD';
-  if (typeof deadline === 'string') return deadline.slice(0, 10);
-  if (deadline?.toDate) return deadline.toDate().toISOString().slice(0, 10);
-  return String(deadline);
 };
 
 const displayValue = (value, fallback) => {
@@ -99,7 +92,7 @@ export default function StudentJobBoard() {
     };
     load();
     return () => { active = false; };
-  }, [user?.uid, user?.email, userProfile?.name, userProfile?.email, userProfile?.branch, userProfile?.department]);
+  }, [user, userProfile]);
 
   const displayedJobs = useMemo(() => {
     const studentBranch = student?.branch || userProfile?.department || '';

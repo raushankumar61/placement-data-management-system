@@ -1,7 +1,7 @@
 // src/pages/admin/Dashboard.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Briefcase, TrendingUp, Award, Activity, Building2, Clock, CheckCircle2 } from 'lucide-react';
+import { Users, Briefcase, Activity, Building2, Clock, CheckCircle2 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend

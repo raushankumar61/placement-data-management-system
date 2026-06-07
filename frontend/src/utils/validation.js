@@ -1,7 +1,7 @@
 // src/utils/validation.js
 
 export const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const phoneRegex = /^[0-9\s\-\+\(\)]{10,}$/;
+export const phoneRegex = /^[0-9\s+()-]{10,}$/;
 
 export const validators = {
   email: (value) => emailRegex.test(value) ? null : 'Invalid email address',

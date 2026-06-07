@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Video, Calendar, Clock, Plus, X, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';

@@ -55,6 +55,8 @@ const verifyToken = async (req, res, next) => {
       } catch (profileErr) {
         console.warn('Could not fetch user role from Firestore:', profileErr.message);
       }
+    } else {
+      console.warn('Firestore DB is unavailable; skipping role fallback fetch.');
     }
 
     next();
@@ -70,7 +72,10 @@ const verifyToken = async (req, res, next) => {
  * Usage: requireRole('admin', 'faculty')
  */
 const requireRole = (...roles) => (req, res, next) => {
-  if (!req.user?.role || !roles.includes(req.user.role)) {
+  if (!req.user?.role) {
+    return res.status(403).json({ error: 'Access denied: missing role' });
+  }
+  if (!roles.includes(req.user.role)) {
     return res.status(403).json({ error: 'Access denied: insufficient permissions' });
   }
   next();

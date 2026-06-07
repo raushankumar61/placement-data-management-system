@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, CheckCheck, Check, X, Info, Briefcase, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';

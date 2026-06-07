@@ -1,5 +1,5 @@
 // src/pages/admin/Recruiters.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, CheckCircle, XCircle, Search, Globe, Mail, Phone } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';

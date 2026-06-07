@@ -44,7 +44,7 @@ router.post('/sync-claims', verifyToken, async (req, res) => {
     const uid = req.user.uid;
 
     if (!db) {
-      return res.json({ synced: false, message: 'Firestore not available' });
+      return res.status(503).json({ error: 'Firestore not available. Role sync failed.' });
     }
 
     const snap = await db.collection('users').doc(uid).get();
