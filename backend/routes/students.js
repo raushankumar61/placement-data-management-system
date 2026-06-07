@@ -65,7 +65,7 @@ router.get('/', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async
     if (!db) return res.json({ students: [], total: 0 });
 
     let query = db.collection('students');
-    const { branch, status, limit: lim = 100, offset = 0 } = req.query;
+    const { branch, status, limit: lim = 500, offset = 0 } = req.query;
 
     if (branch) query = query.where('branch', '==', branch);
     if (status) query = query.where('placementStatus', '==', status);

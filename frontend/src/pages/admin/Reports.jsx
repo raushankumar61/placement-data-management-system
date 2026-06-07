@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, FileText } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -146,15 +146,25 @@ export default function AdminReports() {
         currentCompany.packageCount += 1;
       }
 
-      const year = String(offerRecord.date.getFullYear());
-      if (!yearlyStats.has(year)) {
-        yearlyStats.set(year, { year, placed: 0, packageTotal: 0, packageCount: 0 });
+      const yearVal = offerRecord.date.getFullYear();
+      const monthVal = offerRecord.date.getMonth(); // 0-11
+      const yearMonthKey = `${yearVal}-${String(monthVal + 1).padStart(2, '0')}`;
+      
+      if (!yearlyStats.has(yearMonthKey)) {
+        yearlyStats.set(yearMonthKey, { 
+          key: yearMonthKey, 
+          yearVal, 
+          monthVal,
+          placed: 0, 
+          packageTotal: 0, 
+          packageCount: 0 
+        });
       }
-      const currentYear = yearlyStats.get(year);
-      currentYear.placed += 1;
+      const currentPeriod = yearlyStats.get(yearMonthKey);
+      currentPeriod.placed += 1;
       if (ctcLpa != null) {
-        currentYear.packageTotal += ctcLpa;
-        currentYear.packageCount += 1;
+        currentPeriod.packageTotal += ctcLpa;
+        currentPeriod.packageCount += 1;
       }
     });
 
@@ -163,6 +173,7 @@ export default function AdminReports() {
     let packageTotal = 0;
     let packageCount = 0;
     let highestPackage = 0;
+    const allCtcs = [];
 
     students.forEach((student) => {
       const studentKey = student.id || student.uid || student.email;
@@ -195,6 +206,7 @@ export default function AdminReports() {
         highestPackage = Math.max(highestPackage, bestPackage);
         branchRecord.packageTotal += bestPackage;
         branchRecord.packageCount += 1;
+        allCtcs.push(bestPackage);
       }
     });
 
@@ -207,16 +219,18 @@ export default function AdminReports() {
       }))
       .sort((a, b) => b.total - a.total);
 
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const yearlyTrend = Array.from(yearlyStats.values())
-      .map((y) => ({
-        year: y.year,
-        placed: y.placed,
-        avg: y.packageCount ? Number((y.packageTotal / y.packageCount).toFixed(1)) : 0,
-      }))
-      .sort((a, b) => Number(a.year) - Number(b.year));
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map((p) => ({
+        year: `${monthNames[p.monthVal]} '${String(p.yearVal).slice(-2)}`,
+        placed: p.placed,
+        avg: p.packageCount ? Number((p.packageTotal / p.packageCount).toFixed(1)) : 0,
+      }));
 
     if (!yearlyTrend.length) {
-      yearlyTrend.push({ year: String(new Date().getFullYear()), placed: placedStudents, avg: packageCount ? Number((packageTotal / packageCount).toFixed(1)) : 0 });
+      const d = new Date();
+      yearlyTrend.push({ year: `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`, placed: placedStudents, avg: packageCount ? Number((packageTotal / packageCount).toFixed(1)) : 0 });
     }
 
     const topCompanies = Array.from(companyStats.values())
@@ -228,16 +242,55 @@ export default function AdminReports() {
       .sort((a, b) => b.offers - a.offers)
       .slice(0, 10);
 
+    const TIER_1 = new Set(['Google', 'Amazon', 'Microsoft', 'Apple', 'Meta', 'Netflix', 'NVIDIA', 'Atlassian']);
+    const TIER_2 = new Set(['Deloitte', 'PwC', 'KPMG', 'EY', 'Paytm', 'Razorpay', 'Swiggy', 'Zomato', 'Flipkart', 'Cred']);
+    const TIER_3 = new Set(['TCS', 'Infosys', 'Wipro', 'Cognizant', 'Accenture', 'Tech Mahindra', 'Capgemini']);
+
+    let tier1Count = 0;
+    let tier2Count = 0;
+    let tier3Count = 0;
+    let othersCount = 0;
+
+    Array.from(companyStats.values()).forEach(c => {
+      if (TIER_1.has(c.company)) tier1Count += c.offers;
+      else if (TIER_2.has(c.company)) tier2Count += c.offers;
+      else if (TIER_3.has(c.company)) tier3Count += c.offers;
+      else othersCount += c.offers;
+    });
+
+    const tierDistribution = [
+      { name: 'Tier 1 (Product/FAANG)', value: tier1Count, fill: '#00A3FF' },
+      { name: 'Tier 2 (Startups/Big 4)', value: tier2Count, fill: '#A855F7' },
+      { name: 'Tier 3 (Service based)', value: tier3Count, fill: '#F5A623' },
+    ].filter(t => t.value > 0);
+    if (othersCount > 0) tierDistribution.push({ name: 'Others', value: othersCount, fill: '#22C55E' });
+
     const overallPlacementPct = students.length ? Number(((placedStudents / students.length) * 100).toFixed(1)) : 0;
     const avgCtc = packageCount ? Number((packageTotal / packageCount).toFixed(1)) : 0;
+
+    allCtcs.sort((a, b) => a - b);
+    let medianCtc = 0;
+    let top10AvgCtc = 0;
+    
+    if (allCtcs.length > 0) {
+      const mid = Math.floor(allCtcs.length / 2);
+      medianCtc = allCtcs.length % 2 !== 0 ? allCtcs[mid] : (allCtcs[mid - 1] + allCtcs[mid]) / 2;
+      
+      const top10Count = Math.max(1, Math.floor(allCtcs.length * 0.1));
+      const top10Sum = allCtcs.slice(-top10Count).reduce((a, b) => a + b, 0);
+      top10AvgCtc = top10Sum / top10Count;
+    }
 
     return {
       branchData,
       yearlyTrend,
       topCompanies,
+      tierDistribution,
       kpis: {
         overallPlacementPct,
         avgCtc,
+        medianCtc: Number(medianCtc.toFixed(1)),
+        top10AvgCtc: Number(top10AvgCtc.toFixed(1)),
         highestCtc: Number(highestPackage.toFixed(1)),
         companiesVisited: companiesVisited.size,
       },
@@ -313,16 +366,18 @@ export default function AdminReports() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Overall Placement %', value: `${analytics.kpis.overallPlacementPct}%`, color: 'text-green-400' },
-            { label: 'Avg CTC', value: `₹${analytics.kpis.avgCtc} LPA`, color: 'text-gold' },
-            { label: 'Highest CTC', value: `₹${analytics.kpis.highestCtc} LPA`, color: 'text-blue-electric' },
-            { label: 'Companies Visited', value: analytics.kpis.companiesVisited, color: 'text-purple-400' },
+            { label: 'Placement %', value: `${analytics.kpis.overallPlacementPct}%`, color: 'text-green-400' },
+            { label: 'Highest CTC', value: `₹${analytics.kpis.highestCtc}L`, color: 'text-blue-electric' },
+            { label: 'Avg CTC', value: `₹${analytics.kpis.avgCtc}L`, color: 'text-gold' },
+            { label: 'Median CTC', value: `₹${analytics.kpis.medianCtc}L`, color: 'text-purple-400' },
+            { label: 'Top 10% Avg', value: `₹${analytics.kpis.top10AvgCtc}L`, color: 'text-pink-400' },
+            { label: 'Companies', value: analytics.kpis.companiesVisited, color: 'text-white' },
           ].map((k) => (
-            <div key={k.label} className="glass-card p-4">
-              <p className="text-white/40 text-xs font-body mb-1">{k.label}</p>
-              <p className={`font-heading font-bold text-2xl ${k.color}`}>{k.value}</p>
+            <div key={k.label} className="glass-card p-4 flex flex-col justify-between">
+              <p className="text-white/40 text-xs font-body mb-2">{k.label}</p>
+              <p className={`font-heading font-bold text-xl md:text-2xl ${k.color}`}>{k.value}</p>
             </div>
           ))}
         </div>
@@ -344,15 +399,63 @@ export default function AdminReports() {
 
           <div className="glass-card p-5">
             <p className="section-title mb-1">Avg CTC Trend</p>
-            <p className="text-white/40 text-xs font-body mb-5">Year-on-year average package growth</p>
+            <p className="text-white/40 text-xs font-body mb-5">Monthly average package growth</p>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={analytics.yearlyTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="year" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} unit=" L" />
-                <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="avg" name="Avg CTC (LPA)" stroke="#F5A623" strokeWidth={2.5} dot={{ fill: '#F5A623', r: 4 }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="avg" name="Avg CTC (LPA)" stroke="#F5A623" strokeWidth={3} dot={{ fill: '#F5A623', r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: '#00A3FF', stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-5">
+          <div className="glass-card p-5 relative">
+            <p className="section-title mb-1">Company Tier Distribution</p>
+            <p className="text-white/40 text-xs font-body mb-5">Offers by company category</p>
+            <div className="relative h-[220px]">
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-3xl font-heading font-bold text-white">
+                  {analytics.tierDistribution.reduce((sum, t) => sum + t.value, 0)}
+                </span>
+                <span className="text-white/40 text-[10px] uppercase tracking-wider">Total Offers</span>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={analytics.tierDistribution} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value" stroke="none">
+                    {analytics.tierDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-4 mt-2">
+              {analytics.tierDistribution.map((t) => (
+                <div key={t.name} className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.fill }} />
+                  <span className="text-white/60 text-[10px] uppercase tracking-wide">{t.name.split(' ')[0]} {t.name.split(' ')[1]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-card p-5">
+            <p className="section-title mb-1">Branch Performance</p>
+            <p className="text-white/40 text-xs font-body mb-5">Placement vs Avg CTC</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart cx="50%" cy="50%" outerRadius={80} data={analytics.branchData.map(b => ({ ...b, pct: b.total ? Math.round((b.placed/b.total)*100) : 0 }))}>
+                <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                <PolarAngleAxis dataKey="branch" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar name="Placement %" dataKey="pct" stroke="#00A3FF" fill="#00A3FF" fillOpacity={0.3} />
+                <Radar name="Avg CTC" dataKey="avg" stroke="#F5A623" fill="#F5A623" fillOpacity={0.3} />
+                <Tooltip content={<CustomTooltip />} />
+              </RadarChart>
             </ResponsiveContainer>
           </div>
         </div>

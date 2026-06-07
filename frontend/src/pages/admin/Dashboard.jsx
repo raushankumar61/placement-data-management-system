@@ -59,22 +59,31 @@ const timeAgo = (iso) => {
   return `${Math.floor(hrs / 24)}d ago`;
 };
 
-function StatCard({ icon: Icon, label, value, sub, color, delay }) {
+function StatCard({ icon: Icon, label, value, sub, color, delay, sparklineData, sparklineColor }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
-      className="stat-card"
+      className="stat-card relative overflow-hidden group"
     >
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${color} relative z-10`}>
         <Icon size={20} className="text-white" />
       </div>
-      <div>
+      <div className="relative z-10 flex-grow">
         <p className="text-white/50 text-xs font-body mb-1">{label}</p>
         <p className="font-heading font-bold text-2xl text-white">{value}</p>
         {sub && <p className="text-white/40 text-xs font-body mt-0.5">{sub}</p>}
       </div>
+      {sparklineData && (
+        <div className="absolute right-0 bottom-0 w-24 h-16 opacity-30 group-hover:opacity-60 transition-opacity duration-300">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sparklineData}>
+              <Area type="monotone" dataKey="val" stroke={sparklineColor} fill={sparklineColor} strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -82,16 +91,22 @@ function StatCard({ icon: Icon, label, value, sub, color, delay }) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="glass-card p-3 border border-white/10 text-xs font-body bg-dark-800/95 shadow-lg rounded-lg">
-      <p className="text-white font-semibold mb-2">{label}</p>
-      {payload.map((p) => {
-        const displayColor = p.color === '#00A3FF' ? '#00D9FF' : p.color === '#F5A623' ? '#FFB84D' : '#22C55E';
-        return (
-          <p key={p.name} style={{ color: displayColor }} className="font-medium">
-            {p.name}: <span className="font-bold">{p.value}</span>
-          </p>
-        );
-      })}
+    <div className="glass-card p-4 border border-white/20 text-xs font-body bg-[#0A0F1C]/95 shadow-2xl rounded-xl backdrop-blur-xl">
+      <p className="text-white/70 font-semibold mb-3 uppercase tracking-wider">{label}</p>
+      <div className="space-y-2">
+        {payload.map((p) => {
+          const displayColor = p.color === '#00A3FF' ? '#00D9FF' : p.color === '#F5A623' ? '#FFB84D' : p.color || '#fff';
+          return (
+            <div key={p.name} className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full shadow-sm" style={{ background: displayColor, boxShadow: `0 0 8px ${displayColor}` }} />
+                <span className="text-white/80 font-medium">{p.name}</span>
+              </div>
+              <span className="font-bold text-white font-mono">{p.value}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -245,10 +260,10 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Users} label="Total Students" value={stats.students.toLocaleString()} sub="↑ 12% this month" color="bg-blue-electric/20" delay={0} />
-          <StatCard icon={CheckCircle2} label="Students Placed" value={stats.placed.toLocaleString()} sub={`${placementRate}% placement rate`} color="bg-green-500/20" delay={0.1} />
-          <StatCard icon={Briefcase} label="Active Drives" value={stats.jobs} sub={data ? 'Live job pipeline' : 'Loading live data'} color="bg-gold/20" delay={0.2} />
-          <StatCard icon={Building2} label="Companies" value={stats.companies} sub={data ? 'Live recruiter records' : 'Loading live data'} color="bg-purple-500/20" delay={0.3} />
+          <StatCard icon={Users} label="Total Students" value={stats.students.toLocaleString()} sub="↑ 12% this month" color="bg-blue-electric/20" delay={0} sparklineData={[{val: 10}, {val: 25}, {val: 20}, {val: 45}, {val: 40}, {val: 60}]} sparklineColor="#00A3FF" />
+          <StatCard icon={CheckCircle2} label="Students Placed" value={stats.placed.toLocaleString()} sub={`${placementRate}% placement rate`} color="bg-green-500/20" delay={0.1} sparklineData={[{val: 5}, {val: 15}, {val: 10}, {val: 35}, {val: 30}, {val: 50}]} sparklineColor="#22C55E" />
+          <StatCard icon={Briefcase} label="Active Drives" value={stats.jobs} sub={data ? 'Live job pipeline' : 'Loading live data'} color="bg-gold/20" delay={0.2} sparklineData={[{val: 40}, {val: 30}, {val: 45}, {val: 25}, {val: 35}, {val: 20}]} sparklineColor="#F5A623" />
+          <StatCard icon={Building2} label="Companies" value={stats.companies} sub={data ? 'Live recruiter records' : 'Loading live data'} color="bg-purple-500/20" delay={0.3} sparklineData={[{val: 10}, {val: 20}, {val: 15}, {val: 30}, {val: 45}, {val: 60}]} sparklineColor="#A855F7" />
         </div>
 
         {/* Charts Row 1 */}
@@ -261,20 +276,26 @@ export default function AdminDashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="glass-card p-5"
+            className="glass-card p-5 relative"
           >
             <p className="section-title mb-1">Package Distribution</p>
             <p className="text-white/40 text-xs font-body mb-5">By CTC range</p>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie data={packageDist} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
-                  {packageDist.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="relative h-[180px]">
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-3xl font-heading font-bold text-white">{packageDist.reduce((a, b) => a + b.value, 0)}</span>
+                <span className="text-white/40 text-[10px] uppercase tracking-wider">Total Offers</span>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={packageDist} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none" cornerRadius={4}>
+                    {packageDist.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
             <div className="space-y-2 mt-2">
               {packageDist.map((d, i) => (
                 <div key={d.name} className="flex items-center justify-between">

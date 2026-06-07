@@ -84,8 +84,8 @@ export default function AdminStudents() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      // Load students with pagination (50 per page)
-      const studentsRes = await getStudents({ limit: 50, offset: 0 });
+      // Load students with a larger limit since there's no UI pagination yet
+      const studentsRes = await getStudents({ limit: 500, offset: 0 });
       const data = (studentsRes.data?.students || []).map((student) => ({ id: student.id, ...fillStudentDefaults(student, student.id) }));
       setStudents(data);
       setFiltered(data);

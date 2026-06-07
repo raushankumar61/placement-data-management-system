@@ -130,7 +130,7 @@ export function AuthProvider({ children }) {
       console.log('[AuthContext] Token refreshed successfully.');
     } catch (e) {
       console.error('[AuthContext ERROR] syncClaims API call failed:', e);
-      // NOTE: We don't throw here so login still completes, but backend might reject further calls.
+      throw new Error('Role synchronization failed. Please check backend connection.');
     }
 
     return { user: result.user, profile };

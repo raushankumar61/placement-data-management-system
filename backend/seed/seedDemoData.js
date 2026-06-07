@@ -88,8 +88,8 @@ async function createOrUpdateUser(email, password, displayName, role) {
   return userRecord.uid;
 }
 
-const firstNames = ['Aarav', 'Vihaan', 'Aditya', 'Sai', 'Rohan', 'Vikram', 'Rahul', 'Karan', 'Aryan', 'Dhruv', 'Ananya', 'Diya', 'Ishita', 'Sneha', 'Neha', 'Priya', 'Riya', 'Kavya', 'Sanya', 'Megha'];
-const lastNames = ['Sharma', 'Patel', 'Reddy', 'Kumar', 'Singh', 'Gupta', 'Rao', 'Desai', 'Joshi', 'Chowdhury', 'Iyer', 'Nair', 'Menon'];
+const firstNames = ['Aarav', 'Vihaan', 'Aditya', 'Sai', 'Rohan', 'Vikram', 'Rahul', 'Karan', 'Aryan', 'Dhruv', 'Ananya', 'Diya', 'Ishita', 'Sneha', 'Neha', 'Priya', 'Riya', 'Kavya', 'Sanya', 'Megha', 'Arjun', 'Kabir', 'Rishabh', 'Siddharth', 'Nikhil', 'Pooja', 'Shruti', 'Anjali', 'Swati', 'Kriti'];
+const lastNames = ['Sharma', 'Patel', 'Reddy', 'Kumar', 'Singh', 'Gupta', 'Rao', 'Desai', 'Joshi', 'Chowdhury', 'Iyer', 'Nair', 'Menon', 'Verma', 'Das', 'Sen', 'Bose', 'Chatterjee', 'Dubey', 'Yadav'];
 
 const getBranchCode = (branch) => {
   if (branch === 'Computer Science') return 'CS';
@@ -100,8 +100,19 @@ const getBranchCode = (branch) => {
   return 'XX';
 };
 
+const TIER_1_COMPANIES = ['Google', 'Amazon', 'Microsoft', 'Apple', 'Meta', 'Netflix', 'NVIDIA', 'Atlassian'];
+const TIER_2_COMPANIES = ['Deloitte', 'PwC', 'KPMG', 'EY', 'Paytm', 'Razorpay', 'Swiggy', 'Zomato', 'Flipkart', 'Cred'];
+const TIER_3_COMPANIES = ['TCS', 'Infosys', 'Wipro', 'Cognizant', 'Accenture', 'Tech Mahindra', 'Capgemini'];
+
+// Helper to generate a date offset from today (in days)
+const randomDate = (minDaysOffset, maxDaysOffset) => {
+  const d = new Date();
+  d.setDate(d.getDate() + Math.floor(Math.random() * (maxDaysOffset - minDaysOffset)) + minDaysOffset);
+  return d.toISOString();
+};
+
 async function seed() {
-  console.log('Starting seed process...');
+  console.log('Starting highly realistic seed process...');
 
   if (!db) {
     console.error('Firestore not initialized.');
@@ -124,351 +135,453 @@ async function seed() {
   const recruiterUid = await createOrUpdateUser('recruiter@demo.com', pw, 'Demo Recruiter', 'recruiter');
   const studentUid = await createOrUpdateUser('student@demo.com', pw, 'Demo Student', 'student');
 
-  console.log('Generating students...');
-  const branches = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil'];
-  const companies = ['Google', 'Amazon', 'Microsoft', 'TCS', 'Infosys'];
+  console.log('Generating realistic jobs...');
   
-  const futureDate = new Date();
-  futureDate.setMonth(futureDate.getMonth() + 1);
-  const farFutureDate = new Date();
-  farFutureDate.setMonth(farFutureDate.getMonth() + 2);
-
   const jobs = [
+    // TIER 1 JOBS
     {
       title: 'Software Development Engineer I',
       company: 'Amazon',
       location: 'Bengaluru',
       ctc: '24 LPA',
+      ctcValue: 24,
+      tier: 1,
       type: 'Full-time',
       workMode: 'Hybrid',
       experienceLevel: 'Fresher',
       openings: 15,
-      minCGPA: 7.5,
-      deadline: futureDate.toISOString(),
+      minCGPA: 8.0,
+      deadline: randomDate(15, 30),
       recruiterId: recruiterUid,
       recruiterName: 'Demo Recruiter',
       description: 'Design and build scalable services. Strong problem solving and DSA skills required.',
       perks: ['Relocation Bonus', 'Health Insurance', 'Free Meals'],
       branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'],
       status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Data Analyst Intern',
-      company: 'Amazon',
-      location: 'Hyderabad',
-      ctc: '80k/month',
-      type: 'Internship',
-      workMode: 'Onsite',
-      experienceLevel: 'Fresher',
-      openings: 5,
-      minCGPA: 7.0,
-      deadline: farFutureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Analyze large datasets to extract actionable insights. SQL and Python required.',
-      perks: ['Stipend', 'Pre-Placement Offer (PPO)'],
-      branches: ['Computer Science', 'Information Technology', 'Mechanical'],
-      status: 'open',
-      createdAt: new Date().toISOString()
+      createdAt: randomDate(-220, -180)
     },
     {
       title: 'Backend Engineer',
       company: 'Google',
       location: 'Bengaluru',
       ctc: '32 LPA',
+      ctcValue: 32,
+      tier: 1,
       type: 'Full-time',
       workMode: 'Hybrid',
       experienceLevel: 'Fresher',
-      openings: 10,
-      minCGPA: 8.0,
-      deadline: futureDate.toISOString(),
+      openings: 8,
+      minCGPA: 8.5,
+      deadline: randomDate(10, 20),
       recruiterId: recruiterUid,
       recruiterName: 'Demo Recruiter',
       description: 'Join the Google Cloud team to work on distributed systems and massive scale architectures.',
       perks: ['Stock Options', 'Gym', 'Free Meals'],
       branches: ['Computer Science', 'Information Technology'],
       status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Systems Engineer',
-      company: 'TCS',
-      location: 'Pune',
-      ctc: '7 LPA',
-      type: 'Full-time',
-      workMode: 'Onsite',
-      experienceLevel: 'Fresher',
-      openings: 100,
-      minCGPA: 6.0,
-      deadline: farFutureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Entry-level engineering role. Training provided upon joining.',
-      perks: ['Health Insurance', 'Transport'],
-      branches: ['All'],
-      status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Frontend Developer',
-      company: 'Microsoft',
-      location: 'Noida',
-      ctc: '20 LPA',
-      type: 'Full-time',
-      workMode: 'Remote',
-      experienceLevel: 'Fresher',
-      openings: 8,
-      minCGPA: 7.5,
-      deadline: futureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Develop responsive, highly interactive user interfaces using React and modern CSS.',
-      perks: ['Remote Work Stipend', 'Health Insurance', 'Gym Allowance'],
-      branches: ['Computer Science', 'Information Technology'],
-      status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Hardware Engineer',
-      company: 'Intel',
-      location: 'Bengaluru',
-      ctc: '15 LPA',
-      type: 'Full-time',
-      workMode: 'Onsite',
-      experienceLevel: 'Fresher',
-      openings: 12,
-      minCGPA: 7.0,
-      deadline: farFutureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Design, test, and optimize microprocessors and embedded systems.',
-      perks: ['Relocation Bonus', 'Stock Options'],
-      branches: ['Electronics & Communication', 'Mechanical'],
-      status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Structural Design Intern',
-      company: 'L&T Construction',
-      location: 'Chennai',
-      ctc: '40k/month',
-      type: 'Internship',
-      workMode: 'Onsite',
-      experienceLevel: 'Fresher',
-      openings: 6,
-      minCGPA: 6.5,
-      deadline: futureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Assist in structural analysis and design of civil infrastructure projects.',
-      perks: ['Stipend', 'Travel Allowance'],
-      branches: ['Civil'],
-      status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Business Analyst',
-      company: 'Deloitte',
-      location: 'Mumbai',
-      ctc: '12 LPA',
-      type: 'Full-time',
-      workMode: 'Hybrid',
-      experienceLevel: 'Fresher',
-      openings: 25,
-      minCGPA: 6.0,
-      deadline: farFutureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Analyze business needs, document requirements, and coordinate with technical teams.',
-      perks: ['Health Insurance', 'Performance Bonus'],
-      branches: ['All'],
-      status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Software Engineer, Core Systems',
-      company: 'Apple',
-      location: 'Hyderabad',
-      ctc: '35 LPA',
-      type: 'Full-time',
-      workMode: 'Onsite',
-      experienceLevel: 'Fresher',
-      openings: 5,
-      minCGPA: 8.5,
-      deadline: futureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Work on low-level operating system components. Strong C/C++ required.',
-      perks: ['Apple Products Discount', 'Stock Grants', 'Health Care'],
-      branches: ['Computer Science', 'Electronics & Communication'],
-      status: 'open',
-      createdAt: new Date().toISOString()
+      createdAt: randomDate(-180, -140)
     },
     {
       title: 'Machine Learning Engineer',
       company: 'Meta',
       location: 'Bengaluru',
-      ctc: '42 LPA',
+      ctc: '38 LPA',
+      ctcValue: 38,
+      tier: 1,
       type: 'Full-time',
       workMode: 'Hybrid',
       experienceLevel: 'Fresher',
-      openings: 8,
-      minCGPA: 8.0,
-      deadline: futureDate.toISOString(),
+      openings: 5,
+      minCGPA: 8.5,
+      deadline: randomDate(5, 15),
       recruiterId: recruiterUid,
       recruiterName: 'Demo Recruiter',
       description: 'Build predictive models and scalable AI algorithms for billion-user products.',
       perks: ['Free Meals', 'Relocation Allowance', 'Unlimited PTO'],
       branches: ['Computer Science', 'Information Technology'],
       status: 'open',
-      createdAt: new Date().toISOString()
+      createdAt: randomDate(-140, -100)
     },
     {
-      title: 'Quantitative Analyst',
-      company: 'Goldman Sachs',
-      location: 'Bengaluru',
-      ctc: '30 LPA',
+      title: 'Frontend Developer',
+      company: 'Microsoft',
+      location: 'Hyderabad',
+      ctc: '22 LPA',
+      ctcValue: 22,
+      tier: 1,
       type: 'Full-time',
       workMode: 'Hybrid',
       experienceLevel: 'Fresher',
-      openings: 10,
-      minCGPA: 8.0,
-      deadline: farFutureDate.toISOString(),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
-      description: 'Develop mathematical models for algorithmic trading and risk management.',
-      perks: ['Year-end Bonus', 'Comprehensive Health', 'Fitness Subsidy'],
-      branches: ['Computer Science', 'Electronics & Communication', 'Mechanical'],
-      status: 'open',
-      createdAt: new Date().toISOString()
-    },
-    {
-      title: 'Cloud Infrastructure Engineer',
-      company: 'Netflix',
-      location: 'Remote',
-      ctc: '45 LPA',
-      type: 'Full-time',
-      workMode: 'Remote',
-      experienceLevel: 'Fresher',
-      openings: 3,
+      openings: 12,
       minCGPA: 7.5,
-      deadline: farFutureDate.toISOString(),
+      deadline: randomDate(-5, 5),
       recruiterId: recruiterUid,
       recruiterName: 'Demo Recruiter',
-      description: 'Ensure 99.99% uptime for streaming infrastructure using AWS and Kubernetes.',
-      perks: ['Top of Market Pay', 'Remote First', 'Open Vacation'],
+      description: 'Develop responsive, highly interactive user interfaces using React and modern CSS.',
+      perks: ['Remote Work Stipend', 'Health Insurance', 'Gym Allowance'],
       branches: ['Computer Science', 'Information Technology'],
-      status: 'open',
-      createdAt: new Date().toISOString()
+      status: 'closed',
+      createdAt: randomDate(-240, -200)
     },
+    
+    // TIER 2 JOBS
     {
-      title: 'Management Consultant Analyst',
-      company: 'McKinsey & Company',
-      location: 'Gurugram',
-      ctc: '22 LPA',
+      title: 'Full Stack Engineer',
+      company: 'Razorpay',
+      location: 'Bengaluru',
+      ctc: '18 LPA',
+      ctcValue: 18,
+      tier: 2,
       type: 'Full-time',
       workMode: 'Onsite',
+      experienceLevel: 'Fresher',
+      openings: 20,
+      minCGPA: 7.0,
+      deadline: randomDate(10, 40),
+      recruiterId: recruiterUid,
+      recruiterName: 'Demo Recruiter',
+      description: 'Work on cutting-edge fintech products. Node.js and React expertise required.',
+      perks: ['MacBook', 'Health Insurance', 'Learning Budget'],
+      branches: ['Computer Science', 'Information Technology'],
+      status: 'open',
+      createdAt: randomDate(-100, -70)
+    },
+    {
+      title: 'Business Analyst',
+      company: 'Deloitte',
+      location: 'Mumbai',
+      ctc: '12 LPA',
+      ctcValue: 12,
+      tier: 2,
+      type: 'Full-time',
+      workMode: 'Hybrid',
+      experienceLevel: 'Fresher',
+      openings: 35,
+      minCGPA: 6.5,
+      deadline: randomDate(-10, 10),
+      recruiterId: recruiterUid,
+      recruiterName: 'Demo Recruiter',
+      description: 'Analyze business needs, document requirements, and coordinate with technical teams.',
+      perks: ['Health Insurance', 'Performance Bonus'],
+      branches: ['All'],
+      status: 'open',
+      createdAt: randomDate(-150, -110)
+    },
+    {
+      title: 'Software Engineer Intern',
+      company: 'Swiggy',
+      location: 'Bengaluru',
+      ctc: '50k/month',
+      ctcValue: 6,
+      tier: 2,
+      type: 'Internship',
+      workMode: 'Hybrid',
       experienceLevel: 'Fresher',
       openings: 15,
       minCGPA: 7.0,
-      deadline: futureDate.toISOString(),
+      deadline: randomDate(5, 20),
       recruiterId: recruiterUid,
       recruiterName: 'Demo Recruiter',
-      description: 'Solve complex business problems for Fortune 500 clients. High travel required.',
-      perks: ['Business Class Travel', 'Global Network', 'Performance Bonus'],
+      description: '6-month internship leading to PPO. Work on high-scale delivery logistics.',
+      perks: ['Stipend', 'Free Food', 'PPO Opportunity'],
+      branches: ['Computer Science', 'Information Technology'],
+      status: 'open',
+      createdAt: randomDate(-15, 0)
+    },
+    
+    // TIER 3 JOBS
+    {
+      title: 'Systems Engineer',
+      company: 'TCS',
+      location: 'Pune',
+      ctc: '7 LPA',
+      ctcValue: 7,
+      tier: 3,
+      type: 'Full-time',
+      workMode: 'Onsite',
+      experienceLevel: 'Fresher',
+      openings: 150,
+      minCGPA: 6.0,
+      deadline: randomDate(30, 60),
+      recruiterId: recruiterUid,
+      recruiterName: 'Demo Recruiter',
+      description: 'Entry-level engineering role. Comprehensive training provided upon joining.',
+      perks: ['Health Insurance', 'Transport'],
       branches: ['All'],
       status: 'open',
-      createdAt: new Date().toISOString()
+      createdAt: randomDate(-10, 5)
     },
     {
-      title: 'Core Electronics Engineer',
-      company: 'NVIDIA',
-      location: 'Pune',
-      ctc: '28 LPA',
+      title: 'Project Engineer',
+      company: 'Wipro',
+      location: 'Chennai',
+      ctc: '6.5 LPA',
+      ctcValue: 6.5,
+      tier: 3,
       type: 'Full-time',
       workMode: 'Onsite',
       experienceLevel: 'Fresher',
-      openings: 6,
-      minCGPA: 7.5,
-      deadline: farFutureDate.toISOString(),
+      openings: 100,
+      minCGPA: 6.0,
+      deadline: randomDate(-20, 0),
       recruiterId: recruiterUid,
       recruiterName: 'Demo Recruiter',
-      description: 'ASIC/FPGA design and verification for next-generation GPUs.',
-      perks: ['ESPP', 'Health and Wellness', 'Education Reimbursement'],
-      branches: ['Electronics & Communication'],
-      status: 'open',
-      createdAt: new Date().toISOString()
+      description: 'Work on diverse client projects across various domains.',
+      perks: ['Health Insurance', 'Training'],
+      branches: ['All'],
+      status: 'closed',
+      createdAt: randomDate(-80, -40)
     },
     {
-      title: 'Design Engineer',
-      company: 'Boeing',
-      location: 'Bengaluru',
-      ctc: '14 LPA',
+      title: 'Associate Software Engineer',
+      company: 'Accenture',
+      location: 'Noida',
+      ctc: '8 LPA',
+      ctcValue: 8,
+      tier: 3,
       type: 'Full-time',
-      workMode: 'Onsite',
+      workMode: 'Hybrid',
       experienceLevel: 'Fresher',
-      openings: 10,
+      openings: 80,
       minCGPA: 6.5,
-      deadline: futureDate.toISOString(),
+      deadline: randomDate(15, 45),
       recruiterId: recruiterUid,
       recruiterName: 'Demo Recruiter',
-      description: 'Structural and aerodynamic analysis for commercial aerospace components.',
-      perks: ['Relocation', 'Health Benefits'],
-      branches: ['Mechanical', 'Civil'],
+      description: 'Develop and maintain enterprise applications.',
+      perks: ['Health Insurance', 'Flexible Hours'],
+      branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'],
       status: 'open',
-      createdAt: new Date().toISOString()
+      createdAt: randomDate(-25, 0)
     }
   ];
 
+  for (let i = 0; i < jobs.length; i++) {
+    await db.collection('jobs').doc(`mock_job_${i}`).set(jobs[i]);
+  }
+
+  console.log('Generating realistic students, applications, and interviews...');
+  const branches = [
+    { name: 'Computer Science', weight: 30 },
+    { name: 'Information Technology', weight: 20 },
+    { name: 'Electronics & Communication', weight: 15 },
+    { name: 'Mechanical', weight: 10 },
+    { name: 'Civil', weight: 10 }
+  ];
+  
   let batch = db.batch();
   let opCount = 0;
-  
   let studentCounter = 2; // Demo student is 1
+  const activities = [];
+  const systemApplications = [];
 
-  for (const branch of branches) {
-    const branchCode = getBranchCode(branch);
-    for (let i = 1; i <= 15; i++) {
+  for (const branchObj of branches) {
+    const branchCode = getBranchCode(branchObj.name);
+    // Generate students proportionally
+    for (let i = 1; i <= branchObj.weight; i++) {
       const fname = firstNames[Math.floor(Math.random() * firstNames.length)];
       const lname = lastNames[Math.floor(Math.random() * lastNames.length)];
       const name = `${fname} ${lname}`;
-      const email = `${fname.toLowerCase()}.${lname.toLowerCase()}${i}@demo.edu`;
+      const email = `${fname.toLowerCase()}.${lname.toLowerCase()}${Math.floor(Math.random() * 999)}@demo.edu`;
       const rollNo = `1DS21${branchCode}${(studentCounter++).toString().padStart(3, '0')}`;
       
       const studentId = await createAuthUser(email, pw, name, 'student');
       const studentRef = db.collection('students').doc(studentId);
       const userRef = db.collection('users').doc(studentId);
       
-      const cgpaBase = 6.0 + Math.random() * 2.0;
-      const cgpaBonus = Math.random() > 0.7 ? Math.random() * 2.0 : 0;
-      const finalCgpa = Math.min(10.0, cgpaBase + cgpaBonus).toFixed(1);
+      // Realistically distribute CGPA: bell curve centered around 7.5
+      let u = 0, v = 0;
+      while(u === 0) u = Math.random();
+      while(v === 0) v = Math.random();
+      let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+      num = num / 10.0 + 0.5; // Translate to 0 -> 1
+      if (num < 0 || num > 1) num = 0.5; // resample between 0 and 1
+      
+      // Map to 5.0 - 9.8 CGPA range
+      const finalCgpa = (5.0 + (num * 4.8)).toFixed(2);
+      const numCgpa = Number(finalCgpa);
+      
+      // Number of backlogs is inversely correlated to CGPA
+      const backlogCount = numCgpa < 6.5 ? Math.floor(Math.random() * 3) : 0;
 
       let branchSkills = [];
-      if (branch === 'Computer Science' || branch === 'Information Technology') {
-        branchSkills = ['Python', 'Java', 'C++', 'JavaScript', 'React', 'Node.js', 'SQL', 'MongoDB', 'AWS', 'Data Structures'];
-      } else if (branch === 'Electronics & Communication') {
+      if (['Computer Science', 'Information Technology'].includes(branchObj.name)) {
+        branchSkills = ['Python', 'Java', 'C++', 'JavaScript', 'React', 'Node.js', 'SQL', 'MongoDB', 'AWS', 'Data Structures', 'System Design'];
+      } else if (branchObj.name === 'Electronics & Communication') {
         branchSkills = ['C', 'C++', 'Python', 'MATLAB', 'Verilog', 'IoT', 'Embedded Systems'];
-      } else if (branch === 'Mechanical') {
+      } else if (branchObj.name === 'Mechanical') {
         branchSkills = ['AutoCAD', 'SolidWorks', 'MATLAB', 'ANSYS', 'Python', 'C++'];
-      } else if (branch === 'Civil') {
+      } else if (branchObj.name === 'Civil') {
         branchSkills = ['AutoCAD', 'Revit', 'STAAD.Pro', 'Project Management', 'C++'];
-      } else {
-        branchSkills = ['Python', 'C++', 'Java', 'Communication', 'Problem Solving'];
       }
       
-      // Pick 3-6 random skills from the branch pool
+      // Top students get top skills
+      if (numCgpa > 8.0) {
+        branchSkills.push('System Design', 'Competitive Programming', 'Machine Learning', 'Cloud Architecture');
+      }
+
       const shuffledSkills = branchSkills.sort(() => 0.5 - Math.random());
       const studentSkills = shuffledSkills.slice(0, 3 + Math.floor(Math.random() * 4));
+
+      // Placement Logic: Correlated to CGPA
+      let placementStatus = 'unplaced';
+      let highestPackage = '';
+      let companyPlaced = '';
+      let offersCount = 0;
+      let placementReadinessScore = Math.floor((numCgpa * 10) - (backlogCount * 5));
+      if (placementReadinessScore > 100) placementReadinessScore = 100;
+
+      // Decide which tier they place in based on CGPA
+      let targetTier = 0;
+      if (numCgpa >= 8.0 && Math.random() > 0.4) targetTier = 1;
+      else if (numCgpa >= 7.0 && Math.random() > 0.3) targetTier = 2;
+      else if (numCgpa >= 6.0 && backlogCount === 0 && Math.random() > 0.2) targetTier = 3;
+
+      const myJobs = [];
+      
+      if (targetTier > 0) {
+        // Find jobs in this tier that the branch is eligible for
+        const eligibleJobs = jobs.filter(j => 
+          j.tier === targetTier && 
+          numCgpa >= j.minCGPA && 
+          (j.branches.includes('All') || j.branches.includes(branchObj.name))
+        );
+
+        if (eligibleJobs.length > 0) {
+          const job = eligibleJobs[Math.floor(Math.random() * eligibleJobs.length)];
+          placementStatus = 'placed';
+          companyPlaced = job.company;
+          highestPackage = job.ctc;
+          offersCount = 1;
+          
+          // Generate application for this job
+          const appliedDate = randomDate(-240, -10);
+          const appRef = db.collection('applications').doc();
+          const appData = {
+            studentId: studentId,
+            studentName: name,
+            studentEmail: email,
+            jobId: `mock_job_${jobs.indexOf(job)}`,
+            company: job.company,
+            role: job.title,
+            status: 'Selected',
+            ctc: job.ctc,
+            appliedAt: appliedDate,
+            updatedAt: randomDate(-10, 0),
+            createdAt: appliedDate
+          };
+          batch.set(appRef, appData);
+          systemApplications.push(appData);
+          myJobs.push(job);
+          opCount++;
+
+          // Generate success interview feedback
+          const intRef = db.collection('interviews').doc();
+          const interviewDate = randomDate(-25, -10);
+          batch.set(intRef, {
+            studentId: studentId,
+            studentName: name,
+            studentEmail: email,
+            role: job.title,
+            company: job.company,
+            date: interviewDate.split('T')[0],
+            time: '11:00 AM',
+            mode: 'Online',
+            platform: 'Google Meet',
+            round: 'Technical + HR',
+            link: 'https://meet.google.com/mock-link',
+            instructions: 'Final interview',
+            status: 'completed',
+            createdBy: 'mock_system',
+            feedback: {
+              rating: 4 + Math.floor(Math.random() * 2), // 4 or 5
+              strengths: `Excellent problem solving. Handled the ${studentSkills[0]} questions perfectly.`,
+              improvements: 'Can improve on system design scalability concepts.',
+              result: 'Selected',
+              givenBy: 'Technical Panel'
+            }
+          });
+          opCount++;
+          
+          activities.push({
+            type: 'status_updated',
+            payload: { newStatus: 'Selected', company: job.company },
+            createdAt: appData.updatedAt
+          });
+        }
+      }
+
+      // Generate some rejected/in-process applications to make it realistic
+      if (Math.random() > 0.5) {
+        const otherJobs = jobs.filter(j => !myJobs.includes(j) && (j.branches.includes('All') || j.branches.includes(branchObj.name)));
+        if (otherJobs.length > 0) {
+          const randomJob = otherJobs[Math.floor(Math.random() * otherJobs.length)];
+          const isPending = Math.random() > 0.5;
+          const status = isPending ? (Math.random() > 0.5 ? 'Shortlisted' : 'Applied') : 'Rejected';
+          
+          if (placementStatus === 'unplaced' && status !== 'Rejected') {
+            placementStatus = 'in-process';
+          }
+
+          const appliedDate = randomDate(-240, -10);
+          const appRef = db.collection('applications').doc();
+          batch.set(appRef, {
+            studentId: studentId,
+            studentName: name,
+            studentEmail: email,
+            jobId: `mock_job_${jobs.indexOf(randomJob)}`,
+            company: randomJob.company,
+            role: randomJob.title,
+            status: status,
+            appliedAt: appliedDate,
+            updatedAt: isPending ? appliedDate : randomDate(-10, 0),
+            createdAt: appliedDate
+          });
+          opCount++;
+
+          // If rejected, maybe they failed an interview
+          if (status === 'Rejected' && Math.random() > 0.5) {
+            const intRef = db.collection('interviews').doc();
+            batch.set(intRef, {
+              studentId: studentId,
+              studentName: name,
+              studentEmail: email,
+              role: randomJob.title,
+              company: randomJob.company,
+              date: randomDate(-15, -5).split('T')[0],
+              time: '14:00 PM',
+              mode: 'Online',
+              platform: 'Zoom',
+              round: 'Technical Round 1',
+              link: 'https://zoom.us/mock-link',
+              status: 'completed',
+              createdBy: 'mock_system',
+              feedback: {
+                rating: 2,
+                strengths: 'Good communication skills.',
+                improvements: 'Struggled with Data Structures and Algorithms optimization.',
+                result: 'Rejected',
+                givenBy: 'Technical Panel'
+              }
+            });
+            opCount++;
+          }
+        }
+      }
 
       batch.set(studentRef, {
         name: name,
         email: email,
-        branch: branch,
-        cgpa: Number(finalCgpa),
-        placementStatus: Math.random() > 0.8 ? 'placed' : 'unplaced',
-        currentPackage: '',
+        branch: branchObj.name,
+        cgpa: numCgpa,
+        placementStatus: placementStatus,
+        currentPackage: highestPackage,
+        highestPackage: highestPackage,
+        companyPlaced: companyPlaced,
+        offersCount: offersCount,
+        backlogCount: backlogCount,
+        placementReadinessScore: placementReadinessScore,
         skills: studentSkills,
-        projects: ['Built a Placement Portal System', 'Developed a Machine Learning Model for predictive analysis'],
+        projects: ['Built a Placement Portal System', 'E-Commerce Backend API'],
         rollNo: rollNo,
         createdAt: new Date().toISOString()
       });
@@ -477,63 +590,11 @@ async function seed() {
         name: name,
         email: email,
         role: 'student',
-        department: branch,
+        department: branchObj.name,
         createdAt: new Date().toISOString()
       });
 
-      const completedDate = new Date();
-      completedDate.setDate(completedDate.getDate() - Math.floor(Math.random() * 30) - 1);
-      
-      const interview1 = {
-        studentId: studentId,
-        studentName: name,
-        studentEmail: email,
-        role: jobs[Math.floor(Math.random() * jobs.length)].title,
-        company: companies[Math.floor(Math.random() * companies.length)],
-        date: completedDate.toISOString().split('T')[0],
-        time: '10:00 AM',
-        mode: 'Online',
-        platform: 'Google Meet',
-        round: 'Technical Round 1',
-        link: 'https://meet.google.com/mock-link',
-        instructions: 'Be prepared with a working camera and microphone.',
-        status: 'completed',
-        createdBy: 'mock_system',
-        feedback: {
-          rating: 4,
-          strengths: 'Good grasp of core CS fundamentals. Clear communication.',
-          improvements: 'Could optimize the DP solution further.',
-          result: 'Selected for Next Round',
-          givenBy: 'Technical Panel'
-        }
-      };
-
-      const upcomingDate = new Date();
-      upcomingDate.setDate(upcomingDate.getDate() + Math.floor(Math.random() * 10) + 1);
-      
-      const interview2 = {
-        studentId: studentId,
-        studentName: name,
-        studentEmail: email,
-        role: jobs[Math.floor(Math.random() * jobs.length)].title,
-        company: companies[Math.floor(Math.random() * companies.length)],
-        date: upcomingDate.toISOString().split('T')[0],
-        time: '02:00 PM',
-        mode: 'Online',
-        platform: 'Zoom',
-        round: 'HR Round',
-        link: 'https://zoom.us/mock-link',
-        instructions: 'Please join 5 mins early.',
-        status: 'scheduled',
-        createdBy: 'mock_system'
-      };
-
-      const intRef1 = db.collection('interviews').doc();
-      const intRef2 = db.collection('interviews').doc();
-      batch.set(intRef1, interview1);
-      batch.set(intRef2, interview2);
-
-      opCount += 4;
+      opCount += 2;
       if (opCount > 400) {
         await batch.commit();
         batch = db.batch();
@@ -543,28 +604,23 @@ async function seed() {
   }
   if (opCount > 0) await batch.commit();
 
-
-
-  for (let i = 0; i < jobs.length; i++) {
-    await db.collection('jobs').doc(`mock_job_${i}`).set(jobs[i]);
-  }
-
   console.log('Creating mock alumni...');
   const mockAlumni = [];
   
-  for (let i = 1; i <= 8; i++) {
+  for (let i = 1; i <= 12; i++) {
     const fname = firstNames[Math.floor(Math.random() * firstNames.length)];
     const lname = lastNames[Math.floor(Math.random() * lastNames.length)];
-    const company = companies[Math.floor(Math.random() * companies.length)];
+    // Mix of Tier 1 & 2 for Alumni
+    const company = (Math.random() > 0.5 ? TIER_1_COMPANIES : TIER_2_COMPANIES)[Math.floor(Math.random() * 5)];
     
     mockAlumni.push({
       name: `${fname} ${lname}`,
       email: `${fname.toLowerCase()}.${lname.toLowerCase()}@alumni.demo.edu`,
-      branch: branches[Math.floor(Math.random() * branches.length)],
+      branch: branches[Math.floor(Math.random() * branches.length)].name,
       companyPlaced: company,
-      bio: `Working at ${company}. Feel free to reach out for referrals or resume reviews!`,
+      bio: `SDE at ${company}. Experience in scalable systems. Reach out for resume reviews or referrals!`,
       linkedin: `https://www.linkedin.com/in/${fname.toLowerCase()}-${lname.toLowerCase()}-${Math.floor(Math.random() * 10000)}/`,
-      graduationYear: 2022 + Math.floor(Math.random() * 3),
+      graduationYear: 2021 + Math.floor(Math.random() * 4),
       createdAt: new Date().toISOString()
     });
   }
@@ -573,30 +629,22 @@ async function seed() {
     await db.collection('alumni').doc(`mock_alumni_${i}`).set(mockAlumni[i]);
   }
 
-  console.log('Creating mock applications and system activity...');
-  const selectedApplication = {
-    studentId: studentUid,
-    studentName: 'Aarav Sharma',
-    studentEmail: 'aarav.sharma1@demo.edu',
-    jobId: 'mock_job_0',
-    company: 'Amazon',
-    role: 'Software Development Engineer I',
-    status: 'Selected',
-    appliedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  };
-  await db.collection('applications').doc('mock_app_1').set(selectedApplication);
+  console.log('Logging system activity...');
+  // Ensure we have some base activities
+  activities.push(
+    { type: 'job_posted', payload: { title: 'Backend Engineer', company: 'Google' }, createdAt: randomDate(-45, -40) },
+    { type: 'job_posted', payload: { title: 'Machine Learning Engineer', company: 'Meta' }, createdAt: randomDate(-30, -28) },
+    { type: 'job_posted', payload: { title: 'Software Development Engineer I', company: 'Amazon' }, createdAt: randomDate(-60, -58) }
+  );
 
-  const activities = [
-    { type: 'job_posted', payload: { title: 'Backend Engineer', company: 'Google' }, createdAt: new Date().toISOString() },
-    { type: 'application_submitted', payload: { company: 'Amazon' }, createdAt: new Date().toISOString() },
-    { type: 'status_updated', payload: { newStatus: 'Selected' }, createdAt: new Date().toISOString() }
-  ];
-  for (let i = 0; i < activities.length; i++) {
+  // Sort activities by date
+  activities.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  
+  for (let i = 0; i < Math.min(activities.length, 50); i++) {
     await db.collection('systemActivity').add(activities[i]);
   }
 
-  console.log('✅ Seed process completed successfully!');
+  console.log('✅ Highly Realistic Seed process completed successfully!');
 }
 
 seed().catch(console.error).finally(() => process.exit(0));
