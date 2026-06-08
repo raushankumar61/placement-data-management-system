@@ -91,11 +91,6 @@ export const handleNotificationAction = (id, action) => api.post(`/notifications
 export const getRecommendations = () => api.get('/recommendations');
 export const createRecommendation = (data) => api.post('/recommendations', data);
 
-export const getComplaints = () => api.get('/complaints');
-export const createComplaint = (data) => api.post('/complaints', data);
-export const resolveComplaint = (id, data) => api.put(`/complaints/${id}/resolve`, data);
-export const deleteComplaint = (id) => api.delete(`/complaints/${id}`);
-
 export const parseResume = (formData) => api.post('/resume/parse', formData);
 export const uploadResume = (formData) => api.post('/resume/upload', formData);
 

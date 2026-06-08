@@ -1,7 +1,7 @@
 // src/pages/admin/Faculty.jsx
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Search, Mail, Building2, UserCircle, BadgeCheck, X, Phone, Calendar, Fingerprint } from 'lucide-react';
+import { BookOpen, Search, Mail, Building2, UserCircle, BadgeCheck, X, Calendar, Fingerprint } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { getFaculty } from '../../services/api';
 
