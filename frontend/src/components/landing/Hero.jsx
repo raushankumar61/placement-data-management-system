@@ -211,13 +211,13 @@ export default function Hero() {
                 <p className="text-white/40 text-xs mb-2 font-body">Branch-wise Placements</p>
                 <div className="space-y-2">
                   {[
-                    { label: 'CS/IT', pct: 92 },
-                    { label: 'ECE', pct: 78 },
-                    { label: 'Mech', pct: 65 },
+                    { label: 'Computer Science', pct: 92 },
+                    { label: 'Electronics', pct: 78 },
+                    { label: 'Mechanical', pct: 65 },
                     { label: 'Civil', pct: 52 },
                   ].map((b) => (
                     <div key={b.label} className="flex items-center gap-3">
-                      <span className="text-white/40 text-xs w-12 font-body">{b.label}</span>
+                      <span className="text-white/40 text-xs w-28 font-body truncate">{b.label}</span>
                       <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}

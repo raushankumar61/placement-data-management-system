@@ -22,7 +22,6 @@ const NAV_CONFIG = {
     { label: 'Notifications', icon: Bell, path: '/admin/notifications' },
     { label: 'Recruiters', icon: Building2, path: '/admin/recruiters' },
     { label: 'Faculty', icon: BookOpen, path: '/admin/faculty' },
-    { label: 'Complaints', icon: MessageSquare, path: '/admin/complaints' },
   ],
   student: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/student/dashboard' },
@@ -115,8 +114,8 @@ export default function DashboardLayout({ children, title }) {
             <Zap size={16} className="text-blue-electric" />
           </div>
           {sidebarOpen && (
-            <span className="font-heading font-bold text-white">
-              Place<span className="text-blue-electric">Cloud</span>
+            <span className="font-heading font-bold text-white tracking-widest">
+              DSCE
             </span>
           )}
         </Link>

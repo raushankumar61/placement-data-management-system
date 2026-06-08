@@ -82,10 +82,10 @@ export default function RecruiterCandidates() {
         recruiterId: user.uid,
         ...interviewForm
       });
-      await updateApplicationStatus(selected.id, 'In Process');
+      await updateApplicationStatus(selected.id, 'interview_scheduled');
       toast.success('Interview scheduled successfully!');
       setShowInterviewModal(false);
-      setSelected({ ...selected, status: 'In Process' });
+      setSelected({ ...selected, status: 'interview_scheduled' });
     } catch (err) {
       toast.error('Failed to schedule interview');
     } finally {
@@ -105,8 +105,8 @@ export default function RecruiterCandidates() {
             </div>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none">
               <option value="">All Statuses</option>
-              {['Applied', 'Shortlisted', 'In Process', 'Selected', 'Rejected'].map(s => (
-                <option key={s} value={s} className="bg-dark-700">{s}</option>
+              {['verified_by_admin', 'shortlist_recommended', 'Shortlisted', 'interview_scheduled', 'selection_recommended', 'Selected', 'Rejected'].map(s => (
+                <option key={s} value={s} className="bg-dark-700">{s.replace(/_/g, ' ')}</option>
               ))}
             </select>
             {(search || statusFilter) && (
@@ -143,12 +143,12 @@ export default function RecruiterCandidates() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs px-2 py-1 rounded-md border ${
-                      app.status === 'Applied' ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' :
-                      app.status === 'Rejected' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
+                      ['Rejected', 'rejected_by_admin'].includes(app.status) ? 'border-red-500/30 text-red-400 bg-red-500/10' :
                       app.status === 'Selected' ? 'border-green-500/30 text-green-400 bg-green-500/10' :
+                      ['verified_by_admin', 'Shortlisted', 'interview_scheduled'].includes(app.status) ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' :
                       'border-gold/30 text-gold bg-gold/10'
                     }`}>
-                      {app.status}
+                      {app.status?.replace(/_/g, ' ')}
                     </span>
                   </div>
                 </div>
@@ -179,7 +179,7 @@ export default function RecruiterCandidates() {
                     {[
                       { label: 'Applied For', value: selected.role },
                       { label: 'Company', value: selected.company },
-                      { label: 'Status', value: selected.status, color: 'text-gold' },
+                      { label: 'Status', value: selected.status?.replace(/_/g, ' '), color: 'text-gold' },
                       { label: 'Applied On', value: new Date(selected.appliedAt).toLocaleDateString() },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="flex justify-between text-sm">
@@ -267,18 +267,18 @@ export default function RecruiterCandidates() {
               
               {selected.status !== 'Selected' && selected.status !== 'Rejected' && (
                 <div className="space-y-2">
-                  <button onClick={() => handleUpdateStatus(selected.id, 'Shortlisted')} disabled={updating === selected.id}
+                  <button onClick={() => handleUpdateStatus(selected.id, 'shortlist_recommended')} disabled={updating === selected.id}
                     className="btn-outline w-full text-sm py-2 flex items-center justify-center gap-2 border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-                    <UserCheck size={14} /> Shortlist
+                    <UserCheck size={14} /> Recommend Shortlist
                   </button>
                   <button onClick={() => setShowInterviewModal(true)} disabled={updating === selected.id}
                     className="btn-primary w-full text-sm py-2 flex items-center justify-center gap-2">
                     <Calendar size={14} /> Schedule Interview
                   </button>
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    <button onClick={() => handleUpdateStatus(selected.id, 'Selected')} disabled={updating === selected.id}
+                    <button onClick={() => handleUpdateStatus(selected.id, 'selection_recommended')} disabled={updating === selected.id}
                       className="btn-outline text-sm py-2 flex items-center justify-center gap-2 border-green-500/30 text-green-400 hover:bg-green-500/10">
-                      <CheckCircle size={14} /> Accept
+                      <CheckCircle size={14} /> Recommend Hire
                     </button>
                     <button onClick={() => handleUpdateStatus(selected.id, 'Rejected')} disabled={updating === selected.id}
                       className="btn-outline text-sm py-2 flex items-center justify-center gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10">

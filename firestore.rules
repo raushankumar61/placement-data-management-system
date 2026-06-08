@@ -52,9 +52,10 @@ service cloud.firestore {
     // ── Jobs ──────────────────────────────────────────────────────────────────
     match /jobs/{jobId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrRecruiter();
-      allow update: if isAdmin() || (isRecruiter() && resource.data.postedBy == request.auth.uid);
-      allow delete: if isAdmin();
+      // Forces creation and updates to go through the backend APIs
+      allow create: if false; 
+      allow update: if false; 
+      allow delete: if false; 
     }
 
     // ── Applications ──────────────────────────────────────────────────────────
@@ -62,9 +63,10 @@ service cloud.firestore {
       allow read: if isAdmin() || isFaculty()
         || (isStudent() && resource.data.studentId == request.auth.uid)
         || (isRecruiter() && resource.data.recruiterId == request.auth.uid);
-      allow create: if isStudent();
-      allow update: if isAdmin() || isAdminOrRecruiter();
-      allow delete: if isAdmin();
+      // Forces creation and updates to go through the backend APIs
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     // ── Recruiters ────────────────────────────────────────────────────────────

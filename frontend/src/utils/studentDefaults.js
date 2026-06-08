@@ -32,8 +32,8 @@ const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Apple', 'Meta', 'Netflix', 
 const SKILLS = ['JavaScript', 'Python', 'Java', 'React', 'Node.js', 'SQL', 'MongoDB', 'AWS', 'Azure', 'Docker', 'Kubernetes', 'Git', 'REST API', 'GraphQL', 'Machine Learning', 'Data Science', 'TensorFlow', 'PyTorch', 'C++', 'DSA', 'System Design', 'Problem Solving', 'Communication', 'Leadership'];
 const PROJECTS = ['E-commerce Platform', 'Chat Application', 'Weather App', 'Task Management System', 'Social Media Clone', 'Blogging Platform', 'ML Model for Prediction', 'Data Analytics Dashboard', 'Real-time Notification System', 'Mobile App Development'];
 const GENDERS = ['male', 'female', 'other'];
-const EMAIL_DOMAINS = ['students.placecloud.edu', 'campusmail.placecloud.edu', 'mail.placecloud.edu'];
-const RESUME_HOSTS = ['storage.googleapis.com/placecloud-demo-resumes', 'resumes.placecloud.app', 'placecloud-resumes.s3.amazonaws.com'];
+const EMAIL_DOMAINS = ['students.dsce.edu', 'campusmail.dsce.edu', 'mail.dsce.edu'];
+const RESUME_HOSTS = ['storage.googleapis.com/dsce-demo-resumes', 'resumes.dsce.app', 'dsce-resumes.s3.amazonaws.com'];
 const CERTIFICATION_HOSTS = ['www.coursera.org/account/accomplishments/certificate', 'www.udemy.com/certificate', 'www.credly.com/badges', 'www.edx.org/certificates'];
 
 const hashString = (input) => {

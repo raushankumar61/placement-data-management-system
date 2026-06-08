@@ -27,6 +27,19 @@ export default function RecruiterPostJob() {
     e.preventDefault();
     setSubmitting(true);
 
+    const trimmedTitle = form.title.trim();
+    const trimmedDesc = form.description.trim();
+
+    if (!trimmedTitle) {
+      setSubmitting(false);
+      return toast.error('Job Title cannot be empty');
+    }
+    
+    if (!trimmedDesc) {
+      setSubmitting(false);
+      return toast.error('Job Description cannot be empty');
+    }
+
     try {
       await createJob({
         ...form,

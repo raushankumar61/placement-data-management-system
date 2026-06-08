@@ -1,11 +1,11 @@
 // src/pages/admin/Jobs.jsx
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Trash2, Edit2, X, Calendar, MapPin, DollarSign, Users, AlertCircle } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, X, Calendar, MapPin, DollarSign, Users, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
 import toast from 'react-hot-toast';
-import { createJob, deleteJob, updateJob } from '../../services/api';
+import { createJob, deleteJob, updateJob, updateJobStatus } from '../../services/api';
 import { useRealtimeJobs } from '../../hooks/useRealtime';
 import { normalizeJobBranches } from '../../utils/branchEligibility';
 
@@ -73,6 +73,11 @@ export default function AdminJobs() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    
+    if (!form.title.trim() || !form.company.trim()) {
+      return toast.error('Title and Company are required');
+    }
+    
     setSaving(true);
     try {
       const payload = {
@@ -108,6 +113,15 @@ export default function AdminJobs() {
     }
   };
 
+  const handleStatusChange = async (id, status) => {
+    try {
+      await updateJobStatus(id, status);
+      toast.success(`Job marked as ${status.replace('_', ' ')}`);
+    } catch {
+      toast.error('Failed to update status');
+    }
+  };
+
   const toggleBranch = (branch) => {
     if (branch === 'All') { setForm({ ...form, branches: ['All'] }); return; }
     const curr = form.branches.filter((b) => b !== 'All');
@@ -130,10 +144,13 @@ export default function AdminJobs() {
                 className="input-field pl-9 py-2 text-sm w-60"
               />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-32 appearance-none">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-40 appearance-none">
               <option value="">All Status</option>
-              <option value="active" className="bg-dark-700">Active</option>
+              <option value="pending_approval" className="bg-dark-700">Pending Approval</option>
+              <option value="published" className="bg-dark-700">Published</option>
+              <option value="active" className="bg-dark-700">Active (Legacy)</option>
               <option value="closed" className="bg-dark-700">Closed</option>
+              <option value="rejected" className="bg-dark-700">Rejected</option>
             </select>
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
               <option value="">All Types</option>
@@ -225,11 +242,27 @@ export default function AdminJobs() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="section-title text-base truncate">{job.title}</h3>
-                      <span className={job.status === 'active' ? 'badge-green' : 'badge-gray'}>{job.status}</span>
+                      <span className={job.status === 'published' || job.status === 'active' ? 'badge-green' : job.status === 'pending_approval' ? 'badge-gold' : 'badge-gray'}>
+                        {job.status === 'pending_approval' ? 'Pending' : job.status}
+                      </span>
                     </div>
                     <p className="text-white/60 font-body text-sm font-semibold">{job.company}</p>
                   </div>
                   <div className="flex gap-1 ml-3">
+                    {job.status === 'pending_approval' && (
+                      <>
+                        <button onClick={() => handleStatusChange(job.id, 'published')}
+                          title="Approve Drive"
+                          className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors">
+                          <CheckCircle size={14} />
+                        </button>
+                        <button onClick={() => handleStatusChange(job.id, 'rejected')}
+                          title="Reject Drive"
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
+                          <XCircle size={14} />
+                        </button>
+                      </>
+                    )}
                     <button onClick={() => openModal(job)}
                       className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-blue-electric transition-colors">
                       <Edit2 size={14} />
@@ -243,9 +276,9 @@ export default function AdminJobs() {
 
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {[
-                    { icon: MapPin, text: job.location },
-                    { icon: DollarSign, text: job.ctc },
-                    { icon: Users, text: `${job.openings} openings` },
+                    { icon: MapPin, text: job.location || 'N/A' },
+                    { icon: DollarSign, text: job.ctc || 'N/A' },
+                    { icon: Users, text: `${job.openings || 0} openings` },
                     { icon: Calendar, text: job.deadline ? `Due ${job.deadline}` : 'No deadline' },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-1.5 text-white/50">

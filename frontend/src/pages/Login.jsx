@@ -183,8 +183,8 @@ export default function Login() {
             <div className="w-9 h-9 rounded-xl bg-blue-electric/20 border border-blue-electric/40 flex items-center justify-center">
               <Zap size={18} className="text-blue-electric" />
             </div>
-            <span className="font-heading font-bold text-xl text-white">
-              Place<span className="text-blue-electric">Cloud</span>
+            <span className="font-heading font-bold text-xl text-white tracking-widest">
+              DSCE
             </span>
           </Link>
           <h1 className="font-heading font-bold text-3xl text-white mb-2">Welcome back</h1>
