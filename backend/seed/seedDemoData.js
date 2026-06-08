@@ -137,7 +137,7 @@ async function seed() {
 
   console.log('Creating demo accounts...');
   const pw = 'password123';
-  await createOrUpdateUser('admin@demo.com', pw, 'Demo Admin', 'admin');
+  await createOrUpdateUser('admin@demo.com', pw, 'Admin', 'admin');
   
   const facultyList = [
     { email: 'cs.hod@demo.edu', name: 'Dr. Anita Sharma', dept: 'Computer Science', designation: 'Head of Department', empId: 'FAC-CS-001' },

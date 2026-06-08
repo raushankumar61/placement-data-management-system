@@ -472,11 +472,11 @@ export default function AdminReports() {
           <div className="glass-card p-5" id="chart-branch">
             <p className="section-title mb-1">Branch-wise Placement %</p>
             <p className="text-white/40 text-xs font-body mb-5">Percentage of students placed per branch</p>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={analytics.branchData.map((b) => ({ ...b, pct: b.total ? Math.round((b.placed / b.total) * 100) : 0 }))}>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart margin={{ bottom: 80, left: 0 }} data={analytics.branchData.map((b) => ({ ...b, pct: b.total ? Math.round((b.placed / b.total) * 100) : 0 }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="branch" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} label={{ value: 'Branch', position: 'insideBottom', offset: -10, fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" width={50} label={{ value: 'Placement %', angle: -90, position: 'insideLeft', fill: 'rgba(255,255,255,0.4)', fontSize: 11, offset: 0 }} />
+                <XAxis dataKey="branch" interval={0} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10, angle: -45, textAnchor: 'end', dx: -5, dy: 5 }} axisLine={false} tickLine={false} label={{ value: 'Branch', position: 'insideBottom', offset: -70, fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
+                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" width={50} label={{ value: 'Placement %', angle: -90, position: 'insideLeft', fill: 'rgba(255,255,255,0.4)', fontSize: 11, offset: 10 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="pct" name="Placement %" fill="#00A3FF" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -487,10 +487,10 @@ export default function AdminReports() {
             <p className="section-title mb-1">Avg CTC Trend</p>
             <p className="text-white/40 text-xs font-body mb-5">Monthly average package growth</p>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={analytics.yearlyTrend}>
+              <LineChart data={analytics.yearlyTrend} margin={{ top: 10, right: 30, left: 10, bottom: 25 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="year" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} label={{ value: 'Month', position: 'insideBottom', offset: -10, fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} unit=" L" width={50} label={{ value: 'Avg CTC (LPA)', angle: -90, position: 'insideLeft', fill: 'rgba(255,255,255,0.4)', fontSize: 11, offset: 0 }} />
+                <XAxis dataKey="year" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, dy: 5 }} axisLine={false} tickLine={false} label={{ value: 'Month', position: 'insideBottom', offset: -20, fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
+                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} unit=" L" width={50} label={{ value: 'Avg CTC (LPA)', angle: -90, position: 'insideLeft', fill: 'rgba(255,255,255,0.4)', fontSize: 11, offset: 10 }} />
                 <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
                 <Line type="monotone" dataKey="avg" name="Avg CTC (LPA)" stroke="#F5A623" strokeWidth={3} dot={{ fill: '#F5A623', r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: '#00A3FF', stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>

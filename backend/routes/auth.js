@@ -23,7 +23,7 @@ router.post('/verify-token', verifyToken, async (req, res) => {
     let profile = null;
 
     if (req.user.email === 'admin@demo.com') {
-      profile = { id: uid, name: 'Admin User', email: 'admin@demo.com', role: 'admin' };
+      profile = { id: uid, name: 'Admin', email: 'admin@demo.com', role: 'admin' };
     } else if (db) {
       const snap = await db.collection('users').doc(uid).get();
       if (snap.exists) profile = { id: snap.id, ...snap.data() };
