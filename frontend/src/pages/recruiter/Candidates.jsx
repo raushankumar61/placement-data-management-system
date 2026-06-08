@@ -1,19 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle, X, Calendar, UserX, UserCheck } from 'lucide-react';
+import { Search, CheckCircle, X, Calendar, UserX, UserCheck, ExternalLink, Mail, Phone, Award, BookOpen } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
-import { updateApplicationStatus, createInterview } from '../../services/api';
+import { updateApplicationStatus, createInterview, getStudent } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useRealtimeApplications } from '../../hooks/useRealtime';
 
 export default function RecruiterCandidates() {
   const { user } = useAuth();
   const { applications, loading } = useRealtimeApplications({ recruiterId: user?.uid });
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [studentDetails, setStudentDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  useEffect(() => {
+    const appId = searchParams.get('applicationId');
+    if (appId && applications.length > 0) {
+      const app = applications.find(a => a.id === appId);
+      if (app && (!selected || selected.id !== appId)) {
+        setSelected(app);
+      }
+    }
+  }, [searchParams, applications, selected]);
+
+  useEffect(() => {
+    if (selected?.studentId) {
+      setLoadingDetails(true);
+      getStudent(selected.studentId)
+        .then(res => setStudentDetails(res.data?.student || res.data))
+        .catch(() => toast.error('Failed to load full student profile'))
+        .finally(() => setLoadingDetails(false));
+    } else {
+      setStudentDetails(null);
+    }
+  }, [selected]);
   
   // Interview modal state
   const [showInterviewModal, setShowInterviewModal] = useState(false);
@@ -133,34 +159,114 @@ export default function RecruiterCandidates() {
 
         {selected && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-            className="w-80 flex-shrink-0 glass-card p-5 border border-white/10 h-fit sticky top-4 space-y-4">
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-electric/30 to-gold/20 flex items-center justify-center border border-white/10 mx-auto mb-3">
-                <span className="font-heading font-bold text-white text-2xl">{(selected.studentName || '?')[0]}</span>
-              </div>
-              <p className="text-white font-heading font-bold">{selected.studentName}</p>
-              <p className="text-white/40 text-sm font-body">{selected.branch}</p>
-            </div>
-
-            <div className="space-y-2 py-4 border-y border-white/5">
-              {[
-                { label: 'Applied For', value: selected.role },
-                { label: 'Company', value: selected.company },
-                { label: 'Status', value: selected.status, color: 'text-gold' },
-                { label: 'Applied On', value: new Date(selected.appliedAt).toLocaleDateString() },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="flex justify-between text-sm">
-                  <span className="text-white/40 font-body">{label}</span>
-                  <span className={`font-body font-semibold ${color || 'text-white/80'}`}>{value}</span>
+            className="w-96 flex-shrink-0 glass-card border border-white/10 h-fit sticky top-4 flex flex-col max-h-[calc(100vh-6rem)]">
+            <div className="p-5 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 flex-1 space-y-5">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-electric/30 to-gold/20 flex items-center justify-center border border-white/10 flex-shrink-0">
+                  <span className="font-heading font-bold text-white text-2xl">{(selected.studentName || '?')[0]}</span>
                 </div>
-              ))}
+                <div>
+                  <p className="text-white font-heading font-bold text-lg">{selected.studentName}</p>
+                  <p className="text-white/60 text-sm font-body">{selected.branch}</p>
+                </div>
+              </div>
+
+              {loadingDetails ? (
+                <div className="py-10 text-center text-white/40 text-sm">Loading full profile...</div>
+              ) : (
+                <>
+                  <div className="space-y-2 py-4 border-y border-white/5">
+                    {[
+                      { label: 'Applied For', value: selected.role },
+                      { label: 'Company', value: selected.company },
+                      { label: 'Status', value: selected.status, color: 'text-gold' },
+                      { label: 'Applied On', value: new Date(selected.appliedAt).toLocaleDateString() },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="flex justify-between text-sm">
+                        <span className="text-white/40 font-body">{label}</span>
+                        <span className={`font-body font-semibold ${color || 'text-white/80'}`}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {studentDetails && (
+                    <div className="space-y-4">
+                      {studentDetails.bio && (
+                        <div>
+                          <p className="text-white/50 text-xs uppercase tracking-wider mb-1 font-body">About</p>
+                          <p className="text-white/80 text-sm font-body leading-relaxed">{studentDetails.bio}</p>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        {studentDetails.email && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail size={14} className="text-white/40" />
+                            <a href={`mailto:${studentDetails.email}`} className="text-blue-electric hover:underline">{studentDetails.email}</a>
+                          </div>
+                        )}
+                        {studentDetails.phone && (
+                          <div className="flex items-center gap-2 text-sm text-white/80">
+                            <Phone size={14} className="text-white/40" /> {studentDetails.phone}
+                          </div>
+                        )}
+                        {studentDetails.resumeURL && (
+                          <div className="flex items-center gap-2 text-sm pt-1">
+                            <ExternalLink size={14} className="text-blue-electric" />
+                            <a href={studentDetails.resumeURL} target="_blank" rel="noreferrer" className="text-blue-electric hover:underline font-medium">View Resume</a>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div className="glass-card p-3 border border-white/5">
+                          <p className="text-white/40 text-xs font-body flex items-center gap-1.5 mb-1"><Award size={12} /> CGPA</p>
+                          <p className="text-white font-bold">{studentDetails.cgpa || 'N/A'}</p>
+                        </div>
+                        <div className="glass-card p-3 border border-white/5">
+                          <p className="text-white/40 text-xs font-body flex items-center gap-1.5 mb-1"><BookOpen size={12} /> Pass Year</p>
+                          <p className="text-white font-bold">{studentDetails.graduationYear || 'N/A'}</p>
+                        </div>
+                      </div>
+
+                      {studentDetails.skills?.length > 0 && (
+                        <div>
+                          <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-body">Skills</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {studentDetails.skills.map((skill, idx) => (
+                              <span key={idx} className="bg-white/5 border border-white/10 px-2 py-1 rounded text-xs text-white/70 font-body">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {(studentDetails.linkedin || studentDetails.github) && (
+                        <div className="flex gap-3 pt-2">
+                          {studentDetails.linkedin && (
+                            <a href={studentDetails.linkedin} target="_blank" rel="noreferrer" className="text-xs text-white/50 hover:text-white flex items-center gap-1 transition-colors">
+                              <ExternalLink size={12} /> LinkedIn
+                            </a>
+                          )}
+                          {studentDetails.github && (
+                            <a href={studentDetails.github} target="_blank" rel="noreferrer" className="text-xs text-white/50 hover:text-white flex items-center gap-1 transition-colors">
+                              <ExternalLink size={12} /> GitHub
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
-            <div className="space-y-2 pt-2">
-              <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-body">Actions</p>
+            <div className="p-4 border-t border-white/10 bg-dark-900 rounded-b-2xl">
+              <p className="text-white/50 text-xs uppercase tracking-wider mb-3 font-body">Actions</p>
               
               {selected.status !== 'Selected' && selected.status !== 'Rejected' && (
-                <>
+                <div className="space-y-2">
                   <button onClick={() => handleUpdateStatus(selected.id, 'Shortlisted')} disabled={updating === selected.id}
                     className="btn-outline w-full text-sm py-2 flex items-center justify-center gap-2 border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
                     <UserCheck size={14} /> Shortlist
@@ -179,7 +285,7 @@ export default function RecruiterCandidates() {
                       <UserX size={14} /> Reject
                     </button>
                   </div>
-                </>
+                </div>
               )}
               {selected.status === 'Selected' && (
                 <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-center text-green-400 text-sm">

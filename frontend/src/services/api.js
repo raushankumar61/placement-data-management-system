@@ -54,6 +54,7 @@ export const createStudent = (data) => api.post('/students', data);
 export const updateStudent = (id, data) => api.put(`/students/${id}`, data);
 export const deleteStudent = (id) => api.delete(`/students/${id}`);
 export const bulkImportStudents = (formData) => api.post('/students/bulk-import', formData);
+export const createStudentVerification = (id, data) => api.post(`/students/${id}/verifications`, data);
 
 export const getJobs = (params) => api.get('/jobs', { params });
 export const getJob = (id) => api.get(`/jobs/${id}`);

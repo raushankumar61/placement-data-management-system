@@ -235,6 +235,57 @@ router.put(
   }
 );
 
+// POST /api/v1/students/:id/verifications  — student requests a profile data verification
+router.post(
+  '/:id/verifications',
+  verifyToken,
+  [
+    body('field').notEmpty().withMessage('Field is required (e.g., CGPA, Skills, Branch)'),
+    body('newValue').notEmpty().withMessage('New value is required'),
+    body('evidence').optional().isString(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      if (req.user.uid !== req.params.id) {
+        return res.status(403).json({ error: 'You can only request verification for your own profile' });
+      }
+
+      if (!db) return res.status(201).json({ id: uuidv4(), ...req.body, status: 'pending' });
+
+      const snap = await db.collection('students').doc(req.params.id).get();
+      if (!snap.exists) return res.status(404).json({ error: 'Student not found' });
+      const studentData = snap.data();
+
+      let oldValue = '';
+      const fieldNormalized = String(req.body.field).toLowerCase();
+      if (fieldNormalized === 'cgpa') oldValue = String(studentData.cgpa || '');
+      else if (fieldNormalized === 'skills') oldValue = (studentData.skills || []).join(', ');
+      else if (fieldNormalized === 'branch') oldValue = studentData.branch || '';
+      else oldValue = String(studentData[req.body.field] || '');
+
+      const payload = {
+        studentId: req.params.id,
+        student: studentData.name || '',
+        rollNo: studentData.rollNo || '',
+        field: req.body.field,
+        oldValue,
+        newValue: req.body.newValue,
+        evidence: req.body.evidence || 'Self-declared',
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      };
+
+      const ref = await db.collection('verifications').add(payload);
+      
+      logActivity('verification_requested', { field: req.body.field }, req.user.uid);
+      res.status(201).json({ id: ref.id, ...payload });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
 // DELETE /api/v1/students/:id  — admin only
 router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {

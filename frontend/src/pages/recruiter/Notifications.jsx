@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, CheckCheck, Check, X, Info, Briefcase, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
@@ -26,6 +27,7 @@ const formatDate = (value) => {
 
 export default function RecruiterNotifications() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
@@ -190,7 +192,12 @@ export default function RecruiterNotifications() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.04 }}
-                  onClick={() => !notification.isRead && markRead(notification.id)}
+                  onClick={() => {
+                    if (!notification.isRead) markRead(notification.id);
+                    if (notification.applicationId) {
+                      navigate(`/recruiter/candidates?applicationId=${notification.applicationId}`);
+                    }
+                  }}
                   className={`glass-card p-4 flex items-start gap-4 cursor-pointer transition-all border ${
                     notification.isRead ? 'border-white/5 opacity-60' : 'border-blue-electric/20 hover:border-blue-electric/40'
                   }`}

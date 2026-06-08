@@ -96,10 +96,12 @@ router.put(
           const currentSkills = normalize(current.field) === 'skills';
           const currentBranch = normalize(current.field) === 'branch';
           const currentCgpa = normalize(current.field) === 'cgpa';
+          const currentPlacement = normalize(current.field) === 'placementstatus';
           if (payload.status === 'approved') {
-            if (currentSkills && current.newValue) updates.skills = current.newValue;
+            if (currentSkills && current.newValue) updates.skills = String(current.newValue).split(',').map(s => s.trim()).filter(Boolean);
             if (currentBranch && current.newValue) updates.branch = current.newValue;
-            if (currentCgpa && current.newValue) updates.cgpa = current.newValue;
+            if (currentCgpa && current.newValue) updates.cgpa = Number(current.newValue) || 0;
+            if (currentPlacement && current.newValue) updates.placementStatus = current.newValue.toLowerCase();
           }
           if (Object.keys(updates).length) {
             await studentRef.set({ ...student, ...updates, updatedAt: new Date().toISOString(), updatedBy: req.user.uid }, { merge: true });
