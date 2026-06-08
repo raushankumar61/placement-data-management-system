@@ -24,9 +24,20 @@ const parsePackageToLpa = (value) => {
   return amount;
 };
 
+// Simple in-memory cache for admin analytics to save Firestore reads
+let adminAnalyticsCache = {
+  data: null,
+  timestamp: 0,
+};
+const CACHE_TTL_MS = 60000; // 60 seconds
+
 // GET /api/v1/analytics/admin  — admin only, full system metrics
 router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
   try {
+    // Check cache
+    if (adminAnalyticsCache.data && (Date.now() - adminAnalyticsCache.timestamp < CACHE_TTL_MS)) {
+      return res.json(adminAnalyticsCache.data);
+    }
     if (!db) {
       return res.json({
         stats: { students: 1247, placed: 847, jobs: 62, companies: 134, applications: 3800 },
@@ -127,7 +138,7 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
 
     const placedCount = students.filter((s) => (s.placementStatus || '').toLowerCase() === 'placed').length;
 
-    res.json({
+    const responseData = {
       stats: {
         students: students.length,
         placed: placedCount,
@@ -141,9 +152,18 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
       packageDist,
       topCompanies,
       recentActivity,
-    });
+    };
+
+    // Update cache
+    adminAnalyticsCache = {
+      data: responseData,
+      timestamp: Date.now(),
+    };
+
+    res.json(responseData);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Analytics Error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 

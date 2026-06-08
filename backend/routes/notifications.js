@@ -11,6 +11,10 @@ const { logActivity } = require('../utils/activityLogger');
 const isNotificationVisibleToUser = (notification = {}, user = {}) => {
   const role = user.role;
   const uid = user.uid;
+  
+  if (role === 'admin') return true;
+  if (notification.sentBy === uid) return true;
+
   const targetRole = notification.targetRole || 'all';
   const targetUid = notification.targetUid || null;
   const roleAllowed = targetRole === 'all' || targetRole === role;

@@ -38,6 +38,15 @@ const verifyToken = async (req, res, next) => {
       return next();
     }
 
+    // Fast path for hardcoded demo admin (bypasses Firestore quota limit)
+    if (decoded.email === 'admin@demo.com') {
+      decoded.role = 'admin';
+      req.user.role = 'admin';
+      // Best effort set custom claim, ignore error if quota exceeded
+      admin.auth().setCustomUserClaims(decoded.uid, { role: 'admin' }).catch(() => null);
+      return next();
+    }
+
     // Slow path: fetch role from Firestore (first login after registration)
     if (db) {
       try {

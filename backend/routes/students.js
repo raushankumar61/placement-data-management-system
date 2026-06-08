@@ -125,15 +125,43 @@ router.post(
   validate,
   async (req, res) => {
     try {
-      const payload = createSeededRecord(req.body, req.body.email || req.body.rollNo || uuidv4());
-      if (!db) return res.json({ id: uuidv4(), ...payload });
-      const ref = await db.collection('students').add({
-        ...payload,
+      let userRecord;
+      if (admin.auth && req.body.email) {
+        try {
+          userRecord = await admin.auth().getUserByEmail(req.body.email);
+        } catch (e) {
+          if (e.code === 'auth/user-not-found') {
+            userRecord = await admin.auth().createUser({
+              email: req.body.email,
+              password: 'password123',
+              displayName: req.body.name,
+            });
+          }
+        }
+      }
+
+      const refId = userRecord?.uid || uuidv4();
+      const payloadWithId = createSeededRecord(req.body, refId);
+
+      if (!db) return res.json({ id: refId, ...payloadWithId });
+      
+      const docRef = db.collection('students').doc(refId);
+      await docRef.set({
+        ...payloadWithId,
         createdAt: new Date().toISOString(),
         createdBy: req.user.uid,
       });
-      logActivity('student_created', { studentId: ref.id, name: payload.name }, req.user.uid);
-      res.status(201).json({ id: ref.id, ...payload });
+
+      // Update users collection as well
+      await db.collection('users').doc(refId).set({
+        email: payloadWithId.email,
+        name: payloadWithId.name,
+        role: 'student',
+        createdAt: new Date().toISOString(),
+      });
+
+      logActivity('student_created', { studentId: refId, name: payloadWithId.name }, req.user.uid);
+      res.status(201).json({ id: refId, ...payloadWithId });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

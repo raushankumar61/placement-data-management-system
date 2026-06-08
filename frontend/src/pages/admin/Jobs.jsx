@@ -26,6 +26,8 @@ export default function AdminJobs() {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [sortField, setSortField] = useState('date_desc');
   const [showModal, setShowModal] = useState(false);
   const [editJob, setEditJob] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
@@ -33,14 +35,29 @@ export default function AdminJobs() {
 
   const branchOptions = [...new Set(jobs.flatMap((job) => (Array.isArray(job.branches) ? job.branches : [job.branches])).filter(Boolean))].filter((branch) => branch !== 'All');
 
+  const parseNumber = (value) => {
+    const text = String(value ?? '').replace(/,/g, '').replace(/₹/g, '').trim();
+    const match = text.match(/\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : 0;
+  };
+
   const filtered = jobs.filter((j) => {
     const matchSearch = !search || j.title?.toLowerCase().includes(search.toLowerCase()) || j.company?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = !statusFilter || j.status === statusFilter;
     const matchType = !typeFilter || j.type === typeFilter;
+    const matchCompany = !companyFilter || j.company === companyFilter;
     const branches = Array.isArray(j.branches) ? j.branches : [j.branches].filter(Boolean);
     const matchBranch = !branchFilter || branches.includes('All') || branches.some((branch) => String(branch).toLowerCase() === branchFilter.toLowerCase());
-    return matchSearch && matchStatus && matchType && matchBranch;
+    return matchSearch && matchStatus && matchType && matchBranch && matchCompany;
+  }).sort((a, b) => {
+    if (sortField === 'date_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    if (sortField === 'date_asc') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+    if (sortField === 'ctc_desc') return (parseNumber(b.ctcValue) || parseNumber(b.ctc)) - (parseNumber(a.ctcValue) || parseNumber(a.ctc));
+    if (sortField === 'deadline_asc') return new Date(a.deadline || 0) - new Date(b.deadline || 0);
+    return 0;
   });
+
+  const companyOptions = [...new Set(jobs.map((job) => job.company).filter(Boolean))].sort();
 
   const openModal = (job = null) => {
     setEditJob(job);
@@ -130,13 +147,22 @@ export default function AdminJobs() {
                 <option key={branch} value={branch} className="bg-dark-700">{branch}</option>
               ))}
             </select>
-            {(search || statusFilter || typeFilter || branchFilter) && (
+            <select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none">
+              <option value="">All Companies</option>
+              {companyOptions.map((comp) => (
+                <option key={comp} value={comp} className="bg-dark-700">{comp}</option>
+              ))}
+            </select>
+            <select value={sortField} onChange={(e) => setSortField(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none font-semibold text-blue-400">
+              <option value="date_desc" className="bg-dark-700">Sort: Newest First</option>
+              <option value="date_asc" className="bg-dark-700">Sort: Oldest First</option>
+              <option value="ctc_desc" className="bg-dark-700">Sort: Highest CTC</option>
+              <option value="deadline_asc" className="bg-dark-700">Sort: Deadline Soon</option>
+            </select>
+            {(search || statusFilter || typeFilter || branchFilter || companyFilter) && (
               <button
                 onClick={() => {
-                  setSearch('');
-                  setStatusFilter('');
-                  setTypeFilter('');
-                  setBranchFilter('');
+                  setSearch(''); setStatusFilter(''); setTypeFilter(''); setBranchFilter(''); setCompanyFilter('');
                 }}
                 className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body"
               >

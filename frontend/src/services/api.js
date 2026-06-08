@@ -45,6 +45,9 @@ api.interceptors.response.use(
 );
 
 export const searchStudents = (q) => api.get('/students/search', { params: { q } });
+export const searchRecruiters = (q) => api.get('/recruiters/search', { params: { q } });
+export const searchFaculty = (q) => api.get('/faculty/search', { params: { q } });
+export const getFaculty = () => api.get('/faculty');
 export const getStudents = (params) => api.get('/students', { params });
 export const getStudent = (id) => api.get(`/students/${id}`);
 export const createStudent = (data) => api.post('/students', data);

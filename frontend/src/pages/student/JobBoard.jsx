@@ -69,6 +69,7 @@ const normalizeStudentForEligibility = (student = {}, userProfile = {}, user = n
 export default function StudentJobBoard() {
   const { user, userProfile } = useAuth();
   const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState('openings_desc');
   const [student, setStudent] = useState(null);
   const [selectedCompanyName, setSelectedCompanyName] = useState(null);
   const [applying, setApplying] = useState(false);
@@ -171,11 +172,17 @@ export default function StudentJobBoard() {
     return Array.from(map.values()).map(c => ({
       ...c,
       locations: Array.from(c.locations).join(', ') || 'Multiple Locations',
+      jobs: c.jobs.sort((a, b) => (b.jobPackageLpa || 0) - (a.jobPackageLpa || 0))
     }));
   }, [displayedJobs]);
 
   const filteredCompanies = companiesData.filter((c) => {
     return !search || c.name.toLowerCase().includes(search.toLowerCase());
+  }).sort((a, b) => {
+    if (sortField === 'openings_desc') return b.jobs.length - a.jobs.length;
+    if (sortField === 'eligible_desc') return b.eligibleCount - a.eligibleCount;
+    if (sortField === 'az') return a.name.localeCompare(b.name);
+    return 0;
   });
 
   useEffect(() => {
@@ -242,6 +249,11 @@ export default function StudentJobBoard() {
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-white/40 text-xs font-body">{filteredCompanies.length} companies hiring</p>
+            <select value={sortField} onChange={(e) => setSortField(e.target.value)} className="input-field py-1.5 text-xs w-36 appearance-none font-semibold text-blue-400">
+              <option value="openings_desc" className="bg-dark-700">Most Openings</option>
+              <option value="eligible_desc" className="bg-dark-700">Most Eligible</option>
+              <option value="az" className="bg-dark-700">A - Z</option>
+            </select>
           </div>
 
           <div className="space-y-3">

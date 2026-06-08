@@ -9,6 +9,44 @@ const { logActivity } = require('../utils/activityLogger');
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 
+// GET /api/v1/faculty
+router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
+  try {
+    if (!db) return res.json({ faculty: [], total: 0 });
+    const snap = await db.collection('users').where('role', '==', 'faculty').get();
+    const faculty = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ faculty, total: faculty.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/v1/faculty/search - unauthenticated endpoint for login autocomplete
+router.get('/search', async (req, res) => {
+  try {
+    if (!db) return res.json({ faculty: [] });
+    const q = String(req.query.q || '').toLowerCase().trim();
+    if (q.length < 2) return res.json({ faculty: [] });
+
+    // Fetch users with role 'faculty'
+    const snap = await db.collection('users').where('role', '==', 'faculty').limit(100).get();
+    let facultyList = snap.docs.map((d) => ({
+      id: d.id,
+      email: d.data().email || '',
+      department: d.data().department || 'Faculty',
+      name: d.data().name || 'Faculty Member'
+    }));
+
+    facultyList = facultyList.filter(
+      (f) => f.department.toLowerCase().includes(q) || f.name.toLowerCase().includes(q) || f.email.toLowerCase().includes(q)
+    ).slice(0, 10);
+
+    res.json({ faculty: facultyList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/v1/faculty/verifications
 router.get('/verifications', verifyToken, requireRole('admin', 'faculty'), async (req, res) => {
   try {

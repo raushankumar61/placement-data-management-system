@@ -8,12 +8,12 @@ import toast from 'react-hot-toast';
 import { validateForm, validators } from '../utils/validation';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../services/firebase';
-import { searchStudents } from '../services/api';
+import { searchStudents, searchRecruiters, searchFaculty } from '../services/api';
 
 const ROLES = [
   { id: 'student', label: 'Student', icon: User, demoEmail: '' },
-  { id: 'recruiter', label: 'Recruiter', icon: Briefcase, demoEmail: 'recruiter@demo.com' },
-  { id: 'faculty', label: 'Faculty', icon: BookOpen, demoEmail: 'faculty@demo.com' },
+  { id: 'recruiter', label: 'Recruiter', icon: Briefcase, demoEmail: '' },
+  { id: 'faculty', label: 'Faculty', icon: BookOpen, demoEmail: '' },
   { id: 'admin', label: 'Admin', icon: Shield, demoEmail: 'admin@demo.com' }
 ];
 
@@ -22,11 +22,11 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
-  // Student Search states
+  // Search states for student, recruiter, faculty
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedAccount, setSelectedAccount] = useState(null);
   const searchDebounceRef = useRef(null);
 
   const [showPass, setShowPass] = useState(false);
@@ -44,21 +44,21 @@ export default function Login() {
   // Handle Role Switching
   useEffect(() => {
     const roleConfig = ROLES.find(r => r.id === activeRole);
-    if (activeRole !== 'student') {
+    if (activeRole === 'admin') {
       setEmail(roleConfig.demoEmail);
       setPassword('password123'); // Demo password
     } else {
       setEmail('');
       setPassword('');
-      setSelectedStudent(null);
-      setSearchQuery('');
     }
+    setSelectedAccount(null);
+    setSearchQuery('');
     setResetOpen(false);
   }, [activeRole]);
 
-  // Handle Student Search
+  // Handle Auto-Search
   useEffect(() => {
-    if (activeRole !== 'student' || selectedStudent) return;
+    if (activeRole === 'admin' || selectedAccount) return;
     
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     
@@ -71,17 +71,27 @@ export default function Login() {
     setIsSearching(true);
     searchDebounceRef.current = setTimeout(async () => {
       try {
-        const { data } = await searchStudents(searchQuery.trim());
-        setSearchResults(data.students || []);
+        const query = searchQuery.trim();
+        let res;
+        if (activeRole === 'student') {
+          res = await searchStudents(query);
+          setSearchResults(res.data.students || []);
+        } else if (activeRole === 'recruiter') {
+          res = await searchRecruiters(query);
+          setSearchResults(res.data.recruiters || []);
+        } else if (activeRole === 'faculty') {
+          res = await searchFaculty(query);
+          setSearchResults(res.data.faculty || []);
+        }
       } catch (err) {
-        console.error('Failed to search students', err);
+        console.error(`Failed to search ${activeRole}`, err);
       } finally {
         setIsSearching(false);
       }
     }, 400);
 
     return () => clearTimeout(searchDebounceRef.current);
-  }, [searchQuery, activeRole, selectedStudent]);
+  }, [searchQuery, activeRole, selectedAccount]);
 
   const getRoleRedirect = (role) => {
     const map = { admin: '/admin/dashboard', student: '/student/dashboard', recruiter: '/recruiter/dashboard', faculty: '/faculty/dashboard' };
@@ -91,10 +101,10 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     
-    const loginEmail = activeRole === 'student' && selectedStudent ? selectedStudent.email : email;
+    const loginEmail = activeRole !== 'admin' && selectedAccount ? selectedAccount.email : email;
     
-    if (activeRole === 'student' && !selectedStudent) {
-      return toast.error('Please search and select your student account first');
+    if (activeRole !== 'admin' && !selectedAccount) {
+      return toast.error('Please search and select your account first');
     }
 
     const errors = validateForm(
@@ -135,7 +145,7 @@ export default function Login() {
 
   const handlePasswordReset = async (e) => {
     e.preventDefault();
-    const loginEmail = activeRole === 'student' && selectedStudent ? selectedStudent.email : email;
+    const loginEmail = activeRole !== 'admin' && selectedAccount ? selectedAccount.email : email;
     const emailValue = resetEmail.trim() || loginEmail.trim();
     if (!emailValue) {
       return toast.error('Enter your email first');
@@ -204,10 +214,10 @@ export default function Login() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             
-            {/* Student Flow */}
-            {activeRole === 'student' && (
+            {/* Search Flow (For Student, Recruiter, Faculty) */}
+            {activeRole !== 'admin' && (
               <>
-                {!selectedStudent ? (
+                {!selectedAccount ? (
                   <div className="relative">
                     <label className="block text-white/60 text-xs font-semibold uppercase tracking-wider mb-2 font-body">Find Your Account</label>
                     <div className="relative">
@@ -216,7 +226,7 @@ export default function Login() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search Name, USN, or Email..."
+                        placeholder={`Search ${activeRole}...`}
                         className="input-field pl-10"
                         autoComplete="off"
                       />
@@ -228,21 +238,25 @@ export default function Login() {
                     {/* Autocomplete Results */}
                     {searchQuery.trim().length >= 2 && searchResults.length > 0 && (
                       <div className="absolute top-full mt-2 w-full glass-card border border-white/10 max-h-60 overflow-y-auto z-50 p-2 shadow-2xl">
-                        {searchResults.map(student => (
+                        {searchResults.map(acc => (
                           <div 
-                            key={student.id}
+                            key={acc.id}
                             onClick={() => {
-                              setSelectedStudent(student);
+                              setSelectedAccount(acc);
                               setPassword('password123'); // Demo auto-fill password
                               setSearchQuery('');
                               setSearchResults([]);
                             }}
                             className="p-3 hover:bg-white/5 cursor-pointer rounded-lg transition-colors border border-transparent hover:border-white/5"
                           >
-                            <div className="font-semibold text-white text-sm">{student.name}</div>
+                            <div className="font-semibold text-white text-sm">
+                              {activeRole === 'recruiter' && acc.companyName ? `${acc.name} (${acc.companyName})` : acc.name}
+                            </div>
                             <div className="flex gap-2 mt-1">
-                              {student.rollNo && <span className="badge-blue text-[10px] py-0">{student.rollNo}</span>}
-                              <span className="text-white/40 text-xs font-body">{student.email}</span>
+                              {activeRole === 'student' && acc.rollNo && <span className="badge-blue text-[10px] py-0">{acc.rollNo}</span>}
+                              {activeRole === 'faculty' && acc.department && <span className="badge-orange text-[10px] py-0">{acc.department}</span>}
+                              {activeRole === 'recruiter' && acc.companyName && <span className="badge-green text-[10px] py-0">{acc.companyName}</span>}
+                              <span className="text-white/40 text-xs font-body">{acc.email}</span>
                             </div>
                           </div>
                         ))}
@@ -250,7 +264,7 @@ export default function Login() {
                     )}
                     {searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
                       <div className="absolute top-full mt-2 w-full glass-card border border-white/10 p-4 text-center z-50">
-                        <p className="text-white/40 text-xs font-body">No students found matching "{searchQuery}"</p>
+                        <p className="text-white/40 text-xs font-body">No {activeRole}s found matching "{searchQuery}"</p>
                       </div>
                     )}
                   </div>
@@ -258,18 +272,22 @@ export default function Login() {
                   <div className="glass-card p-4 border border-blue-electric/30 bg-blue-electric/5 relative">
                     <button 
                       type="button" 
-                      onClick={() => setSelectedStudent(null)}
+                      onClick={() => setSelectedAccount(null)}
                       className="absolute top-3 right-3 text-white/40 hover:text-white"
                     >
                       <X size={16} />
                     </button>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-electric/20 flex items-center justify-center text-blue-electric font-bold text-lg">
-                        {selectedStudent.name[0]}
+                        {selectedAccount.name ? selectedAccount.name[0] : 'A'}
                       </div>
                       <div>
-                        <p className="text-white font-semibold text-sm">{selectedStudent.name}</p>
-                        <p className="text-white/60 text-xs font-body">{selectedStudent.rollNo || selectedStudent.email}</p>
+                        <p className="text-white font-semibold text-sm">
+                          {activeRole === 'recruiter' && selectedAccount.companyName ? `${selectedAccount.name} (${selectedAccount.companyName})` : selectedAccount.name}
+                        </p>
+                        <p className="text-white/60 text-xs font-body">
+                          {activeRole === 'student' ? selectedAccount.rollNo || selectedAccount.email : selectedAccount.email}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -277,8 +295,8 @@ export default function Login() {
               </>
             )}
 
-            {/* Non-Student Flow (Email Input) */}
-            {activeRole !== 'student' && (
+            {/* Admin Flow (Email Input) */}
+            {activeRole === 'admin' && (
               <div>
                 <label className="block text-white/60 text-xs font-semibold uppercase tracking-wider mb-2 font-body">Email</label>
                 <div className="relative">
@@ -295,8 +313,8 @@ export default function Login() {
               </div>
             )}
 
-            {/* Password Input (Shown for non-students OR selected students) */}
-            {(activeRole !== 'student' || selectedStudent) && (
+            {/* Password Input (Shown for Admin OR selected account) */}
+            {(activeRole === 'admin' || selectedAccount) && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                 <label className="block text-white/60 text-xs font-semibold uppercase tracking-wider mb-2 font-body mt-4">Password</label>
                 <div className="relative">
@@ -320,12 +338,12 @@ export default function Login() {
               </motion.div>
             )}
 
-            {(activeRole !== 'student' || selectedStudent) && (
+            {(activeRole === 'admin' || selectedAccount) && (
               <div className="flex justify-end pt-2">
                 <button
                   type="button"
                   onClick={() => {
-                    const loginEmail = activeRole === 'student' && selectedStudent ? selectedStudent.email : email;
+                    const loginEmail = activeRole !== 'admin' && selectedAccount ? selectedAccount.email : email;
                     setResetEmail(loginEmail);
                     setResetOpen((prev) => !prev);
                   }}
@@ -370,7 +388,7 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading || (activeRole === 'student' && !selectedStudent)}
+              disabled={loading || (activeRole !== 'admin' && !selectedAccount)}
               className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
             >
               {loading ? (

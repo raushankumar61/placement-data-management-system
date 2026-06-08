@@ -37,7 +37,7 @@ async function createAuthUser(email, password, displayName, role) {
   return userRecord.uid;
 }
 
-async function createOrUpdateUser(email, password, displayName, role) {
+async function createOrUpdateUser(email, password, displayName, role, meta = {}) {
   let userRecord;
   try {
     userRecord = await admin.auth().getUserByEmail(email);
@@ -59,12 +59,18 @@ async function createOrUpdateUser(email, password, displayName, role) {
     createdAt: new Date().toISOString(),
   };
 
-  if (role === 'student') userData.department = 'Computer Science';
+  if (role === 'student') userData.department = meta.department || 'Computer Science';
+  if (role === 'recruiter') userData.companyName = meta.companyName || 'TechNova';
+  if (role === 'faculty') {
+    userData.designation = meta.designation || 'Faculty Member';
+    userData.employeeId = meta.employeeId || 'FAC-000';
+  }
   await db.collection('users').doc(userRecord.uid).set(userData);
 
   if (role === 'recruiter') {
     await db.collection('recruiters').doc(userRecord.uid).set({
-      companyName: 'TechNova Demo',
+      companyName: meta.companyName || 'TechNova Demo',
+      name: displayName,
       contactEmail: email,
       verified: true,
       createdAt: new Date().toISOString()
@@ -127,13 +133,56 @@ async function seed() {
   await deleteCollection('alumni');
   await deleteCollection('systemActivity');
   await deleteCollection('students');
+  await deleteCollection('recruiters');
 
   console.log('Creating demo accounts...');
   const pw = 'password123';
   await createOrUpdateUser('admin@demo.com', pw, 'Demo Admin', 'admin');
-  await createOrUpdateUser('faculty@demo.com', pw, 'Demo Faculty', 'faculty');
-  const recruiterUid = await createOrUpdateUser('recruiter@demo.com', pw, 'Demo Recruiter', 'recruiter');
-  const studentUid = await createOrUpdateUser('student@demo.com', pw, 'Demo Student', 'student');
+  
+  const facultyList = [
+    { email: 'cs.hod@demo.edu', name: 'Dr. Anita Sharma', dept: 'Computer Science', designation: 'Head of Department', empId: 'FAC-CS-001' },
+    { email: 'cs.coord@demo.edu', name: 'Prof. Rajesh Kumar', dept: 'Computer Science', designation: 'Placement Coordinator', empId: 'FAC-CS-002' },
+    { email: 'it.hod@demo.edu', name: 'Dr. Vikram Singh', dept: 'Information Technology', designation: 'Head of Department', empId: 'FAC-IT-001' },
+    { email: 'it.coord@demo.edu', name: 'Prof. Neha Gupta', dept: 'Information Technology', designation: 'Placement Coordinator', empId: 'FAC-IT-002' },
+    { email: 'ec.hod@demo.edu', name: 'Dr. Ramesh Rao', dept: 'Electronics & Communication', designation: 'Head of Department', empId: 'FAC-EC-001' },
+    { email: 'ec.coord@demo.edu', name: 'Prof. Priya Desai', dept: 'Electronics & Communication', designation: 'Placement Coordinator', empId: 'FAC-EC-002' },
+    { email: 'me.hod@demo.edu', name: 'Dr. S. K. Patel', dept: 'Mechanical', designation: 'Head of Department', empId: 'FAC-ME-001' },
+    { email: 'me.coord@demo.edu', name: 'Prof. Arvind Menon', dept: 'Mechanical', designation: 'Placement Coordinator', empId: 'FAC-ME-002' },
+    { email: 'cv.hod@demo.edu', name: 'Dr. R. K. Iyer', dept: 'Civil', designation: 'Head of Department', empId: 'FAC-CV-001' },
+    { email: 'cv.coord@demo.edu', name: 'Prof. Sushma Reddy', dept: 'Civil', designation: 'Placement Coordinator', empId: 'FAC-CV-002' }
+  ];
+
+  for (const f of facultyList) {
+    await createOrUpdateUser(f.email, pw, f.name, 'faculty', { department: f.dept, designation: f.designation, employeeId: f.empId });
+  }
+
+  const companyReps = {
+    'Amazon': 'Andy (Amazon)',
+    'Google': 'Sundar (Google)',
+    'Meta': 'Mark (Meta)',
+    'Microsoft': 'Satya (Microsoft)',
+    'Razorpay': 'Harshil (Razorpay)',
+    'Deloitte': 'Punit (Deloitte)',
+    'Swiggy': 'Sriharsha (Swiggy)',
+    'TCS': 'K. Krithivasan (TCS)',
+    'Wipro': 'Thierry (Wipro)',
+    'Accenture': 'Julie (Accenture)'
+  };
+  const recruiterMap = {};
+  for (const [company, rep] of Object.entries(companyReps)) {
+    const email = `${company.toLowerCase().replace(/[^a-z]/g, '')}.recruiter@demo.com`;
+    const uid = await createOrUpdateUser(email, pw, rep, 'recruiter', { companyName: company });
+    recruiterMap[company] = { uid, name: rep };
+  }
+  const defaultRecruiterUid = await createOrUpdateUser('recruiter@demo.com', pw, 'Demo Recruiter', 'recruiter', { companyName: 'TechNova Demo' });
+  recruiterMap['TechNova Demo'] = { uid: defaultRecruiterUid, name: 'Demo Recruiter' };
+
+  // Dummy arrays so the jobs object definition doesn't throw ReferenceError
+  const recruiterUid = defaultRecruiterUid;
+  const recruiterIds = [defaultRecruiterUid];
+  const recruiterNames = ['Demo Recruiter'];
+
+  const studentUid = await createOrUpdateUser('student@demo.com', pw, 'Demo Student', 'student', { department: 'Computer Science' });
 
   console.log('Generating realistic jobs...');
   
@@ -152,8 +201,8 @@ async function seed() {
       openings: 15,
       minCGPA: 8.0,
       deadline: randomDate(15, 30),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
+      recruiterId: recruiterIds[Math.floor(Math.random() * recruiterIds.length)],
+      recruiterName: recruiterNames[Math.floor(Math.random() * recruiterNames.length)],
       description: 'Design and build scalable services. Strong problem solving and DSA skills required.',
       perks: ['Relocation Bonus', 'Health Insurance', 'Free Meals'],
       branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'],
@@ -173,8 +222,8 @@ async function seed() {
       openings: 8,
       minCGPA: 8.5,
       deadline: randomDate(10, 20),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
+      recruiterId: recruiterIds[Math.floor(Math.random() * recruiterIds.length)],
+      recruiterName: recruiterNames[Math.floor(Math.random() * recruiterNames.length)],
       description: 'Join the Google Cloud team to work on distributed systems and massive scale architectures.',
       perks: ['Stock Options', 'Gym', 'Free Meals'],
       branches: ['Computer Science', 'Information Technology'],
@@ -194,8 +243,8 @@ async function seed() {
       openings: 5,
       minCGPA: 8.5,
       deadline: randomDate(5, 15),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
+      recruiterId: recruiterIds[Math.floor(Math.random() * recruiterIds.length)],
+      recruiterName: recruiterNames[Math.floor(Math.random() * recruiterNames.length)],
       description: 'Build predictive models and scalable AI algorithms for billion-user products.',
       perks: ['Free Meals', 'Relocation Allowance', 'Unlimited PTO'],
       branches: ['Computer Science', 'Information Technology'],
@@ -215,8 +264,8 @@ async function seed() {
       openings: 12,
       minCGPA: 7.5,
       deadline: randomDate(-5, 5),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
+      recruiterId: recruiterIds[Math.floor(Math.random() * recruiterIds.length)],
+      recruiterName: recruiterNames[Math.floor(Math.random() * recruiterNames.length)],
       description: 'Develop responsive, highly interactive user interfaces using React and modern CSS.',
       perks: ['Remote Work Stipend', 'Health Insurance', 'Gym Allowance'],
       branches: ['Computer Science', 'Information Technology'],
@@ -238,8 +287,8 @@ async function seed() {
       openings: 20,
       minCGPA: 7.0,
       deadline: randomDate(10, 40),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
+      recruiterId: recruiterIds[Math.floor(Math.random() * recruiterIds.length)],
+      recruiterName: recruiterNames[Math.floor(Math.random() * recruiterNames.length)],
       description: 'Work on cutting-edge fintech products. Node.js and React expertise required.',
       perks: ['MacBook', 'Health Insurance', 'Learning Budget'],
       branches: ['Computer Science', 'Information Technology'],
@@ -259,8 +308,8 @@ async function seed() {
       openings: 35,
       minCGPA: 6.5,
       deadline: randomDate(-10, 10),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
+      recruiterId: recruiterIds[Math.floor(Math.random() * recruiterIds.length)],
+      recruiterName: recruiterNames[Math.floor(Math.random() * recruiterNames.length)],
       description: 'Analyze business needs, document requirements, and coordinate with technical teams.',
       perks: ['Health Insurance', 'Performance Bonus'],
       branches: ['All'],
@@ -280,8 +329,8 @@ async function seed() {
       openings: 15,
       minCGPA: 7.0,
       deadline: randomDate(5, 20),
-      recruiterId: recruiterUid,
-      recruiterName: 'Demo Recruiter',
+      recruiterId: recruiterIds[Math.floor(Math.random() * recruiterIds.length)],
+      recruiterName: recruiterNames[Math.floor(Math.random() * recruiterNames.length)],
       description: '6-month internship leading to PPO. Work on high-scale delivery logistics.',
       perks: ['Stipend', 'Free Food', 'PPO Opportunity'],
       branches: ['Computer Science', 'Information Technology'],
@@ -356,7 +405,11 @@ async function seed() {
   ];
 
   for (let i = 0; i < jobs.length; i++) {
-    await db.collection('jobs').doc(`mock_job_${i}`).set(jobs[i]);
+    const job = jobs[i];
+    const rec = recruiterMap[job.company] || recruiterMap['TechNova Demo'];
+    job.recruiterId = rec.uid;
+    job.recruiterName = rec.name;
+    await db.collection('jobs').doc(`mock_job_${i}`).set(job);
   }
 
   console.log('Generating realistic students, applications, and interviews...');
@@ -467,7 +520,9 @@ async function seed() {
             ctc: job.ctc,
             appliedAt: appliedDate,
             updatedAt: randomDate(-10, 0),
-            createdAt: appliedDate
+            createdAt: appliedDate,
+            recruiterId: job.recruiterId,
+            recruiterName: job.recruiterName
           };
           batch.set(appRef, appData);
           systemApplications.push(appData);
@@ -492,6 +547,7 @@ async function seed() {
             instructions: 'Final interview',
             status: 'completed',
             createdBy: 'mock_system',
+            recruiterId: job.recruiterId,
             feedback: {
               rating: 4 + Math.floor(Math.random() * 2), // 4 or 5
               strengths: `Excellent problem solving. Handled the ${studentSkills[0]} questions perfectly.`,
@@ -534,7 +590,9 @@ async function seed() {
             status: status,
             appliedAt: appliedDate,
             updatedAt: isPending ? appliedDate : randomDate(-10, 0),
-            createdAt: appliedDate
+            createdAt: appliedDate,
+            recruiterId: randomJob.recruiterId,
+            recruiterName: randomJob.recruiterName
           });
           opCount++;
 
@@ -553,8 +611,10 @@ async function seed() {
               platform: 'Zoom',
               round: 'Technical Round 1',
               link: 'https://zoom.us/mock-link',
+              instructions: 'Initial technical screening',
               status: 'completed',
               createdBy: 'mock_system',
+              recruiterId: randomJob.recruiterId,
               feedback: {
                 rating: 2,
                 strengths: 'Good communication skills.',

@@ -21,6 +21,7 @@ const NAV_CONFIG = {
     { label: 'Reports', icon: BarChart3, path: '/admin/reports' },
     { label: 'Notifications', icon: Bell, path: '/admin/notifications' },
     { label: 'Recruiters', icon: Building2, path: '/admin/recruiters' },
+    { label: 'Faculty', icon: BookOpen, path: '/admin/faculty' },
     { label: 'Complaints', icon: MessageSquare, path: '/admin/complaints' },
   ],
   student: [

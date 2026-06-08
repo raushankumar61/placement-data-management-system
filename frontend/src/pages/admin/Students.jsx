@@ -87,6 +87,7 @@ export default function AdminStudents() {
       // Load students with a larger limit since there's no UI pagination yet
       const studentsRes = await getStudents({ limit: 500, offset: 0 });
       const data = (studentsRes.data?.students || []).map((student) => ({ id: student.id, ...fillStudentDefaults(student, student.id) }));
+      data.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setStudents(data);
       setFiltered(data);
 
