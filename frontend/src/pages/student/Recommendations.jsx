@@ -1,5 +1,5 @@
 // src/pages/student/Recommendations.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Zap, MapPin, DollarSign, TrendingUp, BookOpen } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';

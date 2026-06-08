@@ -1,12 +1,36 @@
 // src/pages/admin/Applications.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { getApplications, getStudents, getJobs, updateApplicationStatus } from '../../services/api';
 import toast from 'react-hot-toast';
 
-const STATUS_CLASS = { Selected: 'badge-green', Shortlisted: 'badge-blue', Applied: 'badge-gray', Rejected: 'badge-red', 'In Process': 'badge-gold' };
+const STATUS_CLASS = { 
+  Selected: 'badge-green', 
+  Shortlisted: 'badge-blue', 
+  Applied: 'badge-gray', 
+  Rejected: 'badge-red', 
+  'In Process': 'badge-gold',
+  verified_by_admin: 'badge-blue',
+  rejected_by_admin: 'badge-red',
+  shortlist_recommended: 'badge-gold',
+  selection_recommended: 'badge-gold',
+  interview_scheduled: 'badge-blue'
+};
+
+const STATUS_OPTIONS = [
+  { value: 'Applied', label: 'Applied (Pending)' },
+  { value: 'verified_by_admin', label: 'Verify & Forward' },
+  { value: 'rejected_by_admin', label: 'Reject (Admin)' },
+  { value: 'shortlist_recommended', label: 'Rec. Shortlist' },
+  { value: 'Shortlisted', label: 'Publish Shortlist' },
+  { value: 'interview_scheduled', label: 'Interview Scheduled' },
+  { value: 'selection_recommended', label: 'Rec. Selection' },
+  { value: 'Selected', label: 'Publish Selection' },
+  { value: 'Rejected', label: 'Final Reject' },
+  { value: 'In Process', label: 'In Process' }
+];
 
 export default function AdminApplications() {
   const [search, setSearch] = useState('');
@@ -54,7 +78,16 @@ export default function AdminApplications() {
   };
 
   useEffect(() => {
-    loadApplications();
+    let isMounted = true;
+    const fetch = async () => {
+      if (isMounted) await loadApplications();
+    };
+    fetch();
+    const interval = setInterval(fetch, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const filtered = applications.filter((a) => {
@@ -80,17 +113,20 @@ export default function AdminApplications() {
     <DashboardLayout title="Application Tracker">
       <div className="space-y-5">
         {/* Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {['Applied', 'Shortlisted', 'In Process', 'Selected', 'Rejected'].map((s) => (
-            <div key={s} className="glass-card p-4 text-center cursor-pointer hover:border-white/20 transition-colors border border-white/5"
-              onClick={() => setStatusFilter(statusFilter === s ? '' : s)}>
-              <p className={`font-heading font-bold text-xl ${
-                s === 'Selected' ? 'text-green-400' : s === 'Rejected' ? 'text-red-400' :
-                s === 'Shortlisted' ? 'text-blue-electric' : s === 'In Process' ? 'text-gold' : 'text-white/70'
-              }`}>{applications.filter((a) => a.status === s).length}</p>
-              <p className="text-white/40 text-xs font-body mt-1">{s}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {['Applied', 'verified_by_admin', 'Shortlisted', 'Selected', 'Rejected'].map((s) => {
+            const label = s === 'Applied' ? 'Pending Verify' : s === 'verified_by_admin' ? 'Verified' : s;
+            return (
+              <div key={s} className="glass-card p-4 text-center cursor-pointer hover:border-white/20 transition-colors border border-white/5"
+                onClick={() => setStatusFilter(statusFilter === s ? '' : s)}>
+                <p className={`font-heading font-bold text-xl ${
+                  s === 'Selected' ? 'text-green-400' : (s === 'Rejected' || s === 'rejected_by_admin') ? 'text-red-400' :
+                  (s === 'Shortlisted' || s === 'verified_by_admin') ? 'text-blue-electric' : 'text-white/70'
+                }`}>{applications.filter((a) => String(a.status).toLowerCase() === s.toLowerCase()).length}</p>
+                <p className="text-white/40 text-xs font-body mt-1">{label}</p>
+              </div>
+            );
+          })}
         </div>
 
         {/* Filters */}
@@ -101,10 +137,10 @@ export default function AdminApplications() {
               onChange={(e) => setSearch(e.target.value)} className="input-field pl-9 py-2 text-sm w-52" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="input-field py-2 text-sm w-36 appearance-none">
+            className="input-field py-2 text-sm w-44 appearance-none">
             <option value="">All Status</option>
-            {['Applied', 'Shortlisted', 'In Process', 'Selected', 'Rejected'].map((s) => (
-              <option key={s} value={s} className="bg-dark-700">{s}</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value} className="bg-dark-700">{s.label}</option>
             ))}
           </select>
         </div>
@@ -135,9 +171,9 @@ export default function AdminApplications() {
                     <td className="px-4 py-3"><span className={STATUS_CLASS[app.status]}>{app.status}</span></td>
                     <td className="px-4 py-3">
                       <select value={app.status} onChange={(e) => updateStatus(app.id, e.target.value)}
-                        className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white/60 text-xs appearance-none">
-                        {['Applied', 'Shortlisted', 'Selected', 'Rejected'].map((s) => (
-                          <option key={s} value={s} className="bg-dark-700">{s}</option>
+                        className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white/60 text-xs appearance-none w-32">
+                        {STATUS_OPTIONS.map((s) => (
+                          <option key={s.value} value={s.value} className="bg-dark-700">{s.label}</option>
                         ))}
                       </select>
                     </td>

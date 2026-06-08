@@ -1,7 +1,7 @@
 // src/pages/admin/Students.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Upload, Download, Trash2, Edit2, Filter, X, ChevronDown } from 'lucide-react';
+import { Plus, Search, Upload, Download, Trash2, Edit2, X } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
@@ -84,17 +84,18 @@ export default function AdminStudents() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      // Load students with pagination (50 per page)
-      const studentsRes = await getStudents({ limit: 50, offset: 0 });
+      // Load students with a larger limit since there's no UI pagination yet
+      const studentsRes = await getStudents({ limit: 500, offset: 0 });
       const data = (studentsRes.data?.students || []).map((student) => ({ id: student.id, ...fillStudentDefaults(student, student.id) }));
+      data.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setStudents(data);
       setFiltered(data);
 
       // Load supporting data in background (deferred)
       Promise.all([
-        getApplications({ limit: 500 }),
-        getJobs({ limit: 200 }),
-        getInterviews({ limit: 500 }),
+        getApplications({ limit: 500 }).catch(() => ({ data: { applications: [] } })),
+        getJobs({ limit: 200 }).catch(() => ({ data: { jobs: [] } })),
+        getInterviews({ limit: 500 }).catch(() => ({ data: { interviews: [] } })),
       ]).then(([appsRes, jobsRes, interviewsRes]) => {
         setApplications(appsRes.data?.applications || []);
         const jobs = (jobsRes.data?.jobs || []).reduce((acc, job) => {
@@ -182,7 +183,16 @@ export default function AdminStudents() {
     };
   };
 
-  useEffect(() => { fetchStudents(); }, [fetchStudents]);
+  useEffect(() => { 
+    let isMounted = true;
+    const fetch = async () => {
+      if (isMounted) await fetchStudents();
+    };
+    fetch();
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchStudents]);
 
   useEffect(() => {
     let result = students;

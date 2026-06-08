@@ -1,9 +1,9 @@
 // src/pages/recruiter/MyJobs.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Briefcase, Users, X, Edit2, EyeOff, CheckCircle,
-  Plus, Search, Clock, AlertCircle
+  Plus, Search, Clock
 } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,7 @@ import { Link } from 'react-router-dom';
 import { branchMatches } from '../../utils/branchEligibility';
 
 const BRANCHES = ['All', 'Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical'];
-const STATUS_BADGE = { active: 'badge-green', closed: 'badge-red', draft: 'badge-gray' };
+const STATUS_BADGE = { active: 'badge-green', published: 'badge-green', closed: 'badge-red', draft: 'badge-gray', pending_approval: 'badge-gold' };
 
 export default function RecruiterMyJobs() {
   const { user } = useAuth();
@@ -63,7 +63,8 @@ export default function RecruiterMyJobs() {
 
   const stats = useMemo(() => ({
     total: jobs.length,
-    active: jobs.filter((j) => j.status === 'active').length,
+    active: jobs.filter((j) => j.status === 'active' || j.status === 'published').length,
+    pending: jobs.filter((j) => j.status === 'pending_approval').length,
     closed: jobs.filter((j) => j.status === 'closed').length,
     totalApplicants: jobs.reduce((s, j) => s + (Number(j.applicants) || 0), 0),
   }), [jobs]);
@@ -83,6 +84,10 @@ export default function RecruiterMyJobs() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!editing) return;
+
+    const trimmedTitle = (editing.title || '').trim();
+    if (!trimmedTitle) return toast.error('Job Title cannot be empty');
+
     setSaving(true);
     try {
       await updateJob(editing.id, {
@@ -126,12 +131,13 @@ export default function RecruiterMyJobs() {
       <div className="space-y-5">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: 'Total Posted', value: stats.total, color: 'text-white' },
             { label: 'Active', value: stats.active, color: 'text-green-400' },
+            { label: 'Pending', value: stats.pending, color: 'text-gold' },
             { label: 'Closed', value: stats.closed, color: 'text-red-400' },
-            { label: 'Total Applicants', value: stats.totalApplicants, color: 'text-blue-electric' },
+            { label: 'Applicants', value: stats.totalApplicants, color: 'text-blue-electric' },
           ].map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.07 }} className="glass-card p-4">
@@ -149,10 +155,13 @@ export default function RecruiterMyJobs() {
               className="input-field pl-9 py-2 text-sm w-full" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="input-field py-2 text-sm w-32 appearance-none">
-            <option value="">All</option>
-            <option value="active">Active</option>
+            className="input-field py-2 text-sm w-36 appearance-none">
+            <option value="">All Status</option>
+            <option value="pending_approval">Pending Approval</option>
+            <option value="published">Published</option>
+            <option value="active">Active (Legacy)</option>
             <option value="closed">Closed</option>
+            <option value="rejected">Rejected</option>
           </select>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
             <option value="">All Types</option>
@@ -221,8 +230,8 @@ export default function RecruiterMyJobs() {
                         <span className="flex items-center gap-1">
                           <Users size={11} />{job.applicants || 0} applicants
                         </span>
-                        <span>{job.location}</span>
-                        <span>{job.ctc}</span>
+                        <span>{job.location || 'N/A'}</span>
+                        <span>{job.ctc || 'N/A'}</span>
                         {days !== null && (
                           <span className={`flex items-center gap-1 ${days <= 3 ? 'text-red-400' : ''}`}>
                             <Clock size={11} />
@@ -233,7 +242,7 @@ export default function RecruiterMyJobs() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {job.status === 'active' && (
+                      {(job.status === 'active' || job.status === 'published' || job.status === 'pending_approval') && (
                         <>
                           <button onClick={() => setEditing({ ...job })}
                             className="p-2 rounded-xl border border-white/10 text-white/40 hover:text-blue-electric hover:border-blue-electric/30 transition-all"

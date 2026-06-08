@@ -1,5 +1,5 @@
 // src/pages/faculty/DataVerification.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Eye, AlertCircle, Search } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';

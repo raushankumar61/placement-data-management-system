@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "seed": "node -e \"require('dotenv').config(); require('./seed/seedDemoData.js');\"",
     "seed:students": "node scripts/seedStudents.js",
     "backfill:students": "node scripts/backfillStudentData.js",
     "backfill:marketplace": "node scripts/backfillMarketplaceData.js",

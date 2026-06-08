@@ -1,12 +1,12 @@
 // src/pages/admin/Jobs.jsx
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Trash2, Edit2, X, Briefcase, Calendar, MapPin, DollarSign, Users } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, X, Calendar, MapPin, DollarSign, Users, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { TableSkeleton } from '../../components/common/SkeletonLoader';
-import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { createJob, deleteJob, getJobs, updateJob } from '../../services/api';
+import { createJob, deleteJob, updateJob, updateJobStatus } from '../../services/api';
+import { useRealtimeJobs } from '../../hooks/useRealtime';
 import { normalizeJobBranches } from '../../utils/branchEligibility';
 
 const INITIAL_FORM = {
@@ -19,60 +19,45 @@ const INITIAL_FORM = {
 const JOB_TYPES = ['Full-time', 'Internship', 'PPO', 'Contract'];
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'All'];
 
-const DEMO_JOBS = [
-  { id: 'd1', title: 'Software Development Engineer', company: 'Amazon', location: 'Bengaluru (BLR)', ctc: '24 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology'], status: 'active', deadline: '2025-02-28', openings: 20, applicants: 145 },
-  { id: 'd2', title: 'Product Manager Intern', company: 'Google', location: 'Hyderabad (HYD)', ctc: '80k/month', type: 'Internship', minCGPA: '8.0', branches: ['Computer Science'], status: 'active', deadline: '2025-02-15', openings: 5, applicants: 89 },
-  { id: 'd3', title: 'Data Scientist', company: 'Microsoft', location: 'Pune', ctc: '18 LPA', type: 'Full-time', minCGPA: '7.5', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-03-10', openings: 10, applicants: 67 },
-  { id: 'd4', title: 'Frontend Developer', company: 'Flipkart', location: 'Bengaluru (BLR)', ctc: '15 LPA', type: 'Full-time', minCGPA: '6.5', branches: ['All'], status: 'closed', deadline: '2025-01-30', openings: 8, applicants: 203 },
-  { id: 'd5', title: 'Senior Backend Engineer', company: 'Razorpay', location: 'Bengaluru (BLR)', ctc: '32 LPA', type: 'Full-time', minCGPA: '7.2', branches: ['Computer Science', 'Information Technology'], status: 'active', deadline: '2025-03-18', openings: 12, applicants: 118 },
-  { id: 'd6', title: 'Cloud Platform Engineer', company: 'Oracle', location: 'Hyderabad (HYD)', ctc: '28 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-03-22', openings: 9, applicants: 96 },
-  { id: 'd7', title: 'ML Engineer', company: 'Swiggy', location: 'Delhi NCR', ctc: '30 LPA', type: 'Full-time', minCGPA: '7.8', branches: ['Computer Science', 'Information Technology', 'Data Science'], status: 'active', deadline: '2025-04-05', openings: 7, applicants: 74 },
-  { id: 'd8', title: 'Platform Engineering Intern', company: 'Meta', location: 'Noida', ctc: '1.2 L/month', type: 'Internship', minCGPA: '8.2', branches: ['Computer Science'], status: 'active', deadline: '2025-03-12', openings: 4, applicants: 58 },
-  { id: 'd9', title: 'Product Analyst', company: 'Salesforce', location: 'Gurugram', ctc: '22 LPA', type: 'Full-time', minCGPA: '7.1', branches: ['Computer Science', 'Information Technology', 'Electronics & Communication'], status: 'active', deadline: '2025-04-02', openings: 11, applicants: 83 },
-  { id: 'd10', title: 'DevOps Engineer', company: 'Uber', location: 'Chennai', ctc: '26 LPA', type: 'Full-time', minCGPA: '7.0', branches: ['Computer Science', 'Information Technology', 'Electrical'], status: 'active', deadline: '2025-03-25', openings: 6, applicants: 62 },
-];
-
 export default function AdminJobs() {
-  const [jobs, setJobs] = useState([]);
-  const [useDemoData, setUseDemoData] = useState(false);
+  const { jobs, loading, error } = useRealtimeJobs();
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [sortField, setSortField] = useState('date_desc');
   const [showModal, setShowModal] = useState(false);
   const [editJob, setEditJob] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
-
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const { data } = await getJobs();
-        const jobsList = data.jobs || [];
-        setJobs(jobsList.length ? jobsList : DEMO_JOBS);
-        setUseDemoData(!jobsList.length);
-      } catch {
-        setJobs(DEMO_JOBS);
-        setUseDemoData(true);
-      }
-      finally { setLoading(false); }
-    };
-    fetch();
-  }, []);
 
   const branchOptions = [...new Set(jobs.flatMap((job) => (Array.isArray(job.branches) ? job.branches : [job.branches])).filter(Boolean))].filter((branch) => branch !== 'All');
+
+  const parseNumber = (value) => {
+    const text = String(value ?? '').replace(/,/g, '').replace(/₹/g, '').trim();
+    const match = text.match(/\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : 0;
+  };
 
   const filtered = jobs.filter((j) => {
     const matchSearch = !search || j.title?.toLowerCase().includes(search.toLowerCase()) || j.company?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = !statusFilter || j.status === statusFilter;
     const matchType = !typeFilter || j.type === typeFilter;
+    const matchCompany = !companyFilter || j.company === companyFilter;
     const branches = Array.isArray(j.branches) ? j.branches : [j.branches].filter(Boolean);
     const matchBranch = !branchFilter || branches.includes('All') || branches.some((branch) => String(branch).toLowerCase() === branchFilter.toLowerCase());
-    return matchSearch && matchStatus && matchType && matchBranch;
+    return matchSearch && matchStatus && matchType && matchBranch && matchCompany;
+  }).sort((a, b) => {
+    if (sortField === 'date_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    if (sortField === 'date_asc') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+    if (sortField === 'ctc_desc') return (parseNumber(b.ctcValue) || parseNumber(b.ctc)) - (parseNumber(a.ctcValue) || parseNumber(a.ctc));
+    if (sortField === 'deadline_asc') return new Date(a.deadline || 0) - new Date(b.deadline || 0);
+    return 0;
   });
+
+  const companyOptions = [...new Set(jobs.map((job) => job.company).filter(Boolean))].sort();
 
   const openModal = (job = null) => {
     setEditJob(job);
@@ -88,6 +73,11 @@ export default function AdminJobs() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    
+    if (!form.title.trim() || !form.company.trim()) {
+      return toast.error('Title and Company are required');
+    }
+    
     setSaving(true);
     try {
       const payload = {
@@ -108,20 +98,7 @@ export default function AdminJobs() {
         toast.success('Job posted');
       }
       setShowModal(false);
-      const { data } = await getJobs();
-      setJobs(data.jobs || []);
-      setUseDemoData(false);
     } catch {
-      if (useDemoData) {
-        if (editJob) {
-          setJobs((prev) => prev.map((j) => j.id === editJob.id ? { ...j, ...form } : j));
-        } else {
-          setJobs((prev) => [{ ...form, id: `new-${Date.now()}`, applicants: 0 }, ...prev]);
-        }
-        toast.success(editJob ? 'Job updated in demo mode' : 'Job posted in demo mode');
-        setShowModal(false);
-        return;
-      }
       toast.error(editJob ? 'Failed to update job' : 'Failed to post job');
     } finally { setSaving(false); }
   };
@@ -129,16 +106,19 @@ export default function AdminJobs() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this job?')) return;
     try {
-      if (!id.startsWith('d') && !id.startsWith('new-')) await deleteJob(id);
-      setJobs((prev) => prev.filter((j) => j.id !== id));
+      await deleteJob(id);
       toast.success('Job deleted');
     } catch {
-      if (useDemoData) {
-        setJobs((prev) => prev.filter((j) => j.id !== id));
-        toast.success('Job deleted in demo mode');
-        return;
-      }
       toast.error('Failed to delete job');
+    }
+  };
+
+  const handleStatusChange = async (id, status) => {
+    try {
+      await updateJobStatus(id, status);
+      toast.success(`Job marked as ${status.replace('_', ' ')}`);
+    } catch {
+      toast.error('Failed to update status');
     }
   };
 
@@ -164,10 +144,13 @@ export default function AdminJobs() {
                 className="input-field pl-9 py-2 text-sm w-60"
               />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-32 appearance-none">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field py-2 text-sm w-40 appearance-none">
               <option value="">All Status</option>
-              <option value="active" className="bg-dark-700">Active</option>
+              <option value="pending_approval" className="bg-dark-700">Pending Approval</option>
+              <option value="published" className="bg-dark-700">Published</option>
+              <option value="active" className="bg-dark-700">Active (Legacy)</option>
               <option value="closed" className="bg-dark-700">Closed</option>
+              <option value="rejected" className="bg-dark-700">Rejected</option>
             </select>
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-field py-2 text-sm w-36 appearance-none">
               <option value="">All Types</option>
@@ -181,13 +164,22 @@ export default function AdminJobs() {
                 <option key={branch} value={branch} className="bg-dark-700">{branch}</option>
               ))}
             </select>
-            {(search || statusFilter || typeFilter || branchFilter) && (
+            <select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none">
+              <option value="">All Companies</option>
+              {companyOptions.map((comp) => (
+                <option key={comp} value={comp} className="bg-dark-700">{comp}</option>
+              ))}
+            </select>
+            <select value={sortField} onChange={(e) => setSortField(e.target.value)} className="input-field py-2 text-sm w-44 appearance-none font-semibold text-blue-400">
+              <option value="date_desc" className="bg-dark-700">Sort: Newest First</option>
+              <option value="date_asc" className="bg-dark-700">Sort: Oldest First</option>
+              <option value="ctc_desc" className="bg-dark-700">Sort: Highest CTC</option>
+              <option value="deadline_asc" className="bg-dark-700">Sort: Deadline Soon</option>
+            </select>
+            {(search || statusFilter || typeFilter || branchFilter || companyFilter) && (
               <button
                 onClick={() => {
-                  setSearch('');
-                  setStatusFilter('');
-                  setTypeFilter('');
-                  setBranchFilter('');
+                  setSearch(''); setStatusFilter(''); setTypeFilter(''); setBranchFilter(''); setCompanyFilter('');
                 }}
                 className="text-white/40 hover:text-white text-sm flex items-center gap-1 font-body"
               >
@@ -218,6 +210,24 @@ export default function AdminJobs() {
         {/* Job Cards */}
         {loading ? (
           <TableSkeleton rows={6} cols={6} />
+        ) : error ? (
+          <div className="glass-card p-8 text-center border border-red-500/20">
+            <AlertCircle size={28} className="text-red-400 mx-auto mb-3" />
+            <p className="section-title mb-1">Unable to load jobs</p>
+            <p className="text-white/40 text-sm font-body max-w-md mx-auto">
+              Firestore rejected the realtime jobs query. Check Firebase configuration, role claims, rules, or indexes.
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="glass-card p-8 text-center">
+            <BriefcaseEmpty />
+            <p className="section-title mb-1">No jobs found</p>
+            <p className="text-white/40 text-sm font-body max-w-md mx-auto">
+              {jobs.length === 0
+                ? 'Post the first job drive to populate this dashboard.'
+                : 'No jobs match the current filters.'}
+            </p>
+          </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
             {filtered.map((job, i) => (
@@ -232,11 +242,27 @@ export default function AdminJobs() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="section-title text-base truncate">{job.title}</h3>
-                      <span className={job.status === 'active' ? 'badge-green' : 'badge-gray'}>{job.status}</span>
+                      <span className={job.status === 'published' || job.status === 'active' ? 'badge-green' : job.status === 'pending_approval' ? 'badge-gold' : 'badge-gray'}>
+                        {job.status === 'pending_approval' ? 'Pending' : job.status}
+                      </span>
                     </div>
                     <p className="text-white/60 font-body text-sm font-semibold">{job.company}</p>
                   </div>
                   <div className="flex gap-1 ml-3">
+                    {job.status === 'pending_approval' && (
+                      <>
+                        <button onClick={() => handleStatusChange(job.id, 'published')}
+                          title="Approve Drive"
+                          className="p-1.5 rounded-lg hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors">
+                          <CheckCircle size={14} />
+                        </button>
+                        <button onClick={() => handleStatusChange(job.id, 'rejected')}
+                          title="Reject Drive"
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
+                          <XCircle size={14} />
+                        </button>
+                      </>
+                    )}
                     <button onClick={() => openModal(job)}
                       className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-blue-electric transition-colors">
                       <Edit2 size={14} />
@@ -250,9 +276,9 @@ export default function AdminJobs() {
 
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {[
-                    { icon: MapPin, text: job.location },
-                    { icon: DollarSign, text: job.ctc },
-                    { icon: Users, text: `${job.openings} openings` },
+                    { icon: MapPin, text: job.location || 'N/A' },
+                    { icon: DollarSign, text: job.ctc || 'N/A' },
+                    { icon: Users, text: `${job.openings || 0} openings` },
                     { icon: Calendar, text: job.deadline ? `Due ${job.deadline}` : 'No deadline' },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-1.5 text-white/50">
@@ -427,5 +453,13 @@ export default function AdminJobs() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+function BriefcaseEmpty() {
+  return (
+    <div className="w-12 h-12 rounded-xl bg-blue-electric/10 border border-blue-electric/20 flex items-center justify-center mx-auto mb-3">
+      <Plus size={20} className="text-blue-electric" />
+    </div>
   );
 }

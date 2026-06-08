@@ -318,28 +318,61 @@ users/{uid} {
 }
 
 students/{uid} {
-  cgpa: string;
+  name: string;
+  email: string;
+  rollNo: string;
+  cgpa: number;
   branch: string;
   skills: string[];
+  projects: string[];
   resumeURL: string;
   placementStatus: 'placed' | 'in-process' | 'unplaced';
-  projects: { title: string; description: string }[];
+  currentPackage: string;
+  highestPackage: string;
+  createdAt: timestamp;
 }
 
 jobs/{jobId} {
   title: string;
   company: string;
-  eligibility: { minCGPA: number; branches: string[] };
+  location: string;
+  ctc: string;
+  type: string;
+  workMode: string;
+  experienceLevel: string;
+  openings: number;
+  minCGPA: number;
+  branches: string[];
   deadline: string;
-  postedBy: string;
-  status: 'active' | 'closed';
+  recruiterId: string;
+  recruiterName: string;
+  description: string;
+  perks: string[];
+  status: 'open' | 'closed';
+  createdAt: timestamp;
 }
 
 applications/{appId} {
   studentId: string;
+  studentName: string;
+  studentEmail: string;
   jobId: string;
+  company: string;
+  role: string;
   status: 'Applied' | 'Shortlisted' | 'Selected' | 'Rejected';
-  appliedAt: timestamp;
+  appliedAt: string;
+  createdAt: string;
+}
+
+alumni/{alumniId} {
+  name: string;
+  email: string;
+  branch: string;
+  companyPlaced: string;
+  bio: string;
+  linkedin: string;
+  graduationYear: number;
+  createdAt: timestamp;
 }
 ```
 </details>

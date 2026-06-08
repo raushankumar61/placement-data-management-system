@@ -6,7 +6,7 @@
  *   EMAIL_PORT=587
  *   EMAIL_USER=your@gmail.com
  *   EMAIL_PASS=your_app_password
- *   EMAIL_FROM="PlaceCloud <no-reply@placecloud.app>"
+ *   EMAIL_FROM="DSCE <no-reply@placecloud.app>"
  */
 const nodemailer = require('nodemailer');
 
@@ -40,7 +40,7 @@ const sendMail = async ({ to, subject, html, text }) => {
   }
   try {
     await t.sendMail({
-      from: process.env.EMAIL_FROM || `"PlaceCloud" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM || `"DSCE Placement Office" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -68,7 +68,7 @@ const buildInterviewReminderHtml = (data) => `
     <p style="margin:4px 0"><strong>Mode:</strong> ${data.mode || 'Online'}</p>
     ${data.link ? `<p style="margin:4px 0"><strong>Link:</strong> <a href="${data.link}" style="color:#00A3FF">${data.link}</a></p>` : ''}
   </div>
-  <p style="color:#8899AA;font-size:12px">Best of luck! — PlaceCloud Team</p>
+  <p style="color:#8899AA;font-size:12px">Best of luck! — DSCE Placement Team</p>
 </div>`;
 
 /** Application status change email */
@@ -82,7 +82,7 @@ const buildStatusUpdateHtml = (data) => `
     <p style="margin:4px 0"><strong>Role:</strong> ${data.role}</p>
     <p style="margin:4px 0"><strong>New Status:</strong> <span style="color:#00A3FF">${data.status}</span></p>
   </div>
-  <p style="color:#8899AA;font-size:12px">Log in to PlaceCloud to view full details.</p>
+  <p style="color:#8899AA;font-size:12px">Log in to the DSCE Portal to view full details.</p>
 </div>`;
 
 module.exports = { sendMail, buildInterviewReminderHtml, buildStatusUpdateHtml };

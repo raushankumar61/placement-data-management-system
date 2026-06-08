@@ -1,7 +1,7 @@
 // src/pages/student/Notifications.jsx - Enhanced with real-time listeners
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, CheckCheck, BriefcaseIcon, Calendar, Info, Megaphone, Trash2, Check, X } from 'lucide-react';
+import { Bell, CheckCheck, BriefcaseIcon, Calendar, Info, Megaphone, Check, X } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import {

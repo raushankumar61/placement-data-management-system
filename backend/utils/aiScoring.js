@@ -48,7 +48,8 @@ const isEligibleForJob = (student = {}, job = {}) => {
   if (studentStatus === 'placed') {
     const studentPackage = parsePackageToLpa(student.currentPackage || student.highestPackage || '');
     const jobPackage = parsePackageToLpa(job.ctc || job.stipend || '');
-    if (studentPackage == null || jobPackage == null || jobPackage <= studentPackage) {
+    // Only filter out the job if we confidently know the job pays less than or equal to their current package
+    if (studentPackage != null && jobPackage != null && jobPackage <= studentPackage) {
       return false;
     }
   }

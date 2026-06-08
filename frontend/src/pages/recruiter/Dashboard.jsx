@@ -1,11 +1,11 @@
 // src/pages/recruiter/Dashboard.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Briefcase, Users, CheckCircle, ArrowRight, TrendingUp, BarChart2 } from 'lucide-react';
+import { ArrowRight, TrendingUp, BarChart2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, FunnelChart, Funnel, LabelList, Cell, PieChart, Pie, Legend,
+  ResponsiveContainer, Cell,
 } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';

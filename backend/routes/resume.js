@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { verifyToken } = require('../middleware/auth');
+const { admin } = require('../config/firebase');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -14,6 +15,32 @@ const upload = multer({
       cb(new Error('Only PDF files are allowed'), false);
     }
   },
+});
+
+/**
+ * POST /api/v1/resume/upload
+ * Uploads a resume to Firebase Storage via Admin SDK to bypass client CORS issues.
+ */
+router.post('/upload', verifyToken, upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    
+    const bucket = admin.storage().bucket();
+    const filename = `resumes/${req.user.uid}/${Date.now()}_${req.file.originalname}`;
+    const file = bucket.file(filename);
+    
+    await file.save(req.file.buffer, {
+      metadata: { contentType: req.file.mimetype },
+      public: true
+    });
+    
+    // Get public URL
+    const url = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+    res.json({ url });
+  } catch (err) {
+    console.error('[resume/upload]', err);
+    res.status(500).json({ error: 'Failed to upload: ' + err.message });
+  }
 });
 
 /**

@@ -12,61 +12,7 @@ const { sendMail, buildStatusUpdateHtml } = require('../utils/emailService');
 const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
 const { branchMatches } = require('../utils/branchEligibility');
 
-const parseNumber = (value, fallback = 0) => {
-  const normalized = String(value ?? '').replace(/,/g, '').replace(/₹/g, '');
-  const match = normalized.match(/\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : fallback;
-};
-
-const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
-
-const parsePackageToLpa = (value) => {
-  const text = String(value || '').toLowerCase();
-  const amount = parseNumber(text, NaN);
-  if (Number.isNaN(amount)) return null;
-  if (text.includes('crore') || text.includes('cr')) return Number((amount * 100).toFixed(2));
-  if (text.includes('lpa') || text.includes('lac')) return amount;
-  if (text.includes('k/month') || text.includes('/month') || text.includes('per month')) return Number(((amount * 12) / 100).toFixed(2));
-  if (text.includes('/year') || text.includes('per year') || text.includes('pa') || text.includes('per annum') || text.includes('annum')) return Number((amount / 100000).toFixed(2));
-  if (amount >= 100000) return Number((amount / 100000).toFixed(2));
-  return amount;
-};
-
-const canApplyToJob = (student = {}, job = {}) => {
-  const cgpa = parseNumber(student.cgpa, NaN);
-  const minCgpa = parseNumber(job.minCGPA, 0);
-  const studentStatus = String(student.placementStatus || 'unplaced').toLowerCase();
-  const studentPackage = parsePackageToLpa(student.currentPackage || student.highestPackage || '');
-  const jobPackage = parsePackageToLpa(job.ctc || job.stipend || '');
-  const deadline = job.deadline ? new Date(job.deadline) : null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (String(job.status || '').toLowerCase() === 'closed') {
-    return { allowed: false, reason: 'Job is closed' };
-  }
-
-  if (deadline && !Number.isNaN(deadline.getTime()) && deadline < today) {
-    return { allowed: false, reason: 'Application deadline has passed' };
-  }
-
-  if (minCgpa && hasValue(student.cgpa) && !Number.isNaN(cgpa) && cgpa < minCgpa) {
-    return { allowed: false, reason: `CGPA requirement: ${job.minCGPA || minCgpa}` };
-  }
-
-  if (!branchMatches(job.branches, student.branch)) {
-    const eligibleBranches = Array.isArray(job.branches) && job.branches.length
-      ? job.branches.join(', ')
-      : 'All branches';
-    return { allowed: false, reason: `Branch mismatch. Eligible branches: ${eligibleBranches}` };
-  }
-
-  if (studentStatus === 'placed' && studentPackage != null && jobPackage != null && jobPackage <= studentPackage) {
-    return { allowed: false, reason: `Requires package higher than current (${student.currentPackage || 'N/A'})` };
-  }
-
-  return { allowed: true };
-};
+const { canApplyToJob } = require('../utils/eligibility');
 
 const recomputeStudentRollup = async (studentId, actorUid) => {
   if (!db || !studentId) return;
@@ -110,13 +56,22 @@ router.get('/', verifyToken, async (req, res) => {
     }
     if (status) query = query.where('status', '==', status);
 
-    // Apply limit at Firestore level
-    const snap = await query.limit(Number(lim) + Number(offset)).get();
+    // Apply limit and offset at Firestore level for efficiency
+    const snap = await query.offset(Number(offset)).limit(Number(lim)).get();
     const applications = snap.docs.map((d) => ({ id: d.id, ...createApplicationDefaults(d.data() || {}, d.id) }));
-    
-    // Apply pagination
-    const paginated = applications.slice(Number(offset), Number(offset) + Number(lim));
-    res.json({ applications: paginated, total: applications.length });
+
+    let totalCount = 0;
+    if (db) {
+      const countSnap = await query.count().get();
+      totalCount = countSnap.data().count;
+    }
+
+    if (req.user.role === 'recruiter') {
+      // Recruiters should not see applications until Admin verifies them
+      applications = applications.filter((app) => !['applied', 'rejected_by_admin'].includes(String(app.status).toLowerCase()));
+    }
+
+    res.json({ applications, total: req.user.role === 'recruiter' ? applications.length : totalCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -143,6 +98,10 @@ router.post(
         return res.status(404).json({ error: 'Job not found' });
       }
       const job = jobSnap.data();
+
+      if (!['published', 'active'].includes(String(job.status).toLowerCase())) {
+         return res.status(403).json({ error: 'This job is not currently open for applications.' });
+      }
 
       const eligibility = canApplyToJob(student, job);
       if (!eligibility.allowed) {
@@ -254,10 +213,7 @@ router.put(
   verifyToken,
   requireRole('admin', 'recruiter'),
   [
-    body('status')
-      .notEmpty().withMessage('status is required')
-      .isIn(['Applied', 'Shortlisted', 'Selected', 'Rejected', 'In Process'])
-      .withMessage('Invalid status. Must be one of: Applied, Shortlisted, Selected, Rejected, In Process'),
+    body('status').notEmpty().withMessage('status is required'),
   ],
   validate,
   async (req, res) => {
@@ -270,8 +226,19 @@ router.put(
       const jobSnap = db && current.jobId ? await db.collection('jobs').doc(current.jobId).get() : null;
       const job = jobSnap?.exists ? jobSnap.data() : {};
 
-      if (req.user.role === 'recruiter' && !isOwnedByRecruiter(job, recruiterScope)) {
-        return res.status(403).json({ error: 'You can only update applications for your own jobs' });
+      if (req.user.role === 'recruiter') {
+        if (!isOwnedByRecruiter(job, recruiterScope)) {
+          return res.status(403).json({ error: 'You can only update applications for your own jobs' });
+        }
+        
+        const validRecruiterStates = ['shortlist_recommended', 'interview_scheduled', 'selection_recommended', 'rejection_recommended'];
+        if (!validRecruiterStates.includes(status)) {
+           return res.status(403).json({ error: 'Recruiters can only recommend shortlists/selections or schedule interviews.' });
+        }
+        
+        if (['applied', 'rejected_by_admin'].includes(String(current.status).toLowerCase())) {
+           return res.status(403).json({ error: 'Cannot update until Admin has verified this application.' });
+        }
       }
 
       const payload = createApplicationDefaults({

@@ -100,7 +100,7 @@ router.put(
         if (snap.exists && snap.data().createdByEmail) {
           await sendMail({
             to: snap.data().createdByEmail,
-            subject: 'Your complaint has been resolved — PlaceCloud',
+            subject: 'Your complaint has been resolved — DSCE',
             text: `Your complaint "${snap.data().title}" has been marked as ${status}.\n\nResolution: ${resolution}`,
           });
         }

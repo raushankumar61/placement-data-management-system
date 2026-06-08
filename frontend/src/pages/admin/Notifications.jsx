@@ -1,5 +1,5 @@
 // src/pages/admin/Notifications.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, Send, Users, Briefcase, GraduationCap, BookOpen } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
@@ -116,7 +116,6 @@ export default function AdminNotifications() {
           <p className="section-title">Notification History</p>
           {notifications.map((n, i) => {
             const Icon = TARGET_ICONS[n.targetRole] || Users;
-            const readPct = Math.round(((Number(n.read || 0)) / (Number(n.total || 1))) * 100);
             return (
               <motion.div key={n.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.08 }} className="glass-card p-4 border border-white/5">

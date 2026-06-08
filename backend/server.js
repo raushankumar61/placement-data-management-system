@@ -19,7 +19,7 @@ app.use(helmet({
 app.use(compression());
 app.use(morgan('combined'));
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests' });
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, message: 'Too many requests' });
 app.use('/api/', limiter);
 
 const normalizeOrigin = (value) => String(value || '').trim().replace(/\/+$/, '');
@@ -100,7 +100,7 @@ const PORT = process.env.PORT || 5000;
 
 if (!process.env.VERCEL) {
   const server = app.listen(PORT, () => {
-    console.log(`🚀 PlaceCloud API v2 running on port ${PORT}`);
+    console.log(`🚀 DSCE API v2 running on port ${PORT}`);
 
     // ── Interview Reminder Cron (daily at 8 AM) ────────────────────────────────
     try {
@@ -128,7 +128,7 @@ if (!process.env.VERCEL) {
 
             const emailSent = await sendMail({
               to: data.studentEmail,
-              subject: `🗓️ Interview Tomorrow: ${data.company} — PlaceCloud`,
+              subject: `🗓️ Interview Tomorrow: ${data.company} — DSCE`,
               html: buildInterviewReminderHtml({
                 studentName: data.studentName,
                 company: data.company,

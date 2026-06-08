@@ -28,27 +28,57 @@ const upload = multer({
   },
 });
 
+// GET /api/v1/students/search - unauthenticated endpoint for login autocomplete
+router.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json({ students: [] });
+    if (!db) return res.json({ students: [] });
+
+    // Quick scan of all students (only for demo, in production use Algolia or Elastic)
+    const snap = await db.collection('students').get();
+    const term = q.toLowerCase();
+    const students = [];
+
+    snap.forEach(d => {
+      const data = d.data();
+      const name = data.name || '';
+      const email = data.email || '';
+      const rollNo = data.rollNo || '';
+
+      if (name.toLowerCase().includes(term) || 
+          email.toLowerCase().includes(term) || 
+          rollNo.toLowerCase().includes(term)) {
+        students.push({ id: d.id, name, email, rollNo });
+      }
+    });
+
+    res.json({ students: students.slice(0, 5) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/v1/students  — admin, faculty, recruiter can list students
 router.get('/', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async (req, res) => {
   try {
     if (!db) return res.json({ students: [], total: 0 });
 
     let query = db.collection('students');
-    const { branch, status, limit: lim = 100, offset = 0 } = req.query;
+    const { branch, status, limit: lim = 500, offset = 0 } = req.query;
 
     if (branch) query = query.where('branch', '==', branch);
     if (status) query = query.where('placementStatus', '==', status);
 
     // Apply limit and offset at Firestore level for efficiency
-    const snap = await query.limit(Number(lim) + Number(offset)).get();
+    const snap = await query.offset(Number(offset)).limit(Number(lim)).get();
     let students = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    // Get total count (cached across requests) — optional, expensive on large collections
-    let totalCount = students.length;
-    if (!branch && !status && offset === 0) {
-      // Only count when no filters and at first page to save time
-      const countSnap = await query.get();
-      totalCount = countSnap.size;
+    // Get total count using cheap count aggregation
+    let totalCount = 0;
+    if (db) {
+      const countSnap = await query.count().get();
+      totalCount = countSnap.data().count;
     }
 
     // Recruiters: hide sensitive personal data fields
@@ -59,9 +89,7 @@ router.get('/', verifyToken, requireRole('admin', 'faculty', 'recruiter'), async
       });
     }
 
-    // Apply pagination on result set
-    const paginated = students.slice(Number(offset), Number(offset) + Number(lim));
-    res.json({ students: paginated, total: totalCount });
+    res.json({ students, total: totalCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -97,15 +125,43 @@ router.post(
   validate,
   async (req, res) => {
     try {
-      const payload = createSeededRecord(req.body, req.body.email || req.body.rollNo || uuidv4());
-      if (!db) return res.json({ id: uuidv4(), ...payload });
-      const ref = await db.collection('students').add({
-        ...payload,
+      let userRecord;
+      if (admin.auth && req.body.email) {
+        try {
+          userRecord = await admin.auth().getUserByEmail(req.body.email);
+        } catch (e) {
+          if (e.code === 'auth/user-not-found') {
+            userRecord = await admin.auth().createUser({
+              email: req.body.email,
+              password: 'password123',
+              displayName: req.body.name,
+            });
+          }
+        }
+      }
+
+      const refId = userRecord?.uid || uuidv4();
+      const payloadWithId = createSeededRecord(req.body, refId);
+
+      if (!db) return res.json({ id: refId, ...payloadWithId });
+      
+      const docRef = db.collection('students').doc(refId);
+      await docRef.set({
+        ...payloadWithId,
         createdAt: new Date().toISOString(),
         createdBy: req.user.uid,
       });
-      logActivity('student_created', { studentId: ref.id, name: payload.name }, req.user.uid);
-      res.status(201).json({ id: ref.id, ...payload });
+
+      // Update users collection as well
+      await db.collection('users').doc(refId).set({
+        email: payloadWithId.email,
+        name: payloadWithId.name,
+        role: 'student',
+        createdAt: new Date().toISOString(),
+      });
+
+      logActivity('student_created', { studentId: refId, name: payloadWithId.name }, req.user.uid);
+      res.status(201).json({ id: refId, ...payloadWithId });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -155,7 +211,75 @@ router.put(
         updatedAt: new Date().toISOString(),
         updatedBy: req.user.uid,
       });
+
+      // SYNC DENORMALIZED DATA to applications
+      if (payload.name !== existing.name || payload.email !== existing.email || payload.branch !== existing.branch) {
+        const appsSnap = await db.collection('applications').where('studentId', '==', req.params.id).get();
+        if (!appsSnap.empty) {
+          const batch = db.batch();
+          appsSnap.docs.forEach((doc) => {
+            batch.update(doc.ref, {
+              studentName: payload.name,
+              studentEmail: payload.email,
+              branch: payload.branch
+            });
+          });
+          await batch.commit();
+        }
+      }
+
       res.json({ id: req.params.id, ...payload });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// POST /api/v1/students/:id/verifications  — student requests a profile data verification
+router.post(
+  '/:id/verifications',
+  verifyToken,
+  [
+    body('field').notEmpty().withMessage('Field is required (e.g., CGPA, Skills, Branch)'),
+    body('newValue').notEmpty().withMessage('New value is required'),
+    body('evidence').optional().isString(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      if (req.user.uid !== req.params.id) {
+        return res.status(403).json({ error: 'You can only request verification for your own profile' });
+      }
+
+      if (!db) return res.status(201).json({ id: uuidv4(), ...req.body, status: 'pending' });
+
+      const snap = await db.collection('students').doc(req.params.id).get();
+      if (!snap.exists) return res.status(404).json({ error: 'Student not found' });
+      const studentData = snap.data();
+
+      let oldValue = '';
+      const fieldNormalized = String(req.body.field).toLowerCase();
+      if (fieldNormalized === 'cgpa') oldValue = String(studentData.cgpa || '');
+      else if (fieldNormalized === 'skills') oldValue = (studentData.skills || []).join(', ');
+      else if (fieldNormalized === 'branch') oldValue = studentData.branch || '';
+      else oldValue = String(studentData[req.body.field] || '');
+
+      const payload = {
+        studentId: req.params.id,
+        student: studentData.name || '',
+        rollNo: studentData.rollNo || '',
+        field: req.body.field,
+        oldValue,
+        newValue: req.body.newValue,
+        evidence: req.body.evidence || 'Self-declared',
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      };
+
+      const ref = await db.collection('verifications').add(payload);
+      
+      logActivity('verification_requested', { field: req.body.field }, req.user.uid);
+      res.status(201).json({ id: ref.id, ...payload });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -165,7 +289,21 @@ router.put(
 // DELETE /api/v1/students/:id  — admin only
 router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    if (db) await db.collection('students').doc(req.params.id).delete();
+    if (db) {
+      await db.collection('students').doc(req.params.id).delete();
+      
+      // CASCADE DELETE applications, interviews, notifications
+      const collectionsToCascade = ['applications', 'interviews', 'notifications'];
+      for (const col of collectionsToCascade) {
+        const fieldName = col === 'notifications' ? 'targetUid' : 'studentId';
+        const snap = await db.collection(col).where(fieldName, '==', req.params.id).get();
+        if (!snap.empty) {
+          const batch = db.batch();
+          snap.docs.forEach((doc) => batch.delete(doc.ref));
+          await batch.commit();
+        }
+      }
+    }
     logActivity('student_deleted', { studentId: req.params.id }, req.user.uid);
     res.json({ success: true, id: req.params.id });
   } catch (err) {

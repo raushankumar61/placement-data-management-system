@@ -1,5 +1,5 @@
 // src/pages/student/Interviews.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar, Clock, Monitor, MessageSquare,

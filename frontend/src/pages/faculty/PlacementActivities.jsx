@@ -1,15 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  AlertTriangle,
-  BookOpen,
   CheckCircle,
   ClipboardList,
   Filter,
   Plus,
   Search,
-  ShieldAlert,
-  Target,
   Users,
   X,
   Clock3,
@@ -82,7 +78,7 @@ export default function FacultyPlacementActivities() {
       try {
         const [studentsRes, activitiesRes] = await Promise.all([
           getStudents(),
-          getPlacementActivities(),
+          getPlacementActivities().catch(() => ({ data: { activities: [] } })),
         ]);
 
         const loadedStudents = studentsRes.data?.students || [];

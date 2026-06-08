@@ -1,5 +1,5 @@
 // src/pages/student/Applications.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Clock, Circle, ChevronRight } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
@@ -42,20 +42,43 @@ const buildTimeline = (status, appliedAt) => {
   const appliedLabel = formatDate(appliedAt);
   const stages = [{ stage: 'Applied', date: appliedLabel, status: 'done' }];
 
-  if (normalized === 'rejected') {
+  if (['rejected', 'rejected_by_admin'].includes(normalized)) {
     stages.push({ stage: 'Rejected', date: 'Latest update', status: 'done' });
     return stages;
   }
 
-  if (normalized !== 'applied') {
-    stages.push({ stage: 'Shortlisted', date: 'Latest update', status: 'done' });
+  // Under review stages (Admin verifying or Recruiter recommending shortlist)
+  if (['verified_by_admin', 'shortlist_recommended'].includes(normalized)) {
+    stages.push({ stage: 'Under Review', date: 'Latest update', status: 'active' });
+    return stages;
+  }
+
+  // If past under review, mark it done
+  if (['shortlisted', 'interview_scheduled', 'selection_recommended', 'selected', 'placed', 'offer'].includes(normalized)) {
+    stages.push({ stage: 'Under Review', date: 'Done', status: 'done' });
+  }
+
+  if (['shortlisted'].includes(normalized)) {
+    stages.push({ stage: 'Shortlisted', date: 'Latest update', status: 'active' });
+    return stages;
+  }
+
+  if (['interview_scheduled', 'selection_recommended', 'selected', 'placed', 'offer'].includes(normalized)) {
+    stages.push({ stage: 'Shortlisted', date: 'Done', status: 'done' });
+  }
+
+  if (['interview_scheduled', 'selection_recommended'].includes(normalized)) {
+    stages.push({ stage: 'Interview Evaluated', date: 'Latest update', status: 'active' });
+    return stages;
   }
 
   if (['selected', 'placed', 'offer'].includes(normalized)) {
+    stages.push({ stage: 'Interview Evaluated', date: 'Done', status: 'done' });
     stages.push({ stage: 'Offer', date: 'Latest update', status: 'done' });
-  } else {
-    stages.push({ stage: 'Technical Round 1', date: 'Latest update', status: normalized === 'shortlisted' ? 'active' : 'pending' });
-    stages.push({ stage: 'Offer', date: 'TBD', status: 'pending' });
+  }
+
+  if (normalized === 'applied') {
+    stages.push({ stage: 'Under Review', date: 'Pending', status: 'pending' });
   }
 
   return stages;
@@ -64,8 +87,10 @@ const buildTimeline = (status, appliedAt) => {
 const buildOverallStatus = (status) => {
   const normalized = normalize(status);
   if (['selected', 'placed', 'offer'].includes(normalized)) return 'Selected';
+  if (['interview_scheduled', 'selection_recommended'].includes(normalized)) return 'Interview Evaluated';
   if (normalized === 'shortlisted') return 'Shortlisted';
-  if (normalized === 'rejected') return 'Rejected';
+  if (['rejected', 'rejected_by_admin'].includes(normalized)) return 'Rejected';
+  if (['applied', 'verified_by_admin', 'shortlist_recommended'].includes(normalized)) return 'Under Review';
   return 'Applied';
 };
 
@@ -83,8 +108,8 @@ export default function StudentApplications() {
     const load = async () => {
       try {
         const [appsRes, jobsRes] = await Promise.all([
-          getApplications({ studentId: user.uid }),
-          getJobs(),
+          getApplications({ studentId: user.uid }).catch(() => ({ data: { applications: [] } })),
+          getJobs().catch(() => ({ data: { jobs: [] } })),
         ]);
         if (!active) return;
         setApplications(appsRes.data?.applications || []);

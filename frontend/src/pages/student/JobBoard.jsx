@@ -1,11 +1,11 @@
-// src/pages/student/JobBoard.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
+import { Search, MapPin, DollarSign, Calendar, Building2, Briefcase } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
-import { createApplication, getApplications, getJobs, getStudent } from '../../services/api';
+import { createApplication, getStudent } from '../../services/api';
+import { useRealtimeJobs, useRealtimeApplications } from '../../hooks/useRealtime';
 import { branchMatches } from '../../utils/branchEligibility';
 import { formatCompensationInInr } from '../../utils/compensation';
 
@@ -30,23 +30,13 @@ const parsePackageToLpa = (value) => {
     return Number(((amount * 12) / 100).toFixed(2));
   }
   if (text.includes('/month') || text.includes('per month')) {
-    // Assume monthly amount in INR and convert to LPA.
     return Number(((amount * 12) / 100000).toFixed(2));
   }
   if (text.includes('pa') || text.includes('per annum')) {
-    // Assume annual amount in INR and convert to LPA.
     return Number((amount / 100000).toFixed(2));
   }
 
-  // Default to LPA when no explicit unit is provided.
   return amount;
-};
-
-const deadlineToLabel = (deadline) => {
-  if (!deadline) return 'TBD';
-  if (typeof deadline === 'string') return deadline.slice(0, 10);
-  if (deadline?.toDate) return deadline.toDate().toISOString().slice(0, 10);
-  return String(deadline);
 };
 
 const displayValue = (value, fallback) => {
@@ -60,8 +50,7 @@ const formatBranchList = (branches) => {
     const values = branches.map((branch) => String(branch).trim()).filter(Boolean);
     return values.length ? values.join(', ') : 'All branches';
   }
-  const text = String(branches).trim();
-  return text || 'All branches';
+  return String(branches).trim() || 'All branches';
 };
 
 const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
@@ -80,43 +69,31 @@ const normalizeStudentForEligibility = (student = {}, userProfile = {}, user = n
 export default function StudentJobBoard() {
   const { user, userProfile } = useAuth();
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [jobs, setJobs] = useState([]);
+  const [sortField, setSortField] = useState('openings_desc');
   const [student, setStudent] = useState(null);
-  const [applications, setApplications] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedCompanyName, setSelectedCompanyName] = useState(null);
   const [applying, setApplying] = useState(false);
+
+  const { jobs } = useRealtimeJobs();
+  const { applications } = useRealtimeApplications({ studentId: user?.uid });
 
   useEffect(() => {
     if (!user?.uid) return undefined;
-
     let active = true;
-
     const load = async () => {
       try {
-        const [studentRes, jobsRes, appsRes] = await Promise.all([
-          getStudent(user.uid),
-          getJobs(),
-          getApplications({ studentId: user.uid }),
-        ]);
-
+        const studentRes = await getStudent(user.uid);
         if (!active) return;
-
         const studentData = studentRes.data?.student || studentRes.data || {};
         setStudent(normalizeStudentForEligibility(studentData, userProfile, user));
-        setJobs(jobsRes.data?.jobs || []);
-        setApplications(appsRes.data?.applications || []);
       } catch {
         if (!active) return;
         setStudent(normalizeStudentForEligibility({}, userProfile, user));
-        setJobs([]);
-        setApplications([]);
       }
     };
-
     load();
     return () => { active = false; };
-  }, [user?.uid, user?.email, userProfile?.name, userProfile?.email, userProfile?.branch, userProfile?.department]);
+  }, [user, userProfile]);
 
   const displayedJobs = useMemo(() => {
     const studentBranch = student?.branch || userProfile?.department || '';
@@ -145,7 +122,7 @@ export default function StudentJobBoard() {
           : !meetsBranch
             ? `Branch mismatch. Your branch: ${studentBranch || 'Not set'}. Eligible branches: ${formatBranchList(job.branches)}`
             : !meetsPackageRule
-              ? `Requires package higher than current (${student?.currentPackage || `${studentCurrentPackageLpa} LPA`})`
+              ? `Requires package higher than current (${student?.currentPackage || studentCurrentPackageLpa + ' LPA'})`
             : '';
 
       return {
@@ -171,37 +148,60 @@ export default function StudentJobBoard() {
         eligible,
         applied: appliedJobIds.has(job.id),
       };
-    });
+    }).filter(j => j.isOpen); // Only show active drives
   }, [applications, jobs, student, userProfile?.department]);
 
-  const filtered = displayedJobs.filter((job) => {
-    if (!job.isOpen) return false;
-    const title = String(job.title || '').toLowerCase();
-    const company = String(job.company || '').toLowerCase();
-    const matchSearch = !search || title.includes(search.toLowerCase()) || company.includes(search.toLowerCase());
-    const matchType = !typeFilter || job.type === typeFilter;
-    return matchSearch && matchType;
+  const companiesData = useMemo(() => {
+    const map = new Map();
+    displayedJobs.forEach((job) => {
+      const c = job.company;
+      if (!map.has(c)) {
+        map.set(c, {
+          name: c,
+          jobs: [],
+          locations: new Set(),
+          eligibleCount: 0
+        });
+      }
+      const data = map.get(c);
+      data.jobs.push(job);
+      if (job.location) data.locations.add(job.location);
+      if (job.eligible) data.eligibleCount++;
+    });
+    
+    return Array.from(map.values()).map(c => ({
+      ...c,
+      locations: Array.from(c.locations).join(', ') || 'Multiple Locations',
+      jobs: c.jobs.sort((a, b) => (b.jobPackageLpa || 0) - (a.jobPackageLpa || 0))
+    }));
+  }, [displayedJobs]);
+
+  const filteredCompanies = companiesData.filter((c) => {
+    return !search || c.name.toLowerCase().includes(search.toLowerCase());
+  }).sort((a, b) => {
+    if (sortField === 'openings_desc') return b.jobs.length - a.jobs.length;
+    if (sortField === 'eligible_desc') return b.eligibleCount - a.eligibleCount;
+    if (sortField === 'az') return a.name.localeCompare(b.name);
+    return 0;
   });
 
   useEffect(() => {
-    if (!selectedId && filtered.length) {
-      setSelectedId(filtered[0].id);
+    if (!selectedCompanyName && filteredCompanies.length) {
+      setSelectedCompanyName(filteredCompanies[0].name);
     }
-  }, [filtered, selectedId]);
+  }, [filteredCompanies, selectedCompanyName]);
 
-  const selected = useMemo(() => filtered.find((job) => job.id === selectedId) || null, [filtered, selectedId]);
+  const selectedCompany = useMemo(() => filteredCompanies.find((c) => c.name === selectedCompanyName) || null, [filteredCompanies, selectedCompanyName]);
 
   const applyToJob = async (job) => {
     if (job.applied) {
       toast.error('You already applied to this job');
       return;
     }
-
     if (!user?.uid) {
       toast.error('Please sign in to apply');
       return;
     }
-
     if (!job.eligible) {
       toast.error(job.reason || 'You are not eligible for this job');
       return;
@@ -213,14 +213,7 @@ export default function StudentJobBoard() {
         jobId: job.id,
         branch: student?.branch || userProfile?.department || '',
       };
-
-      const { data } = await createApplication(payload);
-      setApplications((prev) => {
-        if (prev.some((application) => application.id === data.id || application.jobId === job.id)) return prev;
-        return [{ ...data }, ...prev];
-      });
-      setSelectedId(job.id);
-
+      await createApplication(payload);
       toast.success('Application submitted successfully!');
     } catch (error) {
       toast.error(error?.response?.data?.error || 'Unable to submit application');
@@ -245,82 +238,64 @@ export default function StudentJobBoard() {
   };
 
   return (
-    <DashboardLayout title="Job Board">
+    <DashboardLayout title="Company Listings">
       <div className="flex gap-5 h-full">
         <div className="flex-1 space-y-4 min-w-0">
-          <div className="flex gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-48">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-              <input type="text" placeholder="Search jobs, companies..." value={search}
-                onChange={(e) => setSearch(e.target.value)} className="input-field pl-9 py-2 text-sm w-full" />
-            </div>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-              className="input-field py-2 text-sm w-36 appearance-none">
-              <option value="">All Types</option>
-              {['Full-time', 'Internship', 'PPO', 'Contract'].map((t) => (
-                <option key={t} value={t} className="bg-dark-700">{t}</option>
-              ))}
-            </select>
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+            <input type="text" placeholder="Search companies..." value={search}
+              onChange={(e) => setSearch(e.target.value)} className="input-field pl-9 py-2 text-sm w-full" />
           </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-white/40 text-xs font-body">{filtered.filter((job) => job.eligible).length} eligible jobs found</p>
-            <p className="text-white/30 text-xs font-body">Tip: tap Apply on any eligible job card to submit instantly.</p>
+            <p className="text-white/40 text-xs font-body">{filteredCompanies.length} companies hiring</p>
+            <select value={sortField} onChange={(e) => setSortField(e.target.value)} className="input-field py-1.5 text-xs w-36 appearance-none font-semibold text-blue-400">
+              <option value="openings_desc" className="bg-dark-700">Most Openings</option>
+              <option value="eligible_desc" className="bg-dark-700">Most Eligible</option>
+              <option value="az" className="bg-dark-700">A - Z</option>
+            </select>
           </div>
 
           <div className="space-y-3">
-            {!filtered.length && (
-              <div className="glass-card p-6 border border-white/5 text-white/40 text-sm font-body">
-                No active jobs match your filters right now.
+            {!filteredCompanies.length && search && (
+              <div className="glass-card p-6 border border-white/5 text-center">
+                <p className="text-white/60 font-medium">"{search}" is not listed in your campus</p>
+                <p className="text-white/40 text-sm mt-1 font-body">Try searching for a different company or check back later.</p>
               </div>
             )}
-            {filtered.map((job, i) => (
-              <motion.div key={job.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            {!filteredCompanies.length && !search && (
+              <div className="glass-card p-6 border border-white/5 text-center text-white/40 text-sm font-body">
+                No active drives right now.
+              </div>
+            )}
+            
+            {filteredCompanies.map((comp, i) => (
+              <motion.div key={comp.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
-                onClick={() => setSelectedId(job.id)}
+                onClick={() => setSelectedCompanyName(comp.name)}
                 className={`glass-card p-4 cursor-pointer border transition-all ${
-                  selected?.id === job.id ? 'border-blue-electric/50' :
-                  !job.eligible ? 'border-white/5 opacity-50' : 'border-white/5 hover:border-white/15'
+                  selectedCompany?.name === comp.name ? 'border-blue-electric/50 bg-white/5' :
+                  comp.eligibleCount === 0 ? 'border-white/5 opacity-60 hover:opacity-100 hover:border-white/15' : 'border-white/5 hover:border-white/15'
                 }`}>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-electric/20 to-gold/10 flex items-center justify-center border border-white/10 flex-shrink-0">
-                    <span className="font-heading font-bold text-white text-sm">{(job.company || '?')[0]}</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-electric/20 to-gold/10 flex items-center justify-center border border-white/10 flex-shrink-0">
+                    <span className="font-heading font-bold text-white text-lg">{(comp.name || '?')[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-white font-semibold text-sm">{job.title}</p>
-                        <p className="text-white/50 text-xs font-body">{job.company}</p>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {job.applied && <span className="badge-green text-xs">Applied</span>}
-                        {!job.eligible && <span className="badge-red text-xs">Not Eligible</span>}
-                        {job.eligible && !job.applied && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              applyToJob(job);
-                            }}
-                            disabled={applying}
-                            className="btn-primary text-xs py-1.5 px-3 disabled:opacity-50 whitespace-nowrap"
-                          >
-                            Quick Apply
-                          </button>
-                        )}
-                      </div>
+                      <h3 className="text-white font-semibold text-base truncate">{comp.name}</h3>
+                      {comp.eligibleCount > 0 ? (
+                        <span className="badge-green text-xs whitespace-nowrap">{comp.eligibleCount} Eligible Roles</span>
+                      ) : (
+                        <span className="badge-gray text-xs whitespace-nowrap">No Eligible Roles</span>
+                      )}
                     </div>
-                    <div className="flex flex-wrap gap-3 mt-2">
+                    <div className="flex flex-wrap gap-3 mt-1.5">
                       <div className="flex items-center gap-1 text-white/40">
-                        <MapPin size={11} /><span className="text-xs font-body">{job.location}</span>
+                        <MapPin size={12} /><span className="text-xs font-body">{comp.locations}</span>
                       </div>
                       <div className="flex items-center gap-1 text-white/40">
-                        <DollarSign size={11} /><span className="text-xs font-body">{job.ctc}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-white/40">
-                        <Calendar size={11} />
-                        <span className={`text-xs font-body ${deadlineBadge(job.deadline).urgent ? 'text-red-400' : ''}`}>
-                          {deadlineBadge(job.deadline).label}
-                        </span>
+                        <Briefcase size={12} /><span className="text-xs font-body">{comp.jobs.length} Openings</span>
                       </div>
                     </div>
                   </div>
@@ -330,74 +305,81 @@ export default function StudentJobBoard() {
           </div>
         </div>
 
-        {selected && (
+        {selectedCompany && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-            className="w-80 flex-shrink-0 glass-card p-5 border border-white/10 h-fit sticky top-4 space-y-4">
-            <div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-electric/20 to-gold/10 flex items-center justify-center border border-white/10 mb-3">
-                <span className="font-heading font-bold text-white text-lg">{(selected.company || '?')[0]}</span>
+            className="w-96 flex-shrink-0 glass-card border border-white/10 h-[calc(100vh-120px)] flex flex-col sticky top-4 overflow-hidden">
+            
+            {/* Header */}
+            <div className="p-5 border-b border-white/5 bg-white/5">
+              <div className="flex items-center gap-4 mb-3">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-electric/20 to-gold/10 flex items-center justify-center border border-white/10 flex-shrink-0 shadow-lg">
+                  <span className="font-heading font-bold text-white text-2xl">{(selectedCompany.name || '?')[0]}</span>
+                </div>
+                <div>
+                  <h2 className="font-heading font-bold text-white text-xl leading-tight">{selectedCompany.name}</h2>
+                  <p className="text-blue-electric font-body text-sm font-semibold mt-0.5">{selectedCompany.locations}</p>
+                </div>
               </div>
-              <h3 className="font-heading font-bold text-white text-lg">{selected.title}</h3>
-              <p className="text-blue-electric font-body text-sm font-semibold">{selected.company}</p>
+              <p className="text-white/60 text-sm font-body leading-relaxed line-clamp-3">
+                {selectedCompany.jobs[0]?.description}
+              </p>
             </div>
 
-            <div className="space-y-2 py-3 border-y border-white/5">
-              {[
-                { label: 'Location', value: selected.location },
-                { label: 'CTC', value: selected.ctc },
-                { label: 'Type', value: selected.type },
-                { label: 'Mode', value: selected.workMode },
-                { label: 'Experience', value: selected.experienceLevel },
-                { label: 'Openings', value: selected.openings },
-                { label: 'Min CGPA', value: selected.minCGPA || 'Not specified' },
-                { label: 'Deadline', value: deadlineToLabel(selected.deadline) },
-                { label: 'Recruiter', value: selected.recruiterName },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between text-sm">
-                  <span className="text-white/40 font-body">{label}</span>
-                  <span className="text-white/80 font-body">{value}</span>
+            {/* Jobs List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <h3 className="text-white/80 font-semibold text-sm uppercase tracking-wider mb-2">Roles Offered</h3>
+              {selectedCompany.jobs.map((job) => (
+                <div key={job.id} className="bg-black/30 border border-white/5 rounded-xl p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="text-white font-medium text-sm pr-2">{job.title}</h4>
+                    {job.applied ? (
+                      <span className="badge-green text-xs flex-shrink-0">Applied</span>
+                    ) : job.eligible ? (
+                      <span className="badge-blue text-xs flex-shrink-0">Eligible</span>
+                    ) : null}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="flex items-center gap-1.5 text-white/50">
+                      <DollarSign size={12} className="text-white/30" />
+                      <span className="text-xs font-body truncate">{job.ctc}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-white/50">
+                      <Building2 size={12} className="text-white/30" />
+                      <span className="text-xs font-body truncate">{job.type}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-white/50">
+                      <Calendar size={12} className="text-white/30" />
+                      <span className={`text-xs font-body ${deadlineBadge(job.deadline).urgent ? 'text-red-400' : ''}`}>
+                        {deadlineBadge(job.deadline).label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!job.eligible && (
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg font-body mb-3">
+                      Not eligible: {job.reason || `CGPA requirement: ${job.minCGPA}`}
+                    </div>
+                  )}
+
+                  {job.eligible && !job.applied && (
+                    <button
+                      onClick={() => applyToJob(job)}
+                      disabled={applying}
+                      className="w-full py-2 rounded-lg btn-primary text-sm font-semibold transition-all flex items-center justify-center gap-2"
+                    >
+                      {applying ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Apply Now'}
+                    </button>
+                  )}
+                  {job.applied && (
+                    <button disabled className="w-full py-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-sm font-semibold cursor-not-allowed">
+                      Application Submitted
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
 
-            <div>
-              <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-body">Description</p>
-              <p className="text-white/60 text-sm font-body leading-relaxed">{selected.description}</p>
-            </div>
-
-            {!!selected.perks?.length && (
-              <div>
-                <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-body">Perks</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {selected.perks.map((perk) => <span key={perk} className="badge-blue text-xs">{perk}</span>)}
-                </div>
-              </div>
-            )}
-
-            {selected.applyLink && (
-              <div className="rounded-xl border border-blue-electric/30 bg-blue-electric/10 text-blue-electric text-xs font-body px-3 py-2.5 text-center">
-                Demo mode enabled: external apply link is disabled. Use Apply Now.
-              </div>
-            )}
-
-            {selected.eligible ? (
-              <button
-                onClick={() => !selected.applied && applyToJob(selected)}
-                disabled={selected.applied || applying}
-                className={`w-full py-3 rounded-xl font-heading font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-                  selected.applied
-                    ? 'bg-green-500/20 border border-green-500/30 text-green-400 cursor-default'
-                    : 'btn-primary'
-                }`}>
-                {applying ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : selected.applied ? '✓ Applied' : 'Apply Now'}
-              </button>
-            ) : (
-              <div className="py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center font-body">
-                Not eligible ({selected.reason || `CGPA requirement: ${selected.minCGPA}`})
-              </div>
-            )}
           </motion.div>
         )}
       </div>

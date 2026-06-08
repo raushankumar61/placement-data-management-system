@@ -1,7 +1,7 @@
 // src/pages/faculty/Notifications.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Send, Users, X } from 'lucide-react';
+import { Bell, Send, Users } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { sendNotification, getNotifications } from '../../services/api';

@@ -24,6 +24,32 @@ const createShortlistDefaults = (data = {}, id) => ({
   id,
 });
 
+// GET /api/v1/recruiters/search - unauthenticated endpoint for login autocomplete
+router.get('/search', async (req, res) => {
+  try {
+    if (!db) return res.json({ recruiters: [] });
+    const q = String(req.query.q || '').toLowerCase().trim();
+    if (q.length < 2) return res.json({ recruiters: [] });
+
+    // Fetch up to 100 to search in-memory (Firebase doesn't have great full-text search)
+    const snap = await db.collection('recruiters').limit(100).get();
+    let recruiters = snap.docs.map((d) => ({
+      id: d.id,
+      email: d.data().contactEmail || d.data().email || '',
+      companyName: d.data().companyName || 'Unknown Company',
+      name: d.data().name || 'Recruiter'
+    }));
+
+    recruiters = recruiters.filter(
+      (r) => r.companyName.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q)
+    ).slice(0, 10);
+
+    res.json({ recruiters });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/v1/recruiters  — admin only
 router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
   try {

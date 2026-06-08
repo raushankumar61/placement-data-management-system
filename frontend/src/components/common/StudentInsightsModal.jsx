@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { X, User, GraduationCap, Briefcase, Building2, MessageSquare, TrendingUp } from 'lucide-react';
+import { X, User, GraduationCap, Building2, MessageSquare, TrendingUp } from 'lucide-react';
 
 function MetricCard({ label, value, color = 'text-white' }) {
   return (

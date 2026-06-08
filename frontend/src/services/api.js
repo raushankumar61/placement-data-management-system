@@ -44,19 +44,23 @@ api.interceptors.response.use(
   }
 );
 
+export const searchStudents = (q) => api.get('/students/search', { params: { q } });
+export const searchRecruiters = (q) => api.get('/recruiters/search', { params: { q } });
+export const searchFaculty = (q) => api.get('/faculty/search', { params: { q } });
+export const getFaculty = () => api.get('/faculty');
 export const getStudents = (params) => api.get('/students', { params });
 export const getStudent = (id) => api.get(`/students/${id}`);
 export const createStudent = (data) => api.post('/students', data);
 export const updateStudent = (id, data) => api.put(`/students/${id}`, data);
 export const deleteStudent = (id) => api.delete(`/students/${id}`);
-export const bulkImportStudents = (formData) => api.post('/students/bulk-import', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
+export const bulkImportStudents = (formData) => api.post('/students/bulk-import', formData);
+export const createStudentVerification = (id, data) => api.post(`/students/${id}/verifications`, data);
 
 export const getJobs = (params) => api.get('/jobs', { params });
 export const getJob = (id) => api.get(`/jobs/${id}`);
 export const createJob = (data) => api.post('/jobs', data);
 export const updateJob = (id, data) => api.put(`/jobs/${id}`, data);
+export const updateJobStatus = (id, status) => api.put(`/jobs/${id}/status`, { status });
 export const closeJob = (id) => api.put(`/jobs/${id}/close`);
 export const deleteJob = (id) => api.delete(`/jobs/${id}`);
 
@@ -92,11 +96,10 @@ export const createComplaint = (data) => api.post('/complaints', data);
 export const resolveComplaint = (id, data) => api.put(`/complaints/${id}/resolve`, data);
 export const deleteComplaint = (id) => api.delete(`/complaints/${id}`);
 
-export const parseResume = (formData) => api.post('/resume/parse', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
+export const parseResume = (formData) => api.post('/resume/parse', formData);
+export const uploadResume = (formData) => api.post('/resume/upload', formData);
 
-export const getAdminAnalytics = () => api.get('/analytics/admin');
+export const getAdminAnalytics = (params) => api.get('/analytics/admin', { params });
 export const getRecruiterAnalytics = () => api.get('/analytics/recruiter');
 export const getRankedCandidates = (params) => api.get('/analytics/candidates/ranked', { params });
 export const getJobRecommendations = () => api.get('/analytics/recommendations');

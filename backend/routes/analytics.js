@@ -24,9 +24,22 @@ const parsePackageToLpa = (value) => {
   return amount;
 };
 
+// Simple in-memory cache for admin analytics to save Firestore reads
+let adminAnalyticsCache = {
+  data: null,
+  timestamp: 0,
+};
+const CACHE_TTL_MS = 60000; // 60 seconds
+
 // GET /api/v1/analytics/admin  — admin only, full system metrics
 router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
   try {
+    // Check cache
+    // Check cache (ignore cache if year filter is applied)
+    const { year } = req.query;
+    if (!year && adminAnalyticsCache.data && (Date.now() - adminAnalyticsCache.timestamp < CACHE_TTL_MS)) {
+      return res.json(adminAnalyticsCache.data);
+    }
     if (!db) {
       return res.json({
         stats: { students: 1247, placed: 847, jobs: 62, companies: 134, applications: 3800 },
@@ -46,9 +59,44 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
       db.collection('systemActivity').orderBy('createdAt', 'desc').limit(20).get(),
     ]);
 
-    const students = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const jobs = jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const applications = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let students = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let jobs = jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let applications = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // Year-wise placement rate
+    const yearWisePlacementMap = {};
+    students.forEach((s) => {
+      const gradYear = s.graduationYear || 'Unknown';
+      if (!yearWisePlacementMap[gradYear]) {
+        yearWisePlacementMap[gradYear] = { year: gradYear, total: 0, placed: 0 };
+      }
+      yearWisePlacementMap[gradYear].total++;
+      if ((s.placementStatus || '').toLowerCase() === 'placed') {
+        yearWisePlacementMap[gradYear].placed++;
+      }
+    });
+    
+    const yearWisePlacement = Object.values(yearWisePlacementMap)
+      .map((y) => ({
+        ...y,
+        rate: y.total > 0 ? parseFloat(((y.placed / y.total) * 100).toFixed(1)) : 0
+      }))
+      .sort((a, b) => String(a.year).localeCompare(String(b.year)));
+
+    // Filter by year if specified
+    if (year) {
+      students = students.filter(s => String(s.graduationYear) === String(year));
+      jobs = jobs.filter(j => {
+        const date = j.createdAt;
+        if (!date) return true;
+        return String(date).startsWith(year);
+      });
+      applications = applications.filter(a => {
+        const date = a.appliedAt || a.createdAt;
+        if (!date) return true;
+        return String(date).startsWith(year);
+      });
+    }
 
     // Branch-wise aggregation
     const byBranch = {};
@@ -68,18 +116,25 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
     // Package distribution from placed students' applications
     const selectedApps = applications.filter((a) => (a.status || '').toLowerCase() === 'selected');
     const packageBuckets = { '<5': 0, '5-10': 0, '10-20': 0, '>20': 0 };
-    jobs.forEach((job) => {
-      const ctcNum = parsePackageToLpa(job.ctc || '');
-      if (!ctcNum) return;
+    
+    const jobsMap = new Map(jobs.map(j => [j.id, j]));
+
+    selectedApps.forEach((app) => {
+      const rawCtc = app.ctc || app.expectedCTC || jobsMap.get(app.jobId)?.ctc || '';
+      const ctcNum = parsePackageToLpa(rawCtc);
+      
+      if (!ctcNum) return; // Skip if we can't parse a number
+      
       if (ctcNum < 5) packageBuckets['<5']++;
       else if (ctcNum < 10) packageBuckets['5-10']++;
       else if (ctcNum < 20) packageBuckets['10-20']++;
       else packageBuckets['>20']++;
     });
+    
     const packageDist = Object.entries(packageBuckets).map(([name, value]) => ({
       name: name === '<5' ? '< 5 LPA' : name === '>20' ? '> 20 LPA' : `${name} LPA`,
       value,
-    }));
+    })).filter(d => d.value > 0);
 
     // Top companies by placements
     const companyPlaced = {};
@@ -120,14 +175,14 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
       }
       last8Months.push(trendMap[monthStr]);
     }
-    const placementTrend = last8Months.sort((a, b) => a.month.localeCompare(b.month));
+    const placementTrend = year ? Object.values(trendMap).sort((a, b) => a.month.localeCompare(b.month)) : last8Months.sort((a, b) => a.month.localeCompare(b.month));
 
     // Recent system activity
     const recentActivity = activitySnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     const placedCount = students.filter((s) => (s.placementStatus || '').toLowerCase() === 'placed').length;
 
-    res.json({
+    const responseData = {
       stats: {
         students: students.length,
         placed: placedCount,
@@ -141,9 +196,21 @@ router.get('/admin', verifyToken, requireRole('admin'), async (req, res) => {
       packageDist,
       topCompanies,
       recentActivity,
-    });
+      yearWisePlacement,
+    };
+
+    // Update cache
+    if (!year) {
+      adminAnalyticsCache = {
+        data: responseData,
+        timestamp: Date.now(),
+      };
+    }
+
+    res.json(responseData);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Analytics Error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 

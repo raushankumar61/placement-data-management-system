@@ -1,5 +1,4 @@
 // src/pages/Landing.jsx
-import React from 'react';
 import Navbar from '../components/common/Navbar';
 import Hero from '../components/landing/Hero';
 import { Features, HowItWorks, Stats, Testimonials, Footer } from '../components/landing/Sections';

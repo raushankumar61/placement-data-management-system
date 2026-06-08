@@ -1,5 +1,5 @@
 // src/pages/Register.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, Eye, EyeOff, Zap, Chrome, BookOpen } from 'lucide-react';
@@ -89,8 +89,8 @@ export default function Register() {
             <div className="w-9 h-9 rounded-xl bg-blue-electric/20 border border-blue-electric/40 flex items-center justify-center">
               <Zap size={18} className="text-blue-electric" />
             </div>
-            <span className="font-heading font-bold text-xl text-white">
-              Place<span className="text-blue-electric">Cloud</span>
+            <span className="font-heading font-bold text-xl text-white tracking-widest">
+              DSCE
             </span>
           </Link>
           <h1 className="font-heading font-bold text-3xl text-white mb-2">Create your account</h1>

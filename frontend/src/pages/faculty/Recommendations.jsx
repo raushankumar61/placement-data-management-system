@@ -1,5 +1,5 @@
 // src/pages/faculty/Recommendations.jsx  (D3)
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Send, X, Plus } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
@@ -22,7 +22,7 @@ export default function FacultyRecommendations() {
       try {
         const [studentsRes, recsRes, jobsRes] = await Promise.all([
           getStudents(),
-          getRecommendations(),
+          getRecommendations().catch(() => ({ data: { recommendations: [] } })),
           getJobs(),
         ]);
         setStudents(studentsRes?.data?.students || []);

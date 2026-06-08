@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Building2, ExternalLink, Mail } from 'lucide-react';
+import { Search, Building2, ExternalLink, Mail, X, Send } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import toast from 'react-hot-toast';
 import { getAlumni } from '../../services/api';
@@ -10,6 +10,8 @@ export default function StudentAlumni() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
+  const [selectedAlumni, setSelectedAlumni] = useState(null);
+  const [emailDraft, setEmailDraft] = useState({ subject: '', body: '' });
 
   useEffect(() => {
     const fetchAlumni = async () => {
@@ -32,6 +34,25 @@ export default function StudentAlumni() {
     const companyMatch = !companyFilter || (a.companyPlaced === companyFilter || a.latestApplicationCompany === companyFilter);
     return nameMatch && companyMatch;
   });
+
+  const openEmailModal = (person) => {
+    const company = person.companyPlaced || person.latestApplicationCompany || 'your company';
+    const firstName = person.name ? person.name.split(' ')[0] : 'Alumni';
+    
+    setEmailDraft({
+      subject: 'Connecting via Placement Portal',
+      body: `Hi ${firstName},\n\nI am a student from ${person.branch} looking to connect with you regarding opportunities at ${company}.\n\nBest regards,\n[Your Name]`
+    });
+    setSelectedAlumni(person);
+  };
+
+  const handleSendEmail = () => {
+    if (!selectedAlumni) return;
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${selectedAlumni.email}&su=${encodeURIComponent(emailDraft.subject)}&body=${encodeURIComponent(emailDraft.body)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setSelectedAlumni(null);
+    toast.success('Opening email client...');
+  };
 
   return (
     <DashboardLayout title="Alumni Connect">
@@ -96,9 +117,12 @@ export default function StudentAlumni() {
                   </div>
 
                   <div className="mt-4 flex gap-2">
-                    <a href={`mailto:${person.email}`} className="btn-primary flex-1 py-2 text-xs flex items-center justify-center gap-2">
+                    <button 
+                      onClick={() => openEmailModal(person)}
+                      className="btn-primary flex-1 py-2 text-xs flex items-center justify-center gap-2"
+                    >
                       <Mail size={14} /> Contact
-                    </a>
+                    </button>
                     {person.linkedin && (
                       <a href={person.linkedin} target="_blank" rel="noopener noreferrer" 
                         className="btn-outline flex-1 py-2 text-xs flex items-center justify-center gap-2">
@@ -112,6 +136,74 @@ export default function StudentAlumni() {
           </div>
         )}
       </div>
+
+      {/* Email Composer Modal */}
+      {selectedAlumni && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card w-full max-w-lg overflow-hidden flex flex-col"
+          >
+            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+              <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
+                <Mail size={18} className="text-blue-electric" /> Compose Message
+              </h3>
+              <button 
+                onClick={() => setSelectedAlumni(null)}
+                className="p-1 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-white/60 mb-1 uppercase tracking-wider">To</label>
+                <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm">
+                  {selectedAlumni.name} &lt;{selectedAlumni.email}&gt;
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-white/60 mb-1 uppercase tracking-wider">Subject</label>
+                <input 
+                  type="text" 
+                  value={emailDraft.subject}
+                  onChange={(e) => setEmailDraft({...emailDraft, subject: e.target.value})}
+                  className="input-field w-full text-sm"
+                  placeholder="Enter subject..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-white/60 mb-1 uppercase tracking-wider">Message</label>
+                <textarea 
+                  value={emailDraft.body}
+                  onChange={(e) => setEmailDraft({...emailDraft, body: e.target.value})}
+                  className="input-field w-full text-sm min-h-[150px] resize-y"
+                  placeholder="Write your message here..."
+                />
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-white/10 bg-black/20 flex justify-end gap-3">
+              <button 
+                onClick={() => setSelectedAlumni(null)}
+                className="btn-outline px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSendEmail}
+                className="btn-primary px-6 py-2 text-sm flex items-center gap-2"
+              >
+                <Send size={14} /> Send Email
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

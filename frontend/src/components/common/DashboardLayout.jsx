@@ -1,12 +1,12 @@
 // src/components/common/DashboardLayout.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Briefcase, FileText, BarChart3,
-  Bell, Building2, LogOut, Menu, X, ChevronRight, Zap,
+  Bell, Building2, LogOut, Menu, ChevronRight, Zap,
   UserCircle, Search, BookOpen, Calendar, MessageSquare,
-  Shield, Settings, ClipboardList, TrendingUp, GraduationCap, Video
+  Shield, ClipboardList, TrendingUp, GraduationCap, Video
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -21,7 +21,7 @@ const NAV_CONFIG = {
     { label: 'Reports', icon: BarChart3, path: '/admin/reports' },
     { label: 'Notifications', icon: Bell, path: '/admin/notifications' },
     { label: 'Recruiters', icon: Building2, path: '/admin/recruiters' },
-    { label: 'Complaints', icon: MessageSquare, path: '/admin/complaints' },
+    { label: 'Faculty', icon: BookOpen, path: '/admin/faculty' },
   ],
   student: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/student/dashboard' },
@@ -114,8 +114,8 @@ export default function DashboardLayout({ children, title }) {
             <Zap size={16} className="text-blue-electric" />
           </div>
           {sidebarOpen && (
-            <span className="font-heading font-bold text-white">
-              Place<span className="text-blue-electric">Cloud</span>
+            <span className="font-heading font-bold text-white tracking-widest">
+              DSCE
             </span>
           )}
         </Link>

@@ -10,6 +10,7 @@ const { createJobDefaults } = require('../utils/marketplaceFactory');
 const { logActivity } = require('../utils/activityLogger');
 const { branchMatches, normalizeJobBranches } = require('../utils/branchEligibility');
 const { isOwnedByRecruiter, resolveRecruiterScope } = require('../utils/recruiterOwnership');
+const { canApplyToJob } = require('../utils/eligibility');
 
 const sanitizeJobBranches = (branches) => {
   const normalized = normalizeJobBranches(branches);
@@ -48,6 +49,18 @@ router.get('/', verifyToken, async (req, res) => {
     }
 
     if (branch) jobs = jobs.filter((j) => branchMatches(j.branches, branch));
+
+    if (req.user.role === 'student' && db) {
+      // Students only see published or active jobs
+      jobs = jobs.filter((j) => ['published', 'active'].includes(String(j.status).toLowerCase()));
+      
+      const studentSnap = await db.collection('students').doc(req.user.uid).get();
+      const student = studentSnap.exists ? studentSnap.data() : {};
+      jobs = jobs.map((job) => {
+        const eligibility = canApplyToJob(student, job);
+        return { ...job, eligible: eligibility.allowed, ineligibilityReason: eligibility.reason };
+      }).filter((job) => job.eligible); // Or we can return all and let UI disable apply button. The prompt says "Students should only be able to view and apply for eligible opportunities." so we filter them out.
+    }
 
     // Apply pagination
     const paginated = jobs.slice(Number(offset), Number(offset) + Number(lim));
@@ -106,7 +119,7 @@ router.post(
         postedByName: req.user.name || req.user.displayName || '',
         recruiterEmail: req.user.email || '',
         recruiterName: req.user.name || req.user.displayName || req.body.company || '',
-        status: req.body.status || 'active',
+        status: req.user.role === 'recruiter' ? 'pending_approval' : (req.body.status || 'published'),
         applicants: Number(req.body.applicants || 0),
         createdAt: new Date().toISOString(),
       }, req.body.title || req.body.company || uuidv4());
@@ -187,13 +200,50 @@ router.put(
         updatedBy: req.user.uid,
       }, req.params.id);
 
-      if (db) await db.collection('jobs').doc(req.params.id).update(payload);
+      if (db) {
+        await db.collection('jobs').doc(req.params.id).update(payload);
+        
+        // SYNC DENORMALIZED DATA to applications
+        if (req.body.title !== current.title || req.body.company !== current.company) {
+          const appsSnap = await db.collection('applications').where('jobId', '==', req.params.id).get();
+          if (!appsSnap.empty) {
+            const batch = db.batch();
+            appsSnap.docs.forEach((doc) => {
+              batch.update(doc.ref, {
+                role: payload.title,
+                company: payload.company
+              });
+            });
+            await batch.commit();
+          }
+        }
+      }
       res.json({ id: req.params.id, ...payload });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   }
 );
+
+// PUT /api/v1/jobs/:id/status  — admin can change status (e.g. approve or reject drive)
+router.put('/:id/status', verifyToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['published', 'rejected', 'closed', 'active', 'pending_approval'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    if (db) {
+      await db.collection('jobs').doc(req.params.id).update({
+        status,
+        updatedAt: new Date().toISOString(),
+        updatedBy: req.user.uid,
+      });
+    }
+    res.json({ id: req.params.id, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // PUT /api/v1/jobs/:id/close  — admin or job owner can close it
 router.put('/:id/close', verifyToken, requireRole('admin', 'recruiter'), async (req, res) => {
@@ -222,7 +272,25 @@ router.put('/:id/close', verifyToken, requireRole('admin', 'recruiter'), async (
 // DELETE /api/v1/jobs/:id  — admin only
 router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    if (db) await db.collection('jobs').doc(req.params.id).delete();
+    if (db) {
+      await db.collection('jobs').doc(req.params.id).delete();
+      
+      // CASCADE DELETE applications
+      const appsSnap = await db.collection('applications').where('jobId', '==', req.params.id).get();
+      if (!appsSnap.empty) {
+        const batch = db.batch();
+        appsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+      }
+      
+      // CASCADE DELETE interviews
+      const interviewsSnap = await db.collection('interviews').where('jobId', '==', req.params.id).get();
+      if (!interviewsSnap.empty) {
+        const batch = db.batch();
+        interviewsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+      }
+    }
     res.json({ success: true, id: req.params.id });
   } catch (err) {
     res.status(500).json({ error: err.message });

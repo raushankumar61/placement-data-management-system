@@ -1,15 +1,13 @@
 // src/pages/student/Profile.jsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, X, Save, Upload, FileText, Sparkles } from 'lucide-react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../services/firebase';
 import toast from 'react-hot-toast';
 import { validateForm, validators } from '../../utils/validation';
 import { fillStudentDefaults } from '../../utils/studentDefaults';
-import { getStudent, parseResume, updateStudent } from '../../services/api';
+import { getStudent, parseResume, updateStudent, uploadResume, createStudentVerification } from '../../services/api';
 
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics & Communication', 'Mechanical', 'Civil', 'Electrical', 'Artificial Intelligence & Machine Learning', 'Data Science'];
 
@@ -62,6 +60,8 @@ export default function StudentProfile() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [parsing, setParsing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationForm, setVerificationForm] = useState({ field: 'CGPA', newValue: '', evidence: '' });
 
   useEffect(() => {
     if (!user?.uid) return undefined;
@@ -124,7 +124,7 @@ export default function StudentProfile() {
   const removeOfferCompany = (idx) => setForm({ ...form, offerCompanies: form.offerCompanies.filter((_, i) => i !== idx) });
 
   // ── Resume Upload ───────────────────────────────────────────────────────────
-  const handleResumeUpload = (e) => {
+  const handleResumeUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.type !== 'application/pdf') {
@@ -136,31 +136,24 @@ export default function StudentProfile() {
       return;
     }
     setUploading(true);
-    setUploadProgress(0);
-    const storageRef = ref(storage, `resumes/${user.uid}/${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100));
-      },
-      (err) => {
-        toast.error('Upload failed: ' + err.message);
+    setUploadProgress(10); // Fake progress to indicate starting
+    try {
+      const fd = new FormData();
+      fd.append('resume', file);
+      setUploadProgress(50);
+      
+      const { data } = await uploadResume(fd);
+      setUploadProgress(100);
+      setForm((prev) => ({ ...prev, resumeURL: data.url }));
+      toast.success('Resume uploaded! Click "Parse Skills" to extract skills automatically.');
+    } catch (err) {
+      toast.error('Upload failed: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setTimeout(() => {
         setUploading(false);
-      },
-      async () => {
-        try {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          setForm((prev) => ({ ...prev, resumeURL: url }));
-          toast.success('Resume uploaded! Click "Parse Skills" to extract skills automatically.');
-        } catch (err) {
-          toast.error('Could not get download URL');
-        } finally {
-          setUploading(false);
-          setUploadProgress(0);
-        }
-      }
-    );
+        setUploadProgress(0);
+      }, 500);
+    }
   };
 
   // ── Resume Skill Parsing ─────────────────────────────────────────────────────
@@ -222,6 +215,19 @@ export default function StudentProfile() {
     }
   };
 
+  const handleVerificationSubmit = async (e) => {
+    e.preventDefault();
+    if (!verificationForm.newValue) return toast.error('New value is required');
+    try {
+      await createStudentVerification(user.uid, verificationForm);
+      toast.success('Verification request submitted successfully. Faculty will review it soon.');
+      setShowVerificationModal(false);
+      setVerificationForm({ field: 'CGPA', newValue: '', evidence: '' });
+    } catch (error) {
+      toast.error('Failed to submit request');
+    }
+  };
+
   return (
     <DashboardLayout title="My Profile">
       <form onSubmit={handleSave} className="space-y-5 max-w-5xl">
@@ -234,9 +240,14 @@ export default function StudentProfile() {
             <p className="text-white/40 text-sm font-body">{form.branch || 'Branch'} · CGPA: {form.cgpa || '0'} · Status: {form.placementStatus || 'unplaced'}</p>
           </div>
           {!isEditing ? (
-            <button type="button" onClick={startEditing} className="btn-outline text-sm py-2 px-4">
-              Edit Profile
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setShowVerificationModal(true)} className="btn-outline border-gold/30 text-gold hover:bg-gold/10 text-sm py-2 px-4">
+                Request Change
+              </button>
+              <button type="button" onClick={startEditing} className="btn-outline text-sm py-2 px-4">
+                Edit Profile
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <button type="button" onClick={cancelEditing} className="btn-outline text-sm py-2 px-4">
@@ -475,6 +486,38 @@ export default function StudentProfile() {
           </div>
         )}
       </form>
+
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card p-6 w-full max-w-md border border-white/10">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-heading font-bold text-white">Request Data Change</h3>
+              <button type="button" onClick={() => setShowVerificationModal(false)} className="text-white/50 hover:text-white transition-colors"><X size={18} /></button>
+            </div>
+            <p className="text-sm text-white/50 mb-5 font-body">Restricted fields like CGPA, Branch, or Skills require faculty approval to change. Submit a request below.</p>
+            <form onSubmit={handleVerificationSubmit} className="space-y-4">
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Field to Change</label>
+                <select value={verificationForm.field} onChange={e => setVerificationForm({...verificationForm, field: e.target.value})} className="input-field text-sm">
+                  <option value="CGPA" className="bg-dark-700">CGPA</option>
+                  <option value="Branch" className="bg-dark-700">Branch</option>
+                  <option value="Skills" className="bg-dark-700">Skills</option>
+                  <option value="PlacementStatus" className="bg-dark-700">Placement Status</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">New Value</label>
+                <input value={verificationForm.newValue} onChange={e => setVerificationForm({...verificationForm, newValue: e.target.value})} className="input-field text-sm" placeholder="Enter the new accurate value" />
+              </div>
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-body block mb-1.5">Evidence (Optional Link)</label>
+                <input value={verificationForm.evidence} onChange={e => setVerificationForm({...verificationForm, evidence: e.target.value})} className="input-field text-sm" placeholder="Link to marksheet, certificate, etc." />
+              </div>
+              <button type="submit" className="btn-primary w-full py-2.5 text-sm mt-2">Submit Request</button>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

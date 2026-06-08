@@ -32,6 +32,68 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/v1/recommendations/ai - AI-powered job recommendations for a student
+router.get('/ai', verifyToken, requireRole('student'), async (req, res) => {
+  try {
+    console.log(`[AI Recommendations] Request from UID: ${req.user.uid}`);
+    if (!db) {
+      console.log(`[AI Recommendations] DB not initialized`);
+      return res.json({ recommendations: [] });
+    }
+
+    const studentSnap = await db.collection('students').doc(req.user.uid).get();
+    if (!studentSnap.exists) {
+      console.log(`[AI Recommendations] Student profile not found for UID: ${req.user.uid}`);
+      return res.status(404).json({ error: 'Student profile not found' });
+    }
+    const student = studentSnap.data();
+    console.log(`[AI Recommendations] Student branch: ${student.branch}, cgpa: ${student.cgpa}, skills: ${student.skills?.length}`);
+
+    // Only get active/open jobs
+    const jobsSnap = await db.collection('jobs').where('status', 'in', ['active', 'open']).get();
+    const jobs = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Simple matching algorithm
+    const recommendations = jobs.map(job => {
+      let score = 0;
+      let maxScore = 100;
+      
+      // Branch match (+40)
+      if (job.branches && (job.branches.includes('All') || job.branches.includes(student.branch))) {
+        score += 40;
+      }
+      
+      // Skills match (+40)
+      if (job.skills && job.skills.length > 0 && student.skills && student.skills.length > 0) {
+        const studentSkillsLow = student.skills.map(s => String(s).toLowerCase());
+        const matchCount = job.skills.filter(s => studentSkillsLow.includes(String(s).toLowerCase())).length;
+        score += Math.min(40, Math.round((matchCount / job.skills.length) * 40));
+      }
+      
+      // CGPA match (+20)
+      const minCgpa = parseFloat(job.minCGPA || 0);
+      const studentCgpa = parseFloat(student.cgpa || 0);
+      if (studentCgpa >= minCgpa) {
+        score += 20;
+      }
+
+      return {
+        ...job,
+        matchScore: score
+      };
+    })
+    .filter(job => job.matchScore >= 30) // Only return relevant matches
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 10); // Top 10 recommendations
+
+    console.log(`[AI Recommendations] Returning ${recommendations.length} recommendations`);
+    res.json({ recommendations });
+  } catch (err) {
+    console.error(`[AI Recommendations] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/v1/recommendations - faculty/admin can recommend a student for a job
 router.post(
   '/',

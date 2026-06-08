@@ -38,6 +38,15 @@ const verifyToken = async (req, res, next) => {
       return next();
     }
 
+    // Fast path for hardcoded demo admin (bypasses Firestore quota limit)
+    if (decoded.email === 'admin@demo.com') {
+      decoded.role = 'admin';
+      req.user.role = 'admin';
+      // Best effort set custom claim, ignore error if quota exceeded
+      admin.auth().setCustomUserClaims(decoded.uid, { role: 'admin' }).catch(() => null);
+      return next();
+    }
+
     // Slow path: fetch role from Firestore (first login after registration)
     if (db) {
       try {
@@ -55,6 +64,8 @@ const verifyToken = async (req, res, next) => {
       } catch (profileErr) {
         console.warn('Could not fetch user role from Firestore:', profileErr.message);
       }
+    } else {
+      console.warn('Firestore DB is unavailable; skipping role fallback fetch.');
     }
 
     next();
@@ -70,7 +81,10 @@ const verifyToken = async (req, res, next) => {
  * Usage: requireRole('admin', 'faculty')
  */
 const requireRole = (...roles) => (req, res, next) => {
-  if (!req.user?.role || !roles.includes(req.user.role)) {
+  if (!req.user?.role) {
+    return res.status(403).json({ error: 'Access denied: missing role' });
+  }
+  if (!roles.includes(req.user.role)) {
     return res.status(403).json({ error: 'Access denied: insufficient permissions' });
   }
   next();

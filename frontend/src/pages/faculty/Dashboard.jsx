@@ -1,7 +1,7 @@
 // src/pages/faculty/Dashboard.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, CheckCircle, AlertCircle, ClipboardList, X, Download } from 'lucide-react';
+import { CheckCircle, AlertCircle, ClipboardList, X, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import StudentInsightsModal from '../../components/common/StudentInsightsModal';
@@ -75,11 +75,11 @@ export default function FacultyDashboard() {
       try {
         const [studentsRes, verificationsRes, appsRes, jobsRes, interviewsRes, activitiesRes] = await Promise.all([
           getStudents(),
-          getFacultyVerifications(),
+          getFacultyVerifications().catch(() => ({ data: { verifications: [] } })),
           getApplications(),
           getJobs(),
           getInterviews(),
-          getPlacementActivities(),
+          getPlacementActivities().catch(() => ({ data: { activities: [] } })),
         ]);
         const data = studentsRes.data?.students || [];
         const apps = appsRes.data?.applications || [];
@@ -108,17 +108,7 @@ export default function FacultyDashboard() {
     load();
   }, []);
 
-  if (loadError) {
-    return (
-      <DashboardLayout title="Faculty Dashboard">
-        <div className="glass-card p-8 border border-red-500/30 text-center">
-          <p className="text-red-400 font-bold text-lg mb-2">Error Loading Dashboard</p>
-          <p className="text-white/60 font-mono text-sm">{loadError}</p>
-          <p className="text-white/40 text-xs mt-4">Please screenshot this and send it back.</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
+
 
   const deptStudents = useMemo(() => {
     const dept = userProfile?.department;
@@ -267,6 +257,18 @@ export default function FacultyDashboard() {
         : 'No confirmed offers yet. Student is currently in preparation/application stage.',
     };
   };
+
+  if (loadError) {
+    return (
+      <DashboardLayout title="Faculty Dashboard">
+        <div className="glass-card p-8 border border-red-500/30 text-center">
+          <p className="text-red-400 font-bold text-lg mb-2">Error Loading Dashboard</p>
+          <p className="text-white/60 font-mono text-sm">{loadError}</p>
+          <p className="text-white/40 text-xs mt-4">Please screenshot this and send it back.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Faculty Dashboard">
