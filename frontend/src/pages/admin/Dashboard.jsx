@@ -186,7 +186,7 @@ const PlacementTrendChart = ({ placementTrend, selectedYear, setSelectedYear }) 
       <div className="mb-4">
         <ResponsiveContainer width="100%" height={280}>
           {chartType === 'area' ? (
-            <AreaChart data={placementTrend} margin={{ top: 20, right: 30, left: 10, bottom: 25 }}>
+            <AreaChart data={placementTrend} margin={{ top: 20, right: 30, left: 20, bottom: 30 }}>
               <defs>
                 <linearGradient id="colorPlaced" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#00A3FF" stopOpacity={0.4} />
@@ -198,18 +198,18 @@ const PlacementTrendChart = ({ placementTrend, selectedYear, setSelectedYear }) 
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dy: 10 }} axisLine={true} tickLine={false} label={{ value: 'Month', position: 'insideBottom', offset: -15, fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dx: -5 }} axisLine={true} tickLine={false} width={60} label={{ value: 'Count', angle: -90, position: 'insideLeft', offset: 10, fill: 'rgba(255,255,255,0.5)', fontSize: 12, style: { textAnchor: 'middle' } }} />
+              <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dy: 10 }} axisLine={true} tickLine={false} label={{ value: 'Month', position: 'insideBottom', offset: -25, fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dx: -5 }} axisLine={true} tickLine={false} width={60} label={{ value: 'Count', angle: -90, position: 'insideLeft', offset: 15, fill: 'rgba(255,255,255,0.5)', fontSize: 12, style: { textAnchor: 'middle' } }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Area type="monotone" dataKey="placed" name="Placed" stroke="#00A3FF" strokeWidth={2.5} fill="url(#colorPlaced)" />
               <Area type="monotone" dataKey="drives" name="Applications" stroke="#F5A623" strokeWidth={2.5} fill="url(#colorDrives)" />
             </AreaChart>
           ) : (
-            <BarChart data={placementTrend} barGap={8} margin={{ top: 20, right: 30, left: 10, bottom: 25 }}>
+            <BarChart data={placementTrend} barGap={8} margin={{ top: 20, right: 30, left: 20, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dy: 10 }} axisLine={true} tickLine={false} label={{ value: 'Month', position: 'insideBottom', offset: -15, fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dx: -5 }} axisLine={true} tickLine={false} width={60} label={{ value: 'Count', angle: -90, position: 'insideLeft', offset: 10, fill: 'rgba(255,255,255,0.5)', fontSize: 12, style: { textAnchor: 'middle' } }} />
+              <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dy: 10 }} axisLine={true} tickLine={false} label={{ value: 'Month', position: 'insideBottom', offset: -25, fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, dx: -5 }} axisLine={true} tickLine={false} width={60} label={{ value: 'Count', angle: -90, position: 'insideLeft', offset: 15, fill: 'rgba(255,255,255,0.5)', fontSize: 12, style: { textAnchor: 'middle' } }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Bar dataKey="placed" name="Placed" fill="#00A3FF" radius={[6, 6, 0, 0]} />
@@ -354,10 +354,10 @@ export default function AdminDashboard() {
             <p className="section-title mb-1">Branch-wise Placement</p>
             <p className="text-white/40 text-xs font-body mb-5">Placed vs Total students</p>
             <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={branchData} layout="vertical" barGap={4} margin={{ top: 10, right: 30, left: 20, bottom: 25 }}>
+              <BarChart data={branchData} layout="vertical" barGap={4} margin={{ top: 10, right: 30, left: 10, bottom: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, dy: 5 }} axisLine={true} tickLine={false} label={{ value: 'Number of Students', position: 'insideBottom', offset: -15, fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
-                <YAxis dataKey="branch" type="category" width={140} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 500 }} axisLine={true} tickLine={false} label={{ value: 'Department', angle: -90, position: 'insideLeft', offset: 0, fill: 'rgba(255,255,255,0.5)', fontSize: 12, style: { textAnchor: 'middle' } }} />
+                <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, dy: 5 }} axisLine={true} tickLine={false} label={{ value: 'Number of Students', position: 'insideBottom', offset: -25, fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
+                <YAxis dataKey="branch" type="category" width={180} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 500 }} axisLine={true} tickLine={false} label={{ value: 'Department', angle: -90, position: 'insideLeft', offset: 15, fill: 'rgba(255,255,255,0.5)', fontSize: 12, style: { textAnchor: 'middle' } }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="placed" name="Placed" fill="#00A3FF" radius={[0, 4, 4, 0]} barSize={12} />
                 <Bar dataKey="total" name="Total" fill="rgba(255,255,255,0.1)" radius={[0, 4, 4, 0]} barSize={12} />
