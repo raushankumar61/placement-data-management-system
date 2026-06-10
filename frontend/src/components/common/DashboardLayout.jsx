@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Briefcase, FileText, BarChart3,
   Bell, Building2, LogOut, Menu, ChevronRight, Zap,
-  UserCircle, Search, BookOpen, Calendar, MessageSquare,
+  UserCircle, Search, BookOpen, Calendar,
   Shield, ClipboardList, TrendingUp, GraduationCap, Video
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';

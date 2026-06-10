@@ -273,7 +273,6 @@ export default function AdminDashboard() {
   const branchData = (data?.byBranch || []).slice(0, 6).map((b) => ({ branch: b.branch, placed: b.placed, total: b.total }));
   const packageDist = data?.packageDist || [];
   const recentActivity = data?.recentActivity || [];
-  const yearWisePlacement = data?.yearWisePlacement || [];
   const placementRate = stats.students ? Math.round((stats.placed / stats.students) * 100) : 0;
 
   return (
