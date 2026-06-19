@@ -5,6 +5,7 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const { body } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { db } = require('../config/firebase');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
@@ -131,9 +132,11 @@ router.post(
           userRecord = await admin.auth().getUserByEmail(req.body.email);
         } catch (e) {
           if (e.code === 'auth/user-not-found') {
+            // Generate a unique temporary password
+            const tempPassword = crypto.randomBytes(16).toString('hex');
             userRecord = await admin.auth().createUser({
               email: req.body.email,
-              password: 'password123',
+              password: tempPassword,
               displayName: req.body.name,
             });
           }

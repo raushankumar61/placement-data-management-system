@@ -46,11 +46,9 @@ export default function Login() {
     const roleConfig = ROLES.find(r => r.id === activeRole);
     if (activeRole === 'admin') {
       setEmail(roleConfig.demoEmail);
-      setPassword('password123'); // Demo password
-    } else {
-      setEmail('');
-      setPassword('');
     }
+    setEmail('');
+    setPassword('');
     setSelectedAccount(null);
     setSearchQuery('');
     setResetOpen(false);
@@ -243,7 +241,7 @@ export default function Login() {
                             key={acc.id}
                             onClick={() => {
                               setSelectedAccount(acc);
-                              setPassword('password123'); // Demo auto-fill password
+                              setPassword('');
                               setSearchQuery('');
                               setSearchResults([]);
                             }}

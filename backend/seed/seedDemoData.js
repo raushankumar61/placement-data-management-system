@@ -1,4 +1,5 @@
 const { admin, db } = require('../config/firebase');
+const crypto = require('crypto');
 
 async function deleteCollection(collectionPath) {
   const collectionRef = db.collection(collectionPath);
@@ -136,8 +137,12 @@ async function seed() {
   await deleteCollection('recruiters');
 
   console.log('Creating demo accounts...');
-  const pw = 'password123';
-  await createOrUpdateUser('admin@demo.com', pw, 'Admin', 'admin');
+  const demoPasswords = {};
+  
+  // Generate a unique password for admin
+  const adminPw = crypto.randomBytes(8).toString('hex') + 'Ad1!';
+  demoPasswords['admin@demo.com'] = adminPw;
+  await createOrUpdateUser('admin@demo.com', adminPw, 'Admin', 'admin');
   
   const facultyList = [
     { email: 'cs.hod@demo.edu', name: 'Dr. Anita Sharma', dept: 'Computer Science', designation: 'Head of Department', empId: 'FAC-CS-001' },
@@ -153,6 +158,8 @@ async function seed() {
   ];
 
   for (const f of facultyList) {
+    const pw = crypto.randomBytes(8).toString('hex') + 'Fac1!';
+    demoPasswords[f.email] = pw;
     await createOrUpdateUser(f.email, pw, f.name, 'faculty', { department: f.dept, designation: f.designation, employeeId: f.empId });
   }
 
@@ -171,10 +178,14 @@ async function seed() {
   const recruiterMap = {};
   for (const [company, rep] of Object.entries(companyReps)) {
     const email = `${company.toLowerCase().replace(/[^a-z]/g, '')}.recruiter@demo.com`;
+    const pw = crypto.randomBytes(8).toString('hex') + 'Rec1!';
+    demoPasswords[email] = pw;
     const uid = await createOrUpdateUser(email, pw, rep, 'recruiter', { companyName: company });
     recruiterMap[company] = { uid, name: rep };
   }
-  const defaultRecruiterUid = await createOrUpdateUser('recruiter@demo.com', pw, 'Demo Recruiter', 'recruiter', { companyName: 'TechNova Demo' });
+  const recruiterPw = crypto.randomBytes(8).toString('hex') + 'Rec1!';
+  demoPasswords['recruiter@demo.com'] = recruiterPw;
+  const defaultRecruiterUid = await createOrUpdateUser('recruiter@demo.com', recruiterPw, 'Demo Recruiter', 'recruiter', { companyName: 'TechNova Demo' });
   recruiterMap['TechNova Demo'] = { uid: defaultRecruiterUid, name: 'Demo Recruiter' };
 
   // Dummy arrays so the jobs object definition doesn't throw ReferenceError
@@ -182,9 +193,14 @@ async function seed() {
   const recruiterIds = [defaultRecruiterUid];
   const recruiterNames = ['Demo Recruiter'];
 
-  const studentUid = await createOrUpdateUser('student@demo.com', pw, 'Demo Student', 'student', { department: 'Computer Science' });
+  const studentPw = crypto.randomBytes(8).toString('hex') + 'Std1!';
+  demoPasswords['student@demo.com'] = studentPw;
+  const studentUid = await createOrUpdateUser('student@demo.com', studentPw, 'Demo Student', 'student', { department: 'Computer Science' });
 
   console.log('Generating realistic jobs...');
+  console.log('\n=== Demo Account Passwords ===');
+  console.log(JSON.stringify(demoPasswords, null, 2));
+  console.log('==============================\n');
   
   const jobs = [
     // TIER 1 JOBS
