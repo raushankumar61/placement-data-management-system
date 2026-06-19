@@ -46,8 +46,9 @@ export default function Login() {
     const roleConfig = ROLES.find(r => r.id === activeRole);
     if (activeRole === 'admin') {
       setEmail(roleConfig.demoEmail);
+    } else {
+      setEmail('');
     }
-    setEmail('');
     setPassword('');
     setSelectedAccount(null);
     setSearchQuery('');
